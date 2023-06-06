@@ -1,6 +1,6 @@
 # makima
 
-Makima is a daemon for Linux to bind your controller's buttons to keyboard and mouse macros.
+Makima is a daemon for Linux to bind your controller's buttons to keyboard and mouse keys and macros.
 
 ## Features:
 - Configure your keybindings through a simple TOML config file.
@@ -12,6 +12,16 @@ Makima is a daemon for Linux to bind your controller's buttons to keyboard and m
 - Supports wired and Bluetooth connections.
 - Written in Rust so it's blazingly fast or something.
 
+## Tested controllers:
+- DualShock 2
+- DualShock 3
+- DualShock 4
+- DualSense
+- Xbox 360
+- Xbox One
+- Xbox Elite 2
+- Stadia
+
 ## How to use:
 1. Download the executable from the Releases page or compile it yourself using Cargo.
 2. Pick a config file compatible with your controller(s) from the "config examples" folder and put it in `~/.config/makima`, rename it to `config.toml`.
@@ -22,6 +32,6 @@ Makima is a daemon for Linux to bind your controller's buttons to keyboard and m
    - You can either:
      - Launch it from your file manager by double clicking.
      - Launch it from terminal by `cd`ing to the directory of the executable, then using `./makima`.
-     - Add it to a directory that's in PATH, then launch it using `rofi`, `dmenu` or whatever launcher you use. I personally added `~/.local/share/bin` to PATH and put all my executables there.
+     - Move the executable to a directory that's in PATH, then launch it using `rofi`, `dmenu` or whatever launcher you use. I personally added `~/.local/share/bin` to PATH and put all my executables there.
      - Create a .desktop file and launch it from there.
-     - Autostart it from your window manager's config file (usually `exec /path/to/makima)
+     - Autostart it from your window manager's config file (usually `exec /path/to/makima`)
