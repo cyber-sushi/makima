@@ -5,26 +5,26 @@
 #This config file is tested for DualShock 3, DualShock 4 and DualSense controllers. When using a different controller, if no specific config file for your device is available, change the keycodes on the left according to those of your controller (evtest is your friend again). If your controller has a button to enable/disable analog sticks, make sure they're enabled.
 
 [keys]
-#CONTROLLER		 		MOUSE/KEYBOARD BINDINGS
-BTN_NORTH =		 		["KEY_LEFTMETA", "KEY_J"] #triangle
-BTN_EAST =		 		["KEY_ENTER"] #circle
-BTN_SOUTH =		 		["KEY_LEFTSHIFT"] #X
-BTN_WEST =		 		["KEY_LEFTMETA"] #square
-BTN_TR =			 		["KEY_LEFTMETA", "KEY_L"] #R1
-BTN_TR2 =		 		["KEY_LEFTMETA", "KEY_LEFTSHIFT", "KEY_L"] #R2
-BTN_TL =			 		["KEY_LEFTMETA", "KEY_K"] #L1
-BTN_TL2 =		 		["KEY_LEFTMETA", "KEY_LEFTSHIFT", "KEY_K"] #L2
-BTN_START =		 		["KEY_LEFTMETA", "KEY_D"] #start
-BTN_SELECT =		 		["KEY_ESC"] #select
-BTN_THUMBR =		 		["KEY_LEFTMETA", "KEY_Q"] #R3
-BTN_THUMBL =		 		["BTN_MIDDLE"] #L3
-BTN_MODE =		 		["KEY_SPACE"] #PS button
-BTN_DPAD_UP =	 		["KEY_UP"] #directional pad up
-BTN_DPAD_RIGHT =	 		["KEY_RIGHT"] #directional pad right
-BTN_DPAD_DOWN =	 		["KEY_DOWN"] #directional pad down
-BTN_DPAD_LEFT =	 		["KEY_LEFT"] #directional pad left
+#CONTROLLER		 		      MOUSE/KEYBOARD BINDINGS
+BTN_NORTH =		 		      ["KEY_LEFTMETA", "KEY_J"] #triangle
+BTN_EAST =		 		      ["KEY_ENTER"] #circle
+BTN_SOUTH =		 		      ["KEY_LEFTSHIFT"] #X
+BTN_WEST =		 		      ["KEY_LEFTMETA"] #square
+BTN_TR =			 		      ["KEY_LEFTMETA", "KEY_L"] #R1
+BTN_TR2 =		 		        ["KEY_LEFTMETA", "KEY_LEFTSHIFT", "KEY_L"] #R2
+BTN_TL =			 		      ["KEY_LEFTMETA", "KEY_K"] #L1
+BTN_TL2 =		 		        ["KEY_LEFTMETA", "KEY_LEFTSHIFT", "KEY_K"] #L2
+BTN_START =		 		      ["KEY_LEFTMETA", "KEY_D"] #start
+BTN_SELECT =		 		    ["KEY_ESC"] #select
+BTN_THUMBR =		 		    ["KEY_LEFTMETA", "KEY_Q"] #R3
+BTN_THUMBL =		 		    ["BTN_MIDDLE"] #L3
+BTN_MODE =		 		      ["KEY_SPACE"] #PS button
+BTN_DPAD_UP =	 		      ["KEY_UP"] #directional pad up
+BTN_DPAD_RIGHT =	 		  ["KEY_RIGHT"] #directional pad right
+BTN_DPAD_DOWN =	 		    ["KEY_DOWN"] #directional pad down
+BTN_DPAD_LEFT =	 		    ["KEY_LEFT"] #directional pad left
 
 [settings]
 ANALOG_SENSITIVITY =		"6" #lower value is higher sensitivity, minimum 1
 MOVE_MOUSE_WITH_STICK =	"left" #left, right or none
-GRAB_DEVICE =			"false" #gain exclusivity on the device
+GRAB_DEVICE =			      "false" #gain exclusivity on the device
