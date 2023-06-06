@@ -1,16 +1,16 @@
 # makima
 
-Makima is a daemon for Linux to bind your controller's buttons to keyboard and mouse keys and macros.
+Makima is a daemon for Linux to bind your controller's buttons to key sequences and macros.
 
 ## Features:
-- Configure your keybindings through a simple TOML config file.
-- Bind single keys/buttons or entire macros, sequences and shortcuts.
-- Supports keyboard keys, mouse buttons and other quirky input events.
-- Move your cursor using analog sticks with adjustable sensitivity.
-- Hotplug to connect and disconnect your controllers whenever you want.
-- Connect multiple controllers at the same time so your little brother can join.
-- Supports wired and Bluetooth connections.
-- Written in Rust so it's blazingly fast or something.
+- Configure your keybindings through a simple TOML config file
+- Bind single keys/buttons or entire macros, sequences and shortcuts
+- Supports keyboard keys, mouse buttons and any other input event that's in `/usr/include/linux/input-event-codes.h`
+- Move your cursor using analog sticks with adjustable sensitivity
+- Hotplug to connect and disconnect your controllers whenever you want
+- Connect multiple controllers at the same time so your little brother can join and close your IDE when you less expect it
+- Supports wired and Bluetooth connections
+- Written in Rust so it's blazingly fast or something (it only uses 3.5 MB of RAM)
 
 ## Tested controllers:
 - DualShock 2
@@ -34,4 +34,4 @@ Makima is a daemon for Linux to bind your controller's buttons to keyboard and m
      - Launch it from terminal by `cd`ing to the directory of the executable, then using `./makima`.
      - Move the executable to a directory that's in PATH, then launch it using `rofi`, `dmenu` or whatever launcher you use. I personally added `~/.local/share/bin` to PATH and put all my executables there.
      - Create a .desktop file and launch it from there.
-     - Autostart it from your window manager's config file (usually `exec /path/to/makima`)
+     - Autostart it from your window manager's config file (usually `exec /path/to/makima`).
