@@ -5,27 +5,27 @@
 #This config file is tested for Xbox 360, Xbox One and Xbox Elite 2 controllers. When using a different controller, if no specific config file for your device is available, change the keycodes on the left according to those of your controller (evtest is your friend again). If your controller has a button to enable/disable analog sticks, make sure they're enabled.
 
 [keys]
-#CONTROLLER		 		MOUSE/KEYBOARD BINDINGS
-BTN_NORTH =		 		["KEY_LEFTMETA", "KEY_J"] #X
-BTN_EAST =		 		["KEY_ENTER"] #Y
-BTN_SOUTH =		 		["KEY_LEFTSHIFT"] #A
-BTN_WEST =		 		["KEY_LEFTMETA"] #B
-BTN_TR =			 		["KEY_LEFTMETA", "KEY_L"] #RB
-BTN_TR2 =		 		["KEY_LEFTMETA", "KEY_LEFTSHIFT", "KEY_L"] #RT
-BTN_TL =			 		["KEY_LEFTMETA", "KEY_K"] #LB
-BTN_TL2 =		 		["KEY_LEFTMETA", "KEY_LEFTSHIFT", "KEY_K"] #LT
-BTN_START =		 		["KEY_LEFTMETA", "KEY_D"] #start
-BTN_SELECT =		 		["KEY_ESC"] #back
-BTN_THUMBR =		 		["KEY_LEFTMETA", "KEY_Q"] #RS
-BTN_THUMBL =		 		["BTN_MIDDLE"] #LS
-BTN_MODE =		 		["KEY_SPACE"] #Xbox button
-BTN_DPAD_UP =	 		["KEY_UP"] #directional pad up
-BTN_DPAD_RIGHT =	 		["KEY_RIGHT"] #directional pad right
-BTN_DPAD_DOWN =	 		["KEY_DOWN"] #directional pad down
-BTN_DPAD_LEFT =	 		["KEY_LEFT"] #directional pad left
+#CONTROLLER   MOUSE/KEYBOARD BINDINGS
+BTN_NORTH = ["KEY_LEFTMETA", "KEY_J"] #X
+BTN_EAST = ["KEY_ENTER"] #Y
+BTN_SOUTH = ["KEY_LEFTSHIFT"] #A
+BTN_WEST = ["KEY_LEFTMETA"] #B
+BTN_TR = ["KEY_LEFTMETA", "KEY_L"] #RB
+BTN_TR2 = ["KEY_LEFTMETA", "KEY_LEFTSHIFT", "KEY_L"] #RT
+BTN_TL = ["KEY_LEFTMETA", "KEY_K"] #LB
+BTN_TL2 = ["KEY_LEFTMETA", "KEY_LEFTSHIFT", "KEY_K"] #LT
+BTN_START = ["KEY_LEFTMETA", "KEY_D"] #start
+BTN_SELECT = ["KEY_ESC"] #back
+BTN_THUMBR = ["KEY_LEFTMETA", "KEY_Q"] #RS
+BTN_THUMBL = ["BTN_MIDDLE"] #LS
+BTN_MODE = ["KEY_SPACE"] #Xbox button
+BTN_DPAD_UP = ["KEY_UP"] #directional pad up
+BTN_DPAD_RIGHT = ["KEY_RIGHT"] #directional pad right
+BTN_DPAD_DOWN = ["KEY_DOWN"] #directional pad down
+BTN_DPAD_LEFT = ["KEY_LEFT"] #directional pad left
 
 [settings]
-ANALOG_SENSITIVITY =		"6" #lower value is higher sensitivity, minimum 1
-MOVE_MOUSE_WITH_STICK =	"left" #left, right or none
-GRAB_DEVICE =			"false" #gain exclusivity on the device
-XBOX_CONTROLLER =		"true" #xbox controllers use different values for analog sticks so it needs to be specified
+ANALOG_SENSITIVITY = "6" #lower value is higher sensitivity, minimum 1
+MOVE_MOUSE_WITH_STICK = "left" #left, right or none
+GRAB_DEVICE = "false" #gain exclusivity on the device
+XBOX_CONTROLLER = "true" #xbox controllers use different values for analog sticks so it needs to be specified
