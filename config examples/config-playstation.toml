@@ -5,7 +5,7 @@
 #This config file is tested for DualShock 3, DualShock 4 and DualSense controllers. When using a different controller, if no specific config file for your device is available, change the keycodes on the left according to those of your controller (evtest is your friend again). If your controller has a button to enable/disable analog sticks, make sure they're enabled.
 
 [keys]
-#CONTROLLER		 		MOUSE/KEYBOARD BINDINGS
+#CONTROLLER   MOUSE/KEYBOARD BINDINGS
 BTN_NORTH = ["KEY_LEFTMETA", "KEY_J"] #triangle
 BTN_EAST = ["KEY_ENTER"] #circle
 BTN_SOUTH = ["KEY_LEFTSHIFT"] #X
