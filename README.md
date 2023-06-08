@@ -8,7 +8,7 @@ Makima is a daemon for Linux to bind your controller's buttons to key sequences 
 - Supports keyboard keys, mouse buttons and any other input event that's in `/usr/include/linux/input-event-codes.h`
 - Move your cursor using analog sticks with adjustable sensitivity
 - Hotplug to connect and disconnect your controllers whenever you want
-- Connect multiple controllers at the same time so your little brother can join and close your IDE when you less expect it
+- Connect multiple controllers at the same time so your little brother can join and close your IDE when you least expect it
 - Supports wired and Bluetooth connections
 - Written in Rust so it's blazingly fast or something (it only uses 3.5 MB of RAM)
 
