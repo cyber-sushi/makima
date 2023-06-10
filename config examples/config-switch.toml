@@ -1,0 +1,32 @@
+#SAMPLE CONFIG FILE FOR SWITCH JOYCONS
+#Put this in ~/.config/makima and rename it to config.toml
+#You can find the available keycodes in /usr/include/linux/input-event-codes.h
+#If you're not sure which keycode corresponds to which key, you can run 'evtest', select your keyboard/mouse and press the corresponding key/button.
+#This config file is tested for Switch Joycons (Left and Right). When using a different controller, if no specific config file for your device is available, change the keycodes on the left according to those of your controller (evtest is your friend again). If your controller has a button to enable/disable analog sticks, make sure they're enabled.
+
+[keys]
+#CONTROLLER   MOUSE/KEYBOARD BINDINGS
+BTN_NORTH = ["KEY_LEFTMETA", "KEY_J"] #X
+BTN_EAST = ["KEY_ENTER"] #A
+BTN_SOUTH = ["KEY_LEFTSHIFT"] #B
+BTN_WEST = ["KEY_LEFTMETA"] #Y
+BTN_TR = ["KEY_LEFTMETA", "KEY_L"] #R (and SL on left joycon)
+BTN_TR2 = ["KEY_LEFTMETA", "KEY_LEFTSHIFT", "KEY_L"] #ZR (and SR on left joycon)
+BTN_TL = ["KEY_LEFTMETA", "KEY_K"] #L (and SL on right joycon)
+BTN_TL2 = ["KEY_LEFTMETA", "KEY_LEFTSHIFT", "KEY_K"] #ZL (and SR on right joycon)
+BTN_START = ["KEY_LEFTMETA", "KEY_D"] #plus
+BTN_SELECT = ["KEY_ESC"] #minus
+BTN_THUMBR = ["KEY_LEFTMETA", "KEY_Q"] #right stick press
+BTN_THUMBL = ["BTN_MIDDLE"] #left stick press
+BTN_MODE = ["KEY_SPACE"] #home
+BTN_Z = ["BTN_LEFT"] #capture
+BTN_DPAD_UP = ["KEY_UP"] #directional pad up
+BTN_DPAD_RIGHT = ["KEY_RIGHT"] #directional pad right
+BTN_DPAD_DOWN = ["KEY_DOWN"] #directional pad down
+BTN_DPAD_LEFT = ["KEY_LEFT"] #directional pad left
+
+[settings]
+ANALOG_SENSITIVITY = "6" #lower value is higher sensitivity, minimum 1
+MOVE_MOUSE_WITH_STICK = "left" #left, right or none
+GRAB_DEVICE = "false" #gain exclusivity on the device
+SIGNED_AXIS_VALUE = "true" #necessary for Xbox controllers and Switch joycons, use false for other controllers
