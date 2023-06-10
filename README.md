@@ -10,7 +10,7 @@ Makima is a daemon for Linux to bind your controller's buttons to key sequences 
 - Hotplug to connect and disconnect your controllers whenever you want
 - Connect multiple controllers at the same time so your little brother can join and close your IDE when you least expect it
 - Supports wired and Bluetooth connections
-- Written in Rust so it's blazingly fast or something (it only uses 3.5 MB of RAM)
+- Written in Rust so it's blazingly fast or something? (it only uses 3.5 MB of RAM)
 
 ## Tested controllers:
 - DualShock 2
@@ -21,6 +21,7 @@ Makima is a daemon for Linux to bind your controller's buttons to key sequences 
 - Xbox One
 - Xbox Elite 2
 - Stadia
+- Switch Joy-Cons
 
 ## How to use:
 1. Download the executable from the Releases page or compile it yourself using Cargo.
