@@ -37,9 +37,9 @@ impl EventReader {
         if let Some(stick) = self.config.settings.get("POINTER_STICK") {
             analog_mode = stick.as_str();
         };
-        let mut is_xbox: &str = "false";
-        if let Some(xbox) = self.config.settings.get("XBOX_CONTROLLER") {
-            is_xbox = xbox.as_str();
+        let mut has_signed_axis_value: &str = "false";
+        if let Some(axis_value) = self.config.settings.get("SIGNED_AXIS_VALUE") {
+            has_signed_axis_value = axis_value.as_str();
         };
         while let Some(Ok(event)) = stream.next().await {
             match (event.event_type(), AbsoluteAxisType(event.code()), analog_mode) {
@@ -77,12 +77,12 @@ impl EventReader {
                     }
                 },
                 (EventType::ABSOLUTE, AbsoluteAxisType::ABS_X | AbsoluteAxisType::ABS_Y, "left") => {
-                    let rel_value = self.get_rel_value(&is_xbox, &event).await;
+                    let rel_value = self.get_rel_value(&has_signed_axis_value, &event).await;
                     let mut analog_position = self.analog_position.lock().await;
                     analog_position[event.code() as usize] = rel_value;
                 },
                 (EventType::ABSOLUTE, AbsoluteAxisType::ABS_RX | AbsoluteAxisType::ABS_RY, "right") => {
-                    let rel_value = self.get_rel_value(&is_xbox, &event).await;
+                    let rel_value = self.get_rel_value(&has_signed_axis_value, &event).await;
                     let mut analog_position = self.analog_position.lock().await;
                     analog_position[(event.code() as usize) -3] = rel_value;
                 },
@@ -123,8 +123,8 @@ impl EventReader {
         }
     }
     
-    async fn get_rel_value(&self, is_xbox: &str, event: &InputEvent) -> i32 {
-        let rel_value: i32 = match &is_xbox {
+    async fn get_rel_value(&self, has_signed_axis_value: &str, event: &InputEvent) -> i32 {
+        let rel_value: i32 = match &has_signed_axis_value {
             &"false" => {
                 let distance_from_center: i32 = event.value() as i32 - 128;
                 distance_from_center / 10
