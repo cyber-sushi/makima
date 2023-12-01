@@ -1,6 +1,6 @@
 #SAMPLE CONFIG FILE FOR XBOX CONTROLLERS
-#Put this in ~/.config/makima and rename it to config.toml
-#You can find the available keycodes in /usr/include/linux/input-event-codes.h
+#Put this in ~/.config/makima and rename it to the exact name of the device as shown by the 'evtest' command, including spaces and capitalization.
+#You can find all the available keycodes in /usr/include/linux/input-event-codes.h
 #If you're not sure which keycode corresponds to which key, you can run 'evtest', select your keyboard/mouse and press the corresponding key/button.
 #This config file is tested for Xbox 360, Xbox One and Xbox Elite 2 controllers. When using a different controller, if no specific config file for your device is available, change the keycodes on the left according to those of your controller (evtest is your friend again). If your controller has a button to enable/disable analog sticks, make sure they're enabled.
 
