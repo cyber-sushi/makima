@@ -47,7 +47,7 @@ impl EventReader {
                     if let Some(event_list) = self.config.keys.get(&Key(event.code())) {
                         self.emit_event(event_list, event.value()).await
                     } else {
-                        println!("Button has no binding in the config file.");
+                        self.emit_default_event(event).await;
                     }
                 },
                 (_, AbsoluteAxisType::ABS_HAT0X, _) => {
@@ -60,7 +60,7 @@ impl EventReader {
                     if let Some(event_list) = event_list_option {
                         self.emit_event(event_list, event.value()).await;
                     } else {
-                        println!("Button has no binding in the config file.");
+                        println!("Button not set in the config file!");
                     }
                 },
                 (_, AbsoluteAxisType::ABS_HAT0Y, _) => {
@@ -73,7 +73,7 @@ impl EventReader {
                     if let Some(event_list) = event_list_option {
                         self.emit_event(event_list, event.value()).await;
                     } else {
-                        println!("Button has no binding in the config file.");
+                        println!("Button not set in the config file!");
                     }
                 },
                 (EventType::ABSOLUTE, AbsoluteAxisType::ABS_X | AbsoluteAxisType::ABS_Y, "left") => {
@@ -94,7 +94,7 @@ impl EventReader {
                             self.emit_event(event_list, 1).await
                         };
                     } else {
-                        println!("Button has no binding in the config file.");
+                        println!("Button not set in the config file!");
                     };
                 },
                 (EventType::ABSOLUTE, AbsoluteAxisType::ABS_RZ, _) => {
@@ -105,10 +105,10 @@ impl EventReader {
                             self.emit_event(event_list, 1).await
                         };
                     } else {
-                        println!("Button has no binding in the config file.");
+                        println!("Button not set in the config file!");
                     };
                 },
-                _ => {}
+                _ => {self.emit_default_event(event).await}
             }
         }
         let mut device_is_connected = self.device_is_connected.lock().await;
@@ -120,6 +120,15 @@ impl EventReader {
             let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), value);
             let mut virt_dev = self.virt_dev.lock().await;
             virt_dev.keys.emit(&[virtual_event]).unwrap();
+        }
+    }
+    
+    async fn emit_default_event(&self, event: InputEvent) {
+        let mut virt_dev = self.virt_dev.lock().await;
+        match event.event_type() {
+            EventType::KEY => virt_dev.keys.emit(&[event]).unwrap(),
+            EventType::RELATIVE => virt_dev.relative_axes.emit(&[event]).unwrap(),
+            _ => {}
         }
     }
     
@@ -137,28 +146,31 @@ impl EventReader {
     }
 
     async fn cursor_loop(&self) {
-        let polling_rate: u64 = self.config.settings.get("ANALOG_SENSITIVITY")
-            .expect("No analog sensitivity found in config file.")
-            .parse::<u64>()
-            .expect("Invalid analog sensitivity.");
-        while *self.device_is_connected.lock().await {
-            {
-                let analog_position = self.analog_position.lock().await;
-                if analog_position[0] != 0 || analog_position[1] != 0 {
-                    let virtual_event_x: InputEvent = InputEvent::new_now(EventType::RELATIVE, 0, analog_position[0]);
-                    let virtual_event_y: InputEvent = InputEvent::new_now(EventType::RELATIVE, 1, analog_position[1]);
-                    let mut virt_dev = self.virt_dev.lock().await;
-                    virt_dev.relative_axes.emit(&[virtual_event_x]).unwrap();
-                    virt_dev.relative_axes.emit(&[virtual_event_y]).unwrap();
+        if let Some(sensitivity) = self.config.settings.get("ANALOG_SENSITIVITY") {
+            let polling_rate: u64 = sensitivity.parse::<u64>().expect("Invalid analog sensitivity.");
+            while *self.device_is_connected.lock().await {
+                {
+                    let analog_position = self.analog_position.lock().await;
+                    if analog_position[0] != 0 || analog_position[1] != 0 {
+                        let virtual_event_x: InputEvent = InputEvent::new_now(EventType::RELATIVE, 0, analog_position[0]);
+                        let virtual_event_y: InputEvent = InputEvent::new_now(EventType::RELATIVE, 1, analog_position[1]);
+                        let mut virt_dev = self.virt_dev.lock().await;
+                        virt_dev.relative_axes.emit(&[virtual_event_x]).unwrap();
+                        virt_dev.relative_axes.emit(&[virtual_event_y]).unwrap();
+                    }
                 }
+                tokio::time::sleep(std::time::Duration::from_millis(polling_rate)).await;
             }
-            tokio::time::sleep(std::time::Duration::from_millis(polling_rate)).await;
+        } else {
+            return
         }
     }
 }
 
 #[derive(serde::Deserialize, Debug, Clone)]
 struct Config {
+    #[serde(skip)]
+    name: String,
     keys: HashMap<Key, Vec<Key>>,
     settings: HashMap<String, String>,
     #[serde(skip)]
@@ -166,9 +178,10 @@ struct Config {
 }
 
 impl Config {
-    fn new_from_file(file: &str) -> Self {
-        let config_str: String = std::fs::read_to_string(file).expect("No config file found at '~/.config/makima/config.toml");
-        let config: Config = toml::from_str(&config_str).expect("Couldn't parse config file.");
+    fn new_from_file(file: &str, file_name: String) -> Self {
+        println!("Parsing config file at {:?}", file);
+        let file_content: String = std::fs::read_to_string(file).unwrap();
+        let config: Config = toml::from_str(&file_content).expect("Couldn't parse config file.");
         let keys: HashMap<Key, Vec<Key>> = config.keys;
         let mut abs: HashMap<String, Vec<Key>> = HashMap::new();
         let mut pad_horizontal: Vec<Key> = keys.get(&Key::BTN_DPAD_LEFT).unwrap_or(&Vec::new()).clone();
@@ -179,6 +192,7 @@ impl Config {
         abs.insert("NONE_Y".to_string(), pad_vertical);
         let settings: HashMap<String, String> = config.settings;
         Self {
+            name: file_name,
             keys: keys,
             settings: settings,
             abs: abs,
@@ -204,7 +218,7 @@ async fn create_new_reader(device: String, config: Config) {
     let stream: Arc<Mutex<EventStream>> = Arc::new(Mutex::new(get_event_stream(Path::new(&device), config.clone())));
     let virt_dev: Arc<Mutex<VirtualDevices>> = Arc::new(Mutex::new(new_virtual_devices()));
     let reader = EventReader::new(config.clone(), stream, virt_dev);
-    println!("Device detected at {}, reading events.", device);
+    println!("Mapped device detected at {}, reading events.", device);
     tokio::join!(
         reader.start(),
         reader.cursor_loop(),
@@ -212,31 +226,28 @@ async fn create_new_reader(device: String, config: Config) {
     println!("Disconnected device at {}.", device);
 }
 
-async fn start_monitoring_udev(config: Config, mut tasks: Vec<JoinHandle<()>>) {
+async fn start_monitoring_udev(config_files: Vec<Config>, mut tasks: Vec<JoinHandle<()>>) {
+    launch_tasks(&config_files, &mut tasks);
     let mut monitor = tokio_udev::AsyncMonitorSocket::new(
         tokio_udev::MonitorBuilder::new().unwrap()
         .match_subsystem(OsStr::new("input")).unwrap()
         .listen().unwrap()
         ).unwrap();
     while let Some(Ok(event)) = monitor.next().await {
-        if is_controller(&event.device()) {
+        if is_mapped(&event.device(), &config_files) {
             println!("Reinitializing...");
-            let devices = scan_connected_devices();
             for task in &tasks {
                 task.abort();
             }
             tasks.clear();
-            for device in devices {
-                tasks.push(tokio::spawn(create_new_reader(device, config.clone())));
-            }
+            launch_tasks(&config_files, &mut tasks)
         }
     }
 }
 
-
 fn get_event_stream(path: &Path, config: Config) -> EventStream {
     let mut device: Device = Device::open(path).expect("Couldn't open device path.");
-    if config.settings.get("GRAB_DEVICE").unwrap() == &"true".to_string() {
+    if config.settings.get("GRAB_DEVICE").expect("No GRAB_DEVICE setting specified, this device will be ignored.") == &"true".to_string() {
         device.grab().unwrap();
     };
     let stream: EventStream = device.into_event_stream().unwrap();
@@ -260,43 +271,45 @@ fn new_virtual_devices() -> VirtualDevices {
     return virtual_devices;
 }
 
-fn scan_connected_devices() -> Vec<String> {
-    let mut connected_devices: Vec<String> = Vec::new();
-    let mut enumerator = tokio_udev::Enumerator::new().unwrap();
-    enumerator.match_subsystem(
-        OsStr::new("input"),
-    ).unwrap();
-    let device_list = enumerator.scan_devices().unwrap();
-    for device in device_list {
-        if is_controller(&device) {
-            connected_devices.push(device.devnode().unwrap().to_str().unwrap().to_string());
-        }
-    }
-    return connected_devices
-}
-
-fn is_controller(device: &tokio_udev::Device) -> bool {
-    match (device.devnode(), device.property_value(OsStr::new("ID_INPUT_JOYSTICK"))) {
-        (Some(_), Some(_))  => {
-            if device.devnode().unwrap().to_str().unwrap().to_string().contains("event")
-            && !device.devpath().to_str().unwrap().contains(&"virtual") {
-                true
-            } else {
-                false
+fn launch_tasks(config_files: &Vec<Config>, tasks: &mut Vec<JoinHandle<()>>) {
+    let devices: evdev::EnumerateDevices = evdev::enumerate();
+    for device in devices {
+        for config in config_files {
+            if config.name == device.1.name().unwrap().to_string() {
+                tasks.push(tokio::spawn(create_new_reader(device.0.as_path().to_str().unwrap().to_string(), config.clone())));
             }
         }
-        _ => false
     }
+}
+
+fn is_mapped(udev_device: &tokio_udev::Device, config_files: &Vec<Config>) -> bool {
+    match udev_device.devnode() {
+        Some(devnode) => {
+            let evdev_devices: evdev::EnumerateDevices = evdev::enumerate();
+            for evdev_device in evdev_devices {
+                for config in config_files {
+                    if config.name == evdev_device.1.name().unwrap().to_string()
+                    && devnode.to_path_buf() == evdev_device.0 {
+                        return true
+                    }
+                }
+            }
+        }
+        _ => return false
+    }
+    return false
 }
 
 #[tokio::main]
 async fn main() {
-    let config_path = std::path::PathBuf::from(format!("{}/.config/makima/config.toml", home::home_dir().unwrap().display()));
-    let config: Config = Config::new_from_file(config_path.to_str().unwrap());
-    let devices: Vec<String> = scan_connected_devices();
-    let mut tasks: Vec<JoinHandle<()>> = Vec::new();
-    for device in devices {
-        tasks.push(tokio::spawn(create_new_reader(device, config.clone())));
+    let config_path = std::fs::read_dir(format!("{}/.config/makima", home::home_dir().unwrap().display())).unwrap();
+    let mut config_files: Vec<Config> = Vec::new();
+    for file in config_path {
+        let filename: String = file.as_ref().unwrap().file_name().into_string().unwrap()
+            .split(".toml").collect::<Vec<&str>>()[0].to_string();
+        let config_file: Config = Config::new_from_file(file.unwrap().path().to_str().unwrap(), filename);
+        config_files.push(config_file);
     }
-    start_monitoring_udev(config.clone(), tasks).await;
+    let tasks: Vec<JoinHandle<()>> = Vec::new();
+    start_monitoring_udev(config_files, tasks).await;
 }
