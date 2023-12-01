@@ -1,12 +1,12 @@
 # makima
 
 Makima is a daemon for Linux to remap keyboards, mice, controllers and tablets.\
-Does not rely on any graphical stack, will work on X11, Wayland and even tty, as it relies on the `evdev` kernel interface.\
+It works on Wayland, X11 and even tty, as it relies on the `evdev` kernel interface.\
 Previously only a controller daemon, the scope has now been extended because I had nothing better to do.
 
 ## Features:
 - Configure your keybindings through simple TOML config files, one for each device.
-- Bind and remap keys/buttons or entire macros, sequences and shortcuts.
+- Remap keys/buttons or bind entire macros and key sequences.
 - Supports keyboards, mice and any other device that uses input events present inside `/usr/include/linux/input-event-codes.h`.
 - Hotplug to connect and disconnect your devices whenever you want.
 - Connect and remap as many input devices as you want.
