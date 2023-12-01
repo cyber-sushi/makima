@@ -34,7 +34,7 @@ Config files inside the `~/.config/makima` directory will be parsed automaticall
 To associate a config file to an input device, the file name should be identical to that of the device.
 For example, if you run `evtest` and see that your Dualshock 4 controller is named "Sony Interactive Entertainment Wireless Controller", then you'll have to name your config file "Sony Interactive Entertainment Wireless Controller.toml".
 
-The config file has two sections, a `[keys]` section, where you'll remap your keys, and a `[settings]` section, where you'll configure a few options.
+The config file has three sections, a `[keys]` section, where you'll remap your keys, a `[rel]` section to remap scroll wheels and a `[settings]` section containing a few options.
 
 ### \[keys]
 Example where the Caps Lock and Ctrl keys are switched:
@@ -57,6 +57,17 @@ BTN_MIDDLE = ["KEY_S", "KEY_H", "KEY_U", "KEY_T", "KEY_D", "KEY_O", "KEY_W", "KE
 ```
 To check all of the available key codes, refer to the file `/usr/include/linux/input-event-codes.h`.\
 Remember that keys like Ctrl and Alt will have key codes like `KEY_LEFTCTRL`, `KEY_RIGHTCTRL`, `KEY_LEFTALT` and `KEY_RIGHTALT`. Just using `KEY_CTRL` and `KEY_ALT` will throw a parsing error because the key code does not exist.
+Keys that are not explicitly remapped will keep their default functionality.
+If you don't need to remap keys, you can just omit the entire `[keys]` paragraph.
+
+### \[rel]
+Example where the mouse scroll wheel will zoom in and out of a browser page:
+```
+[rel]
+SCROLL_WHEEL_UP = ["KEY_LEFTCTRL", "KEY_LEFTSHIFT", "KEY_EQUAL"]
+SCROLL_WHEEL_DOWN = ["KEY_LEFTCTRL", "KEY_MINUS"]
+```
+If you don't need to remap your scroll wheel, just omit the `[rel]` paragraph and it'll fall back to default functionality.
 
 ### \[settings]
 There are currently 4 available settings:
@@ -92,7 +103,3 @@ Refer to the sample config files on this Github for more information about contr
 - Switch Joy-Cons
 
 To add other controllers, please open an issue.
-
-## Known issues:
-Makima currently does not support remapping `EV_REL` type events such as scrolling a wheel.\
-It will be implemented in a future version.
