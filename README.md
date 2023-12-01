@@ -56,7 +56,7 @@ BTN_LEFT = ["KEY_S", "KEY_H", "KEY_U", "KEY_T", "KEY_D", "KEY_O", "KEY_W", "KEY_
 BTN_RIGHT = ["KEY_S", "KEY_H", "KEY_U", "KEY_T", "KEY_D", "KEY_O", "KEY_W", "KEY_N", "KEY_SPACE", "KEY_N", "KEY_O", "KEY_W", "KEY_ENTER"]
 BTN_MIDDLE = ["KEY_S", "KEY_H", "KEY_U", "KEY_T", "KEY_D", "KEY_O", "KEY_W", "KEY_N", "KEY_SPACE", "KEY_N", "KEY_O", "KEY_W", "KEY_ENTER"]
 ```
-To check all of the available key codes, refer to the file `/usr/include/linux/input-event-codes.h`.\
+To see all of the available key codes, refer to the file `/usr/include/linux/input-event-codes.h`.\
 Remember that keys like Ctrl and Alt will have key codes like `KEY_LEFTCTRL`, `KEY_RIGHTCTRL`, `KEY_LEFTALT` and `KEY_RIGHTALT`. Just using `KEY_CTRL` and `KEY_ALT` will throw a parsing error because the key code does not exist.\
 Keys that are not explicitly remapped will keep their default functionality.
 If you don't need to remap any key, you can just omit the entire `[keys]` paragraph.
