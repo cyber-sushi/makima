@@ -30,9 +30,11 @@ Previously only a controller daemon, the scope has now been extended because I h
      - Autostart it from your window manager's config file (usually `exec /path/to/makima`).
 
 ## Configuration:
-Config files inside the `~/.config/makima` directory will be parsed automatically when `makima` is launched.
+You can find some sample config files on this Github.
+Pick one that fits your use case and copy it inside `~/.config/makima`, then edit it to your needs.
 To associate a config file to an input device, the file name should be identical to that of the device.
 For example, if you run `evtest` and see that your Dualshock 4 controller is named "Sony Interactive Entertainment Wireless Controller", then you'll have to name your config file "Sony Interactive Entertainment Wireless Controller.toml".
+All config files will be parsed automatically when `makima` is launched.
 
 The config file has three sections, a `[keys]` section, where you'll remap your keys, a `[rel]` section to remap scroll wheels and a `[settings]` section containing a few options.
 
