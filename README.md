@@ -1,7 +1,7 @@
 # makima
 
-Makima is a daemon for Linux to remap keyboards, mice, controllers and tablets.
-Does not rely on any graphical stack, will work on X11, Wayland and even tty, as it relies on the `evdev` kernel interface.
+Makima is a daemon for Linux to remap keyboards, mice, controllers and tablets.\
+Does not rely on any graphical stack, will work on X11, Wayland and even tty, as it relies on the `evdev` kernel interface.\
 Previously only a controller daemon, the scope has now been extended because I had nothing better to do.
 
 ## Features:
@@ -55,7 +55,7 @@ BTN_LEFT = ["KEY_S", "KEY_H", "KEY_U", "KEY_T", "KEY_D", "KEY_O", "KEY_W", "KEY_
 BTN_RIGHT = ["KEY_S", "KEY_H", "KEY_U", "KEY_T", "KEY_D", "KEY_O", "KEY_W", "KEY_N", "KEY_SPACE", "KEY_N", "KEY_O", "KEY_W", "KEY_ENTER"]
 BTN_MIDDLE = ["KEY_S", "KEY_H", "KEY_U", "KEY_T", "KEY_D", "KEY_O", "KEY_W", "KEY_N", "KEY_SPACE", "KEY_N", "KEY_O", "KEY_W", "KEY_ENTER"]
 ```
-To check all of the available key codes, refer to the file `/usr/include/linux/input-event-codes.h`.
+To check all of the available key codes, refer to the file `/usr/include/linux/input-event-codes.h`.\
 Remember that keys like Ctrl and Alt will have key codes like `KEY_LEFTCTRL`, `KEY_RIGHTCTRL`, `KEY_LEFTALT` and `KEY_RIGHTALT`. Just using `KEY_CTRL` and `KEY_ALT` will throw a parsing error because the key code does not exist.
 
 ### \[settings]
@@ -92,3 +92,7 @@ Refer to the sample config files on this Github for more information about contr
 - Switch Joy-Cons
 
 To add other controllers, please open an issue.
+
+## Known issues:
+Makima currently does not support remapping `EV_REL` type events such as scrolling a wheel.\
+It will be implemented in a future version.
