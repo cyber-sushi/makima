@@ -1,5 +1,5 @@
 use std::{collections::HashMap, fmt::Debug, ffi::OsStr, path::Path, sync::Arc};
-use evdev::{Device, EventStream, Key, AbsoluteAxisType, EventType, InputEvent};
+use evdev::{Device, EventStream, Key, RelativeAxisType, AbsoluteAxisType, EventType, InputEvent};
 use evdev::uinput::{VirtualDevice, VirtualDeviceBuilder};
 use tokio::{sync::Mutex, task::JoinHandle};
 use tokio_stream::StreamExt;
@@ -42,15 +42,31 @@ impl EventReader {
             has_signed_axis_value = axis_value.as_str();
         };
         while let Some(Ok(event)) = stream.next().await {
-            match (event.event_type(), AbsoluteAxisType(event.code()), analog_mode) {
-                (EventType::KEY, _, _) => {
+            match (event.event_type(), RelativeAxisType(event.code()), AbsoluteAxisType(event.code()), analog_mode) {
+                (EventType::KEY, _, _, _) => {
                     if let Some(event_list) = self.config.keys.get(&Key(event.code())) {
                         self.emit_event(event_list, event.value()).await
                     } else {
                         self.emit_default_event(event).await;
                     }
                 },
-                (_, AbsoluteAxisType::ABS_HAT0X, _) => {
+                (_, RelativeAxisType::REL_WHEEL | RelativeAxisType::REL_WHEEL_HI_RES, _, _) => {
+                    let event_list_option: Option<&Vec<Key>> = match event.value() {
+                        -1 => self.config.rel.get(&"SCROLL_WHEEL_DOWN".to_string()),
+                        1 => self.config.rel.get(&"SCROLL_WHEEL_UP".to_string()),
+                        _ => None,
+                    };
+                    if let Some(event_list) = event_list_option {
+                        self.emit_event(event_list, event.value()).await;
+                        self.emit_event(event_list, 0).await;
+                    } else {
+                        if !self.config.rel.contains_key("SCROLL_WHEEL_DOWN")
+                        && !self.config.rel.contains_key("SCROLL_WHEEL_UP") {
+                            self.emit_default_event(event).await;
+                        }
+                    }
+                },
+                (_, _, AbsoluteAxisType::ABS_HAT0X, _) => {
                     let event_list_option: Option<&Vec<Key>> = match event.value() {
                         -1 => self.config.keys.get(&Key::BTN_DPAD_LEFT),
                         0 => self.config.abs.get(&"NONE_X".to_string()),
@@ -63,7 +79,7 @@ impl EventReader {
                         println!("Button not set in the config file!");
                     }
                 },
-                (_, AbsoluteAxisType::ABS_HAT0Y, _) => {
+                (_, _, AbsoluteAxisType::ABS_HAT0Y, _) => {
                     let event_list_option: Option<&Vec<Key>> = match event.value() {
                         -1 => self.config.keys.get(&Key::BTN_DPAD_UP),
                         0 => self.config.abs.get(&"NONE_Y".to_string()),
@@ -76,17 +92,17 @@ impl EventReader {
                         println!("Button not set in the config file!");
                     }
                 },
-                (EventType::ABSOLUTE, AbsoluteAxisType::ABS_X | AbsoluteAxisType::ABS_Y, "left") => {
+                (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_X | AbsoluteAxisType::ABS_Y, "left") => {
                     let rel_value = self.get_rel_value(&has_signed_axis_value, &event).await;
                     let mut analog_position = self.analog_position.lock().await;
                     analog_position[event.code() as usize] = rel_value;
                 },
-                (EventType::ABSOLUTE, AbsoluteAxisType::ABS_RX | AbsoluteAxisType::ABS_RY, "right") => {
+                (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_RX | AbsoluteAxisType::ABS_RY, "right") => {
                     let rel_value = self.get_rel_value(&has_signed_axis_value, &event).await;
                     let mut analog_position = self.analog_position.lock().await;
                     analog_position[(event.code() as usize) -3] = rel_value;
                 },
-                (EventType::ABSOLUTE, AbsoluteAxisType::ABS_Z, _) => {
+                (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_Z, _) => {
                     if let Some(event_list) = self.config.keys.get(&Key::BTN_TL2) {
                         if event.value() == 0 {
                             self.emit_event(event_list, event.value()).await
@@ -97,7 +113,7 @@ impl EventReader {
                         println!("Button not set in the config file!");
                     };
                 },
-                (EventType::ABSOLUTE, AbsoluteAxisType::ABS_RZ, _) => {
+                (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_RZ, _) => {
                     if let Some(event_list) = self.config.keys.get(&Key::BTN_TR2) {
                         if event.value() == 0 {
                             self.emit_event(event_list, event.value()).await
@@ -171,10 +187,13 @@ impl EventReader {
 struct Config {
     #[serde(skip)]
     name: String,
+    #[serde(default)]
     keys: HashMap<Key, Vec<Key>>,
     settings: HashMap<String, String>,
     #[serde(skip)]
     abs: HashMap<String, Vec<Key>>,
+    #[serde(default)]
+    rel: HashMap<String, Vec<Key>>,
 }
 
 impl Config {
@@ -183,6 +202,7 @@ impl Config {
         let file_content: String = std::fs::read_to_string(file).unwrap();
         let config: Config = toml::from_str(&file_content).expect("Couldn't parse config file.");
         let keys: HashMap<Key, Vec<Key>> = config.keys;
+        let rel: HashMap<String, Vec<Key>> = config.rel;
         let mut abs: HashMap<String, Vec<Key>> = HashMap::new();
         let mut pad_horizontal: Vec<Key> = keys.get(&Key::BTN_DPAD_LEFT).unwrap_or(&Vec::new()).clone();
         pad_horizontal.extend(keys.get(&Key::BTN_DPAD_RIGHT).unwrap_or(&Vec::new()));
@@ -196,6 +216,7 @@ impl Config {
             keys: keys,
             settings: settings,
             abs: abs,
+            rel: rel
         }
     }
 }
