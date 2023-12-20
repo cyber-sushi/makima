@@ -112,10 +112,10 @@ To add other controllers, please open an issue.
 
 ## Troubleshooting and possible questions:
 Q: My device actually shows as three different devices in evtest, do I need to create three different config files, one for each device?\
-A: Yes, most mice with additional keys are usually seen as a mouse and a keyboard by the kernel and they need to be mapped separately.\
+A: Yes, most mice with additional keys are usually seen as a mouse and a keyboard by the kernel and they need to be mapped separately.
 
 Q: Can I map a key sequence (e.g. Ctrl+C) to something else?\
-A: Currently, no. Only single key/button strokes can be mapped to other keys or macros. You can map a mouse button to Ctrl+C, but you can't map Ctrl+C to a mouse button.\
+A: Currently, no. Only single key/button strokes can be mapped to other keys or macros. You can map a mouse button to Ctrl+C, but you can't map Ctrl+C to a mouse button.
 
 Q: My controller works when using Bluetooth but not when using wired connection or vice-versa, why?\
 A: Some devices have a different evdev name when connected through Bluetooth, for example a `Sony Interactive Entertainment Wireless Controller` is just seen as `Wireless Controller` when connected via Bluetooth. You'll need to create a copy of the config file with that name.
