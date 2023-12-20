@@ -9,9 +9,9 @@ Previously only a controller daemon, the scope has now been expanded because I h
 - Remap keys/buttons or bind entire macros and key sequences.
 - Supports keyboards, mice and any other device that uses input events present inside `/usr/include/linux/input-event-codes.h`.
 - Hotplug to connect and disconnect your devices whenever you want.
-- Connect and remap as many input devices as you want.
 - Supports wired and Bluetooth connections.
 - If you connect a [supported game controller](https://github.com/cyber-sushi/makima/tree/main#tested-controllers), you can move your cursor using analog sticks with adjustable sensitivity.
+- You can have multiple sets of key bindings that automatically switch based on the active window (only on Hyprland currently).
 - Written in Rust so it's blazingly fast, I think?
 
 ## How to use:
@@ -32,9 +32,14 @@ Previously only a controller daemon, the scope has now been expanded because I h
 ## Configuration:
 You can find some sample config files on this Github; pick one that fits your use case and copy it inside `~/.config/makima`, then edit it to your needs.\
 **To associate a config file to an input device, the file name should be identical to that of the device.**\
-For example, if you run `evtest` and see that your Dualshock 4 controller is named "Sony Interactive Entertainment Wireless Controller", then you'll have to name your config file "Sony Interactive Entertainment Wireless Controller.toml".\
+For example, if you run `evtest` and see that your Dualshock 4 controller is named `Sony Interactive Entertainment Wireless Controller`, then you'll have to name your config file `Sony Interactive Entertainment Wireless Controller.toml`.\
 All config files will be parsed automatically when `makima` is launched.
 
+### Adaptive bindings for each window (Hyprland only atm):
+Have you ever wanted to have a different set of macros for each game that you play? Or maybe you want your controller to input Space when you press X, but only when MPV is focused? Then this is exactly what you're looking for!\
+To have window-specific config files, just put `::window_class` at the end of their filename, before `.toml`. For example, if you want your DS4 controller to have a specific set of keybindings for Firefox, name that file `Sony Interactive Entertainment Wireless Controller::firefox.toml`. To retrieve the window class of a specific application, refer to your compositor's documentation, e.g. on Hyprland type `hyprctl clients` in your terminal while that application is open.
+
+## The config files:
 The config file has three sections, a `[keys]` section, where you'll remap your keys, a `[rel]` section to remap scroll wheels and a `[settings]` section containing a few options.
 
 ### \[keys]
@@ -104,3 +109,13 @@ Refer to the sample config files on this Github for more information about contr
 - Switch Joy-Cons
 
 To add other controllers, please open an issue.
+
+## Troubleshooting and possible questions:
+Q: My device actually shows as three different devices in evtest, do I need to create three different config files, one for each device?\
+A: Yes, most mice with additional keys are usually seen as a mouse and a keyboard by the kernel and they need to be mapped separately.\
+
+Q: Can I map a key sequence (e.g. Ctrl+C) to something else?\
+A: Currently, no. Only single key/button strokes can be mapped to other keys or macros. You can map a mouse button to Ctrl+C, but you can't map Ctrl+C to a mouse button.\
+
+Q: My controller works when using Bluetooth but not when using wired connection or vice-versa, why?\
+A: Some devices have a different evdev name when connected through Bluetooth, for example a `Sony Interactive Entertainment Wireless Controller` is just seen as `Wireless Controller` when connected via Bluetooth. You'll need to create a copy of the config file with that name.
