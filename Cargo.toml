@@ -11,5 +11,6 @@ tokio = { version = "1.28.1", features = ["full"] }
 serde = { version = "1.0.163", features = ["derive"] }
 tokio-stream = "0.1.14"
 tokio-udev = "0.9.1"
+hyprland = "<=0.3.9"
 toml = "0.7.3"
-home = "0.5.5"
+home = "<=0.5.5"
