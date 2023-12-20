@@ -1,6 +1,7 @@
-use std::{collections::HashMap, fmt::Debug, ffi::OsStr, path::Path, sync::Arc};
+use std::{collections::HashMap, fmt::Debug, ffi::OsStr, path::Path, sync::Arc, option::Option, env};
 use evdev::{Device, EventStream, Key, RelativeAxisType, AbsoluteAxisType, EventType, InputEvent};
 use evdev::uinput::{VirtualDevice, VirtualDeviceBuilder};
+use hyprland::{data::Client, prelude::*};
 use tokio::{sync::Mutex, task::JoinHandle};
 use tokio_stream::StreamExt;
 use tokio_udev;
@@ -9,42 +10,60 @@ use serde;
 use home;
 
 struct EventReader {
-    config: Config,
+    config: HashMap<String, Config>,
     stream: Arc<Mutex<EventStream>>,
     virt_dev: Arc<Mutex<VirtualDevices>>,
     analog_position: Arc<Mutex<Vec<i32>>>,
     device_is_connected: Arc<Mutex<bool>>,
+    current_desktop: Option<String>,
 }
 
 impl EventReader {
-    fn new(config: Config, stream: Arc<Mutex<EventStream>>, virt_dev: Arc<Mutex<VirtualDevices>>) -> Self {
+    fn new(config: HashMap<String, Config>, stream: Arc<Mutex<EventStream>>, virt_dev: Arc<Mutex<VirtualDevices>>) -> Self {
         let mut position_vector: Vec<i32> = Vec::new();
         for i in [0, 0] {position_vector.push(i)};
         let position_vector_mutex = Arc::new(Mutex::new(position_vector));
         let device_is_connected: Arc<Mutex<bool>> = Arc::new(Mutex::new(true));
+        let current_desktop: Option<String> = match env::var("XDG_CURRENT_DESKTOP") {
+                Ok(desktop) if desktop == "Hyprland".to_string() => {
+                    println!("Running on {}, active window detection enabled.", desktop);
+                    Option::Some(desktop)
+                }
+                Ok(desktop) => {
+                    println!("Unsupported desktop: {}, won't be able to change bindings according to active window.\n
+                            Currently supported desktops: Hyprland", desktop);
+                    Option::None
+                },
+                Err(_) => {
+                    println!("Unable to retrieve current desktop based on XDG_CURRENT_DESKTOP env var.\n
+                            Won't be able to change bindings according to active window.");
+                    Option::None
+                },
+        };
         Self {
             config: config,
             stream: stream,
             virt_dev: virt_dev,
             analog_position: position_vector_mutex,
             device_is_connected: device_is_connected,
+            current_desktop: current_desktop,
         }
     }
-    
+
     async fn start(&self) {
         let mut stream = self.stream.lock().await;
         let mut analog_mode: &str = "left";
-        if let Some(stick) = self.config.settings.get("POINTER_STICK") {
+        if let Some(stick) = self.config.get(&self.get_active_window().await).unwrap().settings.get("POINTER_STICK") {
             analog_mode = stick.as_str();
-        };
+        }
         let mut has_signed_axis_value: &str = "false";
-        if let Some(axis_value) = self.config.settings.get("SIGNED_AXIS_VALUE") {
+        if let Some(axis_value) = self.config.get(&self.get_active_window().await).unwrap().settings.get("SIGNED_AXIS_VALUE") {
             has_signed_axis_value = axis_value.as_str();
-        };
+        }
         while let Some(Ok(event)) = stream.next().await {
             match (event.event_type(), RelativeAxisType(event.code()), AbsoluteAxisType(event.code()), analog_mode) {
                 (EventType::KEY, _, _, _) => {
-                    if let Some(event_list) = self.config.keys.get(&Key(event.code())) {
+                    if let Some(event_list) = self.config.get(&self.get_active_window().await).unwrap().keys.get(&Key(event.code())) {
                         self.emit_event(event_list, event.value()).await
                     } else {
                         self.emit_default_event(event).await;
@@ -52,26 +71,26 @@ impl EventReader {
                 },
                 (_, RelativeAxisType::REL_WHEEL | RelativeAxisType::REL_WHEEL_HI_RES, _, _) => {
                     let event_list_option: Option<&Vec<Key>> = match event.value() {
-                        -1 => self.config.rel.get(&"SCROLL_WHEEL_DOWN".to_string()),
-                        1 => self.config.rel.get(&"SCROLL_WHEEL_UP".to_string()),
+                        -1 => self.config.get(&self.get_active_window().await).unwrap().rel.get(&"SCROLL_WHEEL_DOWN".to_string()),
+                        1 => self.config.get(&self.get_active_window().await).unwrap().rel.get(&"SCROLL_WHEEL_UP".to_string()),
                         _ => None,
                     };
                     if let Some(event_list) = event_list_option {
                         self.emit_event(event_list, event.value()).await;
                         self.emit_event(event_list, 0).await;
                     } else {
-                        if !self.config.rel.contains_key("SCROLL_WHEEL_DOWN")
-                        && !self.config.rel.contains_key("SCROLL_WHEEL_UP") {
+                        if !self.config.get(&self.get_active_window().await).unwrap().rel.contains_key("SCROLL_WHEEL_DOWN")
+                        && !self.config.get(&self.get_active_window().await).unwrap().rel.contains_key("SCROLL_WHEEL_UP") {
                             self.emit_default_event(event).await;
                         }
                     }
                 },
                 (_, _, AbsoluteAxisType::ABS_HAT0X, _) => {
                     let event_list_option: Option<&Vec<Key>> = match event.value() {
-                        -1 => self.config.keys.get(&Key::BTN_DPAD_LEFT),
-                        0 => self.config.abs.get(&"NONE_X".to_string()),
-                        1 => self.config.keys.get(&Key::BTN_DPAD_RIGHT),
-                        _ => self.config.abs.get(&"NONE_X".to_string()),
+                        -1 => self.config.get(&self.get_active_window().await).unwrap().keys.get(&Key::BTN_DPAD_LEFT),
+                        0 => self.config.get(&self.get_active_window().await).unwrap().abs.get(&"NONE_X".to_string()),
+                        1 => self.config.get(&self.get_active_window().await).unwrap().keys.get(&Key::BTN_DPAD_RIGHT),
+                        _ => self.config.get(&self.get_active_window().await).unwrap().abs.get(&"NONE_X".to_string()),
                     };
                     if let Some(event_list) = event_list_option {
                         self.emit_event(event_list, event.value()).await;
@@ -81,10 +100,10 @@ impl EventReader {
                 },
                 (_, _, AbsoluteAxisType::ABS_HAT0Y, _) => {
                     let event_list_option: Option<&Vec<Key>> = match event.value() {
-                        -1 => self.config.keys.get(&Key::BTN_DPAD_UP),
-                        0 => self.config.abs.get(&"NONE_Y".to_string()),
-                        1 => self.config.keys.get(&Key::BTN_DPAD_DOWN),
-                        _ => self.config.abs.get(&"NONE_Y".to_string()),
+                        -1 => self.config.get(&self.get_active_window().await).unwrap().keys.get(&Key::BTN_DPAD_UP),
+                        0 => self.config.get(&self.get_active_window().await).unwrap().abs.get(&"NONE_Y".to_string()),
+                        1 => self.config.get(&self.get_active_window().await).unwrap().keys.get(&Key::BTN_DPAD_DOWN),
+                        _ => self.config.get(&self.get_active_window().await).unwrap().abs.get(&"NONE_Y".to_string()),
                     };
                     if let Some(event_list) = event_list_option {
                         self.emit_event(event_list, event.value()).await;
@@ -103,7 +122,7 @@ impl EventReader {
                     analog_position[(event.code() as usize) -3] = rel_value;
                 },
                 (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_Z, _) => {
-                    if let Some(event_list) = self.config.keys.get(&Key::BTN_TL2) {
+                    if let Some(event_list) = self.config.get(&self.get_active_window().await).unwrap().keys.get(&Key::BTN_TL2) {
                         if event.value() == 0 {
                             self.emit_event(event_list, event.value()).await
                         } else {
@@ -114,7 +133,7 @@ impl EventReader {
                     };
                 },
                 (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_RZ, _) => {
-                    if let Some(event_list) = self.config.keys.get(&Key::BTN_TR2) {
+                    if let Some(event_list) = self.config.get(&self.get_active_window().await).unwrap().keys.get(&Key::BTN_TR2) {
                         if event.value() == 0 {
                             self.emit_event(event_list, event.value()).await
                         } else {
@@ -162,7 +181,7 @@ impl EventReader {
     }
 
     async fn cursor_loop(&self) {
-        if let Some(sensitivity) = self.config.settings.get("ANALOG_SENSITIVITY") {
+        if let Some(sensitivity) = self.config.get(&self.get_active_window().await).unwrap().settings.get("ANALOG_SENSITIVITY") {
             let polling_rate: u64 = sensitivity.parse::<u64>().expect("Invalid analog sensitivity.");
             while *self.device_is_connected.lock().await {
                 {
@@ -179,6 +198,24 @@ impl EventReader {
             }
         } else {
             return
+        }
+    }
+
+    async fn get_active_window(&self) -> String {
+        let active_client = self.current_desktop.clone().unwrap_or(String::from("default"));
+        match active_client.as_str() {
+            "Hyprland" => {
+                let active_window: String = match Client::get_active_async().await.unwrap() {
+                    Some(client) => client.class,
+                    None => String::from("default")
+                };
+                if self.config.contains_key(&active_window) {
+                    active_window
+                } else {
+                    String::from("default")
+                }
+            },
+            _ => String::from("default")
         }
     }
 }
@@ -235,7 +272,7 @@ impl VirtualDevices {
     }
 }
 
-async fn create_new_reader(device: String, config: Config) {
+async fn create_new_reader(device: String, config: HashMap<String, Config>) {
     let stream: Arc<Mutex<EventStream>> = Arc::new(Mutex::new(get_event_stream(Path::new(&device), config.clone())));
     let virt_dev: Arc<Mutex<VirtualDevices>> = Arc::new(Mutex::new(new_virtual_devices()));
     let reader = EventReader::new(config.clone(), stream, virt_dev);
@@ -266,9 +303,9 @@ async fn start_monitoring_udev(config_files: Vec<Config>, mut tasks: Vec<JoinHan
     }
 }
 
-fn get_event_stream(path: &Path, config: Config) -> EventStream {
+fn get_event_stream(path: &Path, config: HashMap<String, Config>) -> EventStream {
     let mut device: Device = Device::open(path).expect("Couldn't open device path.");
-    if config.settings.get("GRAB_DEVICE").expect("No GRAB_DEVICE setting specified, this device will be ignored.") == &"true".to_string() {
+    if config.get("default").unwrap().settings.get("GRAB_DEVICE").expect("No GRAB_DEVICE setting specified, this device will be ignored.") == &"true".to_string() {
         device.grab().unwrap();
     };
     let stream: EventStream = device.into_event_stream().unwrap();
@@ -295,10 +332,28 @@ fn new_virtual_devices() -> VirtualDevices {
 fn launch_tasks(config_files: &Vec<Config>, tasks: &mut Vec<JoinHandle<()>>) {
     let devices: evdev::EnumerateDevices = evdev::enumerate();
     for device in devices {
+        let mut config_map: HashMap<String, Config> = HashMap::new();
         for config in config_files {
-            if config.name == device.1.name().unwrap().to_string() {
-                tasks.push(tokio::spawn(create_new_reader(device.0.as_path().to_str().unwrap().to_string(), config.clone())));
-            }
+            let split_config_name = config.name.split("::").collect::<Vec<&str>>();
+            let associated_device_name = split_config_name[0];
+            if associated_device_name == device.1.name().unwrap() {
+                let window_class = if split_config_name.len() == 1 {
+                    String::from("default")
+                } else {
+                    split_config_name[1].to_string()
+                };
+                config_map.insert(window_class, config.clone());
+            };
+        }
+        if !config_map.is_empty() {
+            tasks.push(
+                tokio::spawn(
+                    create_new_reader(
+                        device.0.as_path().to_str().unwrap().to_string(),
+                        config_map.clone()
+                    )
+                )
+            )
         }
     }
 }
@@ -309,7 +364,7 @@ fn is_mapped(udev_device: &tokio_udev::Device, config_files: &Vec<Config>) -> bo
             let evdev_devices: evdev::EnumerateDevices = evdev::enumerate();
             for evdev_device in evdev_devices {
                 for config in config_files {
-                    if config.name == evdev_device.1.name().unwrap().to_string()
+                    if config.name.contains(&evdev_device.1.name().unwrap().to_string())
                     && devnode.to_path_buf() == evdev_device.0 {
                         return true
                     }
