@@ -11,7 +11,7 @@ Previously only a controller daemon, the scope has now been expanded because I h
 - Hotplug to connect and disconnect your devices whenever you want.
 - Supports wired and Bluetooth connections.
 - If you connect a [supported game controller](https://github.com/cyber-sushi/makima/tree/main#tested-controllers), you can move your cursor using analog sticks with adjustable sensitivity.
-- You can have multiple sets of key bindings that automatically switch based on the active window (only on Hyprland currently).
+- You can have multiple sets of key bindings that automatically switch based on the active window (only on Hyprland and Sway currently).
 - Written in Rust so it's blazingly fast, I think?
 
 ## How to use:
@@ -35,9 +35,10 @@ You can find some sample config files on this Github; pick one that fits your us
 For example, if you run `evtest` and see that your Dualshock 4 controller is named `Sony Interactive Entertainment Wireless Controller`, then you'll have to name your config file `Sony Interactive Entertainment Wireless Controller.toml`.\
 All config files will be parsed automatically when `makima` is launched.
 
-### Adaptive bindings for each window (Hyprland only atm):
+### Adaptive bindings for each window (Hyprland and Sway only atm):
 Have you ever wanted to have a different set of macros for each game that you play? Or maybe you want your controller to input Space when you press X, but only when MPV is focused? Then this is exactly what you're looking for!\
-To have window-specific config files, just put `::window_class` at the end of their filename, before `.toml`. For example, if you want your DS4 controller to have a specific set of keybindings for Firefox, name that file `Sony Interactive Entertainment Wireless Controller::firefox.toml`. To retrieve the window class of a specific application, refer to your compositor's documentation, e.g. on Hyprland type `hyprctl clients` in your terminal while that application is open.
+To have window-specific config files, just put `::window_class` at the end of their filename, before `.toml`. For example, if you want your DS4 controller to have a specific set of keybindings for Firefox, name that file `Sony Interactive Entertainment Wireless Controller::firefox.toml`. To retrieve the window class of a specific application, refer to your compositor's documentation, e.g. on Hyprland type `hyprctl clients` in your terminal while that application is open.\
+**Note: on Sway, make sure that the `XDG_DESKTOP_SESSION=sway` environment variable is set, or Makima won't be able to use adaptive bindings.**
 
 ## The config files:
 The config file has three sections, a `[keys]` section, where you'll remap your keys, a `[rel]` section to remap scroll wheels and a `[settings]` section containing a few options.
@@ -77,7 +78,7 @@ If you don't need to remap your scroll wheel, just omit the `[rel]` paragraph an
 
 ### \[settings]
 There are currently 4 available settings:
-- `GRAB_DEVICE` will set if makima should have exclusivity over the device. If set to `"true"`, no other program will read the original input of the device. If set to `"false"`, both the original input and the remapped input will be read by applications. The event reader won't start if this is not set.
+- `GRAB_DEVICE` will set if Makima should have exclusivity over the device. If set to `"true"`, no other program will read the original input of the device. If set to `"false"`, both the original input and the remapped input will be read by applications. The event reader won't start if this is not set.
 - `MOVE_MOUSE_WITH_STICK` will set if your mouse cursor should be moved using your controller's analog sticks, and which of the two sticks should move your cursor. Can be set to `"left"`, `"right"` or `"none"`. Defaults to "left" if not set.
 - `ANALOG_SENSITIVITY` will change the speed of your mouse cursor when moved through an analog stick. Lower value is higher sensitivity, minimum `"1"`, suggested `"6"`. The analog stick won't be read if this is not set.
 - `SIGNED_AXIS_VALUE` is needed if you're using Xbox controllers and Switch Joy-Cons to properly calibrate the analog stick's sensitivity. Set to `"true"` if you're using those controllers. Can be left out otherwise.
