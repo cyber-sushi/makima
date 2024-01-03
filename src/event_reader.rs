@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc, option::Option, env};
+use std::{collections::{HashMap, BTreeMap}, sync::Arc, option::Option};
 use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
 use evdev::{EventStream, Key, RelativeAxisType, AbsoluteAxisType, EventType, InputEvent};
@@ -13,37 +13,29 @@ pub struct EventReader {
     stream: Arc<Mutex<EventStream>>,
     virt_dev: Arc<Mutex<VirtualDevices>>,
     analog_position: Arc<Mutex<Vec<i32>>>,
+    modifiers: Arc<Mutex<BTreeMap<Key, i32>>>,
     device_is_connected: Arc<Mutex<bool>>,
     current_desktop: Option<String>,
 }
 
 impl EventReader {
-    pub fn new(config: HashMap<String, Config>, stream: Arc<Mutex<EventStream>>, virt_dev: Arc<Mutex<VirtualDevices>>) -> Self {
+    pub fn new(
+        config: HashMap<String, Config>,
+        stream: Arc<Mutex<EventStream>>,
+        virt_dev: Arc<Mutex<VirtualDevices>>,
+        modifiers: Arc<Mutex<BTreeMap<Key, i32>>>,
+        current_desktop: Option<String>,
+    ) -> Self {
         let mut position_vector: Vec<i32> = Vec::new();
         for i in [0, 0] {position_vector.push(i)};
         let position_vector_mutex = Arc::new(Mutex::new(position_vector));
         let device_is_connected: Arc<Mutex<bool>> = Arc::new(Mutex::new(true));
-        let current_desktop: Option<String> = match env::var("XDG_CURRENT_DESKTOP") {
-                Ok(desktop) if vec!["Hyprland".to_string(), "sway".to_string()].contains(&desktop)  => {
-                    println!("Running on {}, active window detection enabled.", desktop);
-                    Option::Some(desktop)
-                },
-                Ok(desktop) => {
-                    println!("Unsupported desktop: {}, won't be able to change bindings according to active window.\n
-                            Currently supported desktops: Hyprland", desktop);
-                    Option::None
-                },
-                Err(_) => {
-                    println!("Unable to retrieve current desktop based on XDG_CURRENT_DESKTOP env var.\n
-                            Won't be able to change bindings according to active window.");
-                    Option::None
-                },
-        };
         Self {
             config: config,
             stream: stream,
             virt_dev: virt_dev,
             analog_position: position_vector_mutex,
+            modifiers: modifiers,
             device_is_connected: device_is_connected,
             current_desktop: current_desktop,
         }
@@ -62,97 +54,118 @@ impl EventReader {
         while let Some(Ok(event)) = stream.next().await {
             match (event.event_type(), RelativeAxisType(event.code()), AbsoluteAxisType(event.code()), analog_mode) {
                 (EventType::KEY, _, _, _) => {
-                    if let Some(event_list) = self.config.get(&self.get_active_window().await).unwrap().keys.get(&Key(event.code())) {
-                        self.emit_event(event_list, event.value()).await
+                    self.convert_key_events(event).await;
+                },
+                (_, RelativeAxisType::REL_WHEEL | RelativeAxisType::REL_WHEEL_HI_RES, _, _) => {
+                    let event_string_option: Option<String> = match event.value() {
+                        -1 => Option::Some("SCROLL_WHEEL_DOWN".to_string()),
+                        1 => Option::Some("SCROLL_WHEEL_UP".to_string()),
+                        _ => Option::None,
+                    };
+                    if let Some(event_string) = event_string_option {
+                        self.convert_axis_events(event, &event_string, true, false).await;
                     } else {
                         self.emit_default_event(event).await;
                     }
                 },
-                (_, RelativeAxisType::REL_WHEEL | RelativeAxisType::REL_WHEEL_HI_RES, _, _) => {
-                    let event_list_option: Option<&Vec<Key>> = match event.value() {
-                        -1 => self.config.get(&self.get_active_window().await).unwrap().rel.get(&"SCROLL_WHEEL_DOWN".to_string()),
-                        1 => self.config.get(&self.get_active_window().await).unwrap().rel.get(&"SCROLL_WHEEL_UP".to_string()),
-                        _ => None,
-                    };
-                    if let Some(event_list) = event_list_option {
-                        self.emit_event(event_list, event.value()).await;
-                        self.emit_event(event_list, 0).await;
-                    } else {
-                        if !self.config.get(&self.get_active_window().await).unwrap().rel.contains_key("SCROLL_WHEEL_DOWN")
-                        && !self.config.get(&self.get_active_window().await).unwrap().rel.contains_key("SCROLL_WHEEL_UP") {
-                            self.emit_default_event(event).await;
-                        }
-                    }
-                },
                 (_, _, AbsoluteAxisType::ABS_HAT0X, _) => {
-                    let event_list_option: Option<&Vec<Key>> = match event.value() {
-                        -1 => self.config.get(&self.get_active_window().await).unwrap().keys.get(&Key::BTN_DPAD_LEFT),
-                        0 => self.config.get(&self.get_active_window().await).unwrap().abs.get(&"NONE_X".to_string()),
-                        1 => self.config.get(&self.get_active_window().await).unwrap().keys.get(&Key::BTN_DPAD_RIGHT),
-                        _ => self.config.get(&self.get_active_window().await).unwrap().abs.get(&"NONE_X".to_string()),
+                    let event_string: String = match event.value() {
+                        -1 => "BTN_DPAD_LEFT".to_string(),
+                        0 => "NONE_X".to_string(),
+                        1 => "BTN_DPAD_RIGHT".to_string(),
+                        _ => "NONE_X".to_string(),
                     };
-                    if let Some(event_list) = event_list_option {
-                        self.emit_event(event_list, event.value()).await;
-                    } else {
-                        println!("Button not set in the config file!");
-                    }
+                    self.convert_axis_events(event, &event_string, false, false).await;
                 },
                 (_, _, AbsoluteAxisType::ABS_HAT0Y, _) => {
-                    let event_list_option: Option<&Vec<Key>> = match event.value() {
-                        -1 => self.config.get(&self.get_active_window().await).unwrap().keys.get(&Key::BTN_DPAD_UP),
-                        0 => self.config.get(&self.get_active_window().await).unwrap().abs.get(&"NONE_Y".to_string()),
-                        1 => self.config.get(&self.get_active_window().await).unwrap().keys.get(&Key::BTN_DPAD_DOWN),
-                        _ => self.config.get(&self.get_active_window().await).unwrap().abs.get(&"NONE_Y".to_string()),
+                    let event_string: String = match event.value() {
+                        -1 => "BTN_DPAD_UP".to_string(),
+                        0 => "NONE_Y".to_string(),
+                        1 => "BTN_DPAD_DOWN".to_string(),
+                        _ => "NONE_Y".to_string(),
                     };
-                    if let Some(event_list) = event_list_option {
-                        self.emit_event(event_list, event.value()).await;
-                    } else {
-                        println!("Button not set in the config file!");
-                    }
+                    self.convert_axis_events(event, &event_string, false, false).await;
                 },
                 (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_X | AbsoluteAxisType::ABS_Y, "left") => {
-                    let rel_value = self.get_rel_value(&has_signed_axis_value, &event).await;
+                    let axis_value = self.get_axis_value(&has_signed_axis_value, &event).await;
                     let mut analog_position = self.analog_position.lock().await;
-                    analog_position[event.code() as usize] = rel_value;
+                    analog_position[event.code() as usize] = axis_value;
                 },
                 (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_RX | AbsoluteAxisType::ABS_RY, "right") => {
-                    let rel_value = self.get_rel_value(&has_signed_axis_value, &event).await;
+                    let axis_value = self.get_axis_value(&has_signed_axis_value, &event).await;
                     let mut analog_position = self.analog_position.lock().await;
-                    analog_position[(event.code() as usize) -3] = rel_value;
+                    analog_position[(event.code() as usize) -3] = axis_value;
                 },
                 (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_Z, _) => {
-                    if let Some(event_list) = self.config.get(&self.get_active_window().await).unwrap().keys.get(&Key::BTN_TL2) {
-                        if event.value() == 0 {
-                            self.emit_event(event_list, event.value()).await
-                        } else {
-                            self.emit_event(event_list, 1).await
-                        };
-                    } else {
-                        println!("Button not set in the config file!");
-                    };
+                    self.convert_axis_events(event, &"BTN_TL2".to_string(), false, true).await;
                 },
                 (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_RZ, _) => {
-                    if let Some(event_list) = self.config.get(&self.get_active_window().await).unwrap().keys.get(&Key::BTN_TR2) {
-                        if event.value() == 0 {
-                            self.emit_event(event_list, event.value()).await
-                        } else {
-                            self.emit_event(event_list, 1).await
-                        };
-                    } else {
-                        println!("Button not set in the config file!");
-                    };
+                    self.convert_axis_events(event, &"BTN_TR2".to_string(), false, true).await;
                 },
-                _ => {self.emit_default_event(event).await}
+                _ => {self.emit_default_event(event).await;}
             }
         }
         let mut device_is_connected = self.device_is_connected.lock().await;
         *device_is_connected = false;
     }
 
+    async fn convert_key_events(&self, event: InputEvent) {
+        let path = self.config.get(&self.get_active_window().await).unwrap();
+        let modifiers = self.modifiers.lock().await.clone();
+        if let Some(event_hashmap) = path.modifiers.keys.get(&modifiers) {
+            if let Some(event_list) = event_hashmap.get(&Key(event.code())) {
+                self.emit_event_without_modifiers(event_list, &modifiers, event.value()).await;
+                return
+            }
+        }
+        if let Some(event_list) = path.bindings.keys.get(&Key(event.code())) {
+            self.emit_event(event_list, event.value()).await;
+        } else {
+            self.emit_default_event(event).await;
+        }
+    }
+    
+    async fn convert_axis_events(&self, event: InputEvent, event_string: &String, send_zero: bool, clamp_value: bool) {
+        let path = self.config.get(&self.get_active_window().await).unwrap();
+        let modifiers = self.modifiers.lock().await.clone();
+        let value = {
+            if clamp_value == true && event.value() > 1 {
+                1 
+            } else {
+                event.value()
+            }
+        };
+        if let Some(event_hashmap) = path.modifiers.axis.get(&modifiers) {
+            if let Some(event_list) = event_hashmap.get(event_string) {
+                self.emit_event_without_modifiers(event_list, &modifiers, value).await;
+                if send_zero {
+                    self.emit_event_without_modifiers(event_list, &modifiers, 0).await;
+                }
+                return
+            }
+        }
+        if let Some(event_list) = path.bindings.axis.get(event_string) {
+            self.emit_event(event_list, value).await;
+            if send_zero {
+                self.emit_event_without_modifiers(event_list, &modifiers, 0).await;
+            }
+        } else {
+            self.emit_default_event(event).await;
+        }
+    }
+
     async fn emit_event(&self, event_list: &Vec<Key>, value: i32) {
+        let mut virt_dev = self.virt_dev.lock().await;
+        let modifiers = self.modifiers.lock().await.clone();
+        let released_keys: Vec<Key> = self.released_keys(&modifiers).await;
+        for key in released_keys {
+            self.toggle_modifiers(key, 0).await;
+            let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), 0);
+            virt_dev.keys.emit(&[virtual_event]).unwrap();
+        }
         for key in event_list {
+            self.toggle_modifiers(*key, value).await;
             let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), value);
-            let mut virt_dev = self.virt_dev.lock().await;
             virt_dev.keys.emit(&[virtual_event]).unwrap();
         }
     }
@@ -160,13 +173,40 @@ impl EventReader {
     async fn emit_default_event(&self, event: InputEvent) {
         let mut virt_dev = self.virt_dev.lock().await;
         match event.event_type() {
-            EventType::KEY => virt_dev.keys.emit(&[event]).unwrap(),
+            EventType::KEY => {
+                let modifiers = self.modifiers.lock().await.clone();
+                let released_keys: Vec<Key> = self.released_keys(&modifiers).await;
+                for key in released_keys {
+                    self.toggle_modifiers(key, 0).await;
+                    let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), 0);
+                    virt_dev.keys.emit(&[virtual_event]).unwrap()
+                }
+                self.toggle_modifiers(Key(event.code()), event.value()).await;
+                virt_dev.keys.emit(&[event]).unwrap();
+            },
             EventType::RELATIVE => virt_dev.relative_axes.emit(&[event]).unwrap(),
             _ => {}
         }
     }
     
-    async fn get_rel_value(&self, has_signed_axis_value: &str, event: &InputEvent) -> i32 {
+    async fn emit_event_without_modifiers(&self, event_list: &Vec<Key>, modifiers: &BTreeMap<Key, i32>, value: i32) {
+        let modifiers_list = modifiers.iter()
+            .filter(|(_key, value)| value == &&1)
+            .collect::<HashMap<&Key, &i32>>()
+            .into_keys().copied()
+            .collect::<Vec<Key>>();
+        let mut virt_dev = self.virt_dev.lock().await;
+        for key in modifiers_list {
+            let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), 0);
+            virt_dev.keys.emit(&[virtual_event]).unwrap();
+        }
+        for key in event_list {
+            let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), value);
+            virt_dev.keys.emit(&[virtual_event]).unwrap();
+        }
+    }
+    
+    async fn get_axis_value(&self, has_signed_axis_value: &str, event: &InputEvent) -> i32 {
         let rel_value: i32 = match &has_signed_axis_value {
             &"false" => {
                 let distance_from_center: i32 = event.value() as i32 - 128;
@@ -177,6 +217,25 @@ impl EventReader {
             }
         };
         return rel_value
+    }
+    
+    async fn toggle_modifiers(&self, key: Key, value: i32) {
+        let mut modifiers = self.modifiers.lock().await;
+        if modifiers.contains_key(&key) && vec![0, 1].contains(&value) {
+            modifiers.insert(key, value).unwrap();
+        }
+    }
+    
+    async fn released_keys(&self, modifiers: &BTreeMap<Key, i32>) -> Vec<Key> {
+        let path = self.config.get(&self.get_active_window().await).unwrap();
+        let mut released_keys: Vec<Key> = Vec::new();
+        if let Some(event_hashmap) = path.modifiers.keys.get(&modifiers) {
+            event_hashmap.iter().for_each(|(_modifiers, event_list)| released_keys.extend(event_list));
+        }
+        if let Some(event_hashmap) = path.modifiers.axis.get(&modifiers) {
+            event_hashmap.iter().for_each(|(_modifiers, event_list)| released_keys.extend(event_list));
+        }
+        released_keys
     }
 
     pub async fn cursor_loop(&self) {

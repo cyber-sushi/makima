@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc, path::Path};
+use std::{collections::{HashMap, BTreeMap}, sync::Arc, path::Path, env};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tokio_stream::StreamExt;
@@ -28,13 +28,42 @@ pub async fn start_monitoring_udev(config_files: Vec<Config>, mut tasks: Vec<Joi
 }
 
 pub fn launch_tasks(config_files: &Vec<Config>, tasks: &mut Vec<JoinHandle<()>>) {
+    let modifiers: Arc<Mutex<BTreeMap<Key, i32>>> = Arc::new (
+        Mutex::new (
+            BTreeMap::from ([
+                (Key::KEY_LEFTSHIFT, 0),
+                (Key::KEY_LEFTCTRL, 0),
+                (Key::KEY_LEFTALT, 0),
+                (Key::KEY_RIGHTSHIFT, 0),
+                (Key::KEY_RIGHTCTRL, 0),
+                (Key::KEY_RIGHTALT, 0),
+                (Key::KEY_LEFTMETA, 0)
+            ])
+        )
+    );
+    let current_desktop: Option<String> = match env::var("XDG_CURRENT_DESKTOP") {
+        Ok(desktop) if vec!["Hyprland".to_string(), "sway".to_string()].contains(&desktop)  => {
+            println!("Running on {}, active window detection enabled.", desktop);
+            Option::Some(desktop)
+        },
+        Ok(desktop) => {
+            println!("Unsupported desktop: {}, won't be able to change bindings according to active window.\n
+                    Currently supported desktops: Hyprland, Sway.", desktop);
+            Option::None
+        },
+        Err(_) => {
+            println!("Unable to retrieve the current desktop based on XDG_CURRENT_DESKTOP env var.\n
+                    Won't be able to change bindings according to the active window.");
+            Option::None
+        },
+    };
     let devices: evdev::EnumerateDevices = evdev::enumerate();
     for device in devices {
         let mut config_map: HashMap<String, Config> = HashMap::new();
         for config in config_files {
             let split_config_name = config.name.split("::").collect::<Vec<&str>>();
             let associated_device_name = split_config_name[0];
-            if associated_device_name == device.1.name().unwrap() {
+            if associated_device_name == device.1.name().unwrap().replace("/", "") {
                 let window_class = if split_config_name.len() == 1 {
                     String::from("default")
                 } else {
@@ -48,7 +77,9 @@ pub fn launch_tasks(config_files: &Vec<Config>, tasks: &mut Vec<JoinHandle<()>>)
                 tokio::spawn(
                     create_new_reader(
                         device.0.as_path().to_str().unwrap().to_string(),
-                        config_map.clone()
+                        config_map.clone(),
+                        modifiers.clone(),
+                        current_desktop.clone(),
                     )
                 )
             )
@@ -56,7 +87,7 @@ pub fn launch_tasks(config_files: &Vec<Config>, tasks: &mut Vec<JoinHandle<()>>)
     }
 }
 
-pub async fn create_new_reader(device: String, config: HashMap<String, Config>) {
+pub async fn create_new_reader(device: String, config: HashMap<String, Config>, modifiers: Arc<Mutex<BTreeMap<Key, i32>>>, current_desktop: Option<String>) {
     let stream: Arc<Mutex<EventStream>> = Arc::new (
         Mutex::new (
             get_event_stream (
@@ -68,8 +99,8 @@ pub async fn create_new_reader(device: String, config: HashMap<String, Config>) 
     let virt_dev: Arc<Mutex<VirtualDevices>> = Arc::new (
         Mutex::new(new_virtual_devices())
     );
-    let reader = EventReader::new(config.clone(), stream, virt_dev);
-    println!("Mapped device detected at {}, reading events.", device);
+    let reader = EventReader::new(config.clone(), stream, virt_dev, modifiers, current_desktop);
+    println!("Mapped device detected at {:?}, reading events.", device);
     tokio::join!(
         reader.start(),
         reader.cursor_loop(),

@@ -1,15 +1,25 @@
 #SAMPLE CONFIG FILE FOR A GENERIC MOUSE
 #Put this in ~/.config/makima and rename it to the exact name of the device as shown by the 'evtest' command, including spaces and capitalization.
 #You can find all the available keycodes in /usr/include/linux/input-event-codes.h
-#If you're not sure which keycode corresponds to which key, you can run 'evtest', select your keyboard/mouse and press the corresponding key/button.
+#If you're not sure which keycode corresponds to which key, you can run 'evtest', select your device and press the corresponding key/button.
+#Axis values are hard coded instead, use SCROLL_WHEEL_UP and SCROLL_WHEEL_DOWN to rebind wheel movements.
 
-[keys]
+[bindings.keys]
 #MOUSE BUTTONS  MOUSE/KEYBOARD BINDINGS
 BTN_RIGHT = ["KEY_LEFTCTRL", "KEY_C"]
 
-[rel]
-SCROLL_WHEEL_UP = ["KEY_LEFTCTRL", "KEY_LEFTSHIFT", "KEY_EQUAL"]
-SCROLL_WHEEL_DOWN = ["KEY_LEFTCTRL", "KEY_MINUS"]
+[bindings.axis]
+SCROLL_WHEEL_UP = ["KEY_LEFTCTRL", "KEY_F"]
+SCROLL_WHEEL_DOWN = ["KEY_LEFTCTRL", "KEY_Q"]
+
+[combinations.keys]
+KEY_LEFTCTRL.BTN_RIGHT = ["KEY_SYSRQ"]
+KEY_LEFTCTRL-KEY_LEFTSHIFT.BTN_LEFT = ["KEY_LEFTSHIFT", "KEY_DELETE"]
+
+[combinations.axis]
+KEY_LEFTCTRL-KEY_LEFTSHIFT.SCROLL_WHEEL_UP = ["KEY_HOME"]
+KEY_LEFTCTRL-KEY_LEFTSHIFT.SCROLL_WHEEL_DOWN = ["KEY_END"]
+KEY_LEFTCTRL-KEY_LEFTSHIFT-KEY_LEFTALT.SCROLL_WHEEL_DOWN = ["KEY_LEFTALT", "KEY_F4"]
 
 [settings]
 GRAB_DEVICE = "true" #gain exclusivity on the device

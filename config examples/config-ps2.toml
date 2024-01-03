@@ -1,10 +1,10 @@
 #SAMPLE CONFIG FILE FOR PLAYSTATION 2 CONTROLLERS
 #Put this in ~/.config/makima and rename it to the exact name of the device as shown by the 'evtest' command, including spaces and capitalization.
 #You can find all the available keycodes in /usr/include/linux/input-event-codes.h
-#If you're not sure which keycode corresponds to which key, you can run 'evtest', select your keyboard/mouse and press the corresponding key/button.
+#If you're not sure which keycode corresponds to which key, you can run 'evtest', select your device and press the corresponding key/button.
 #This config file is tested for DualShock 2 controllers. The "analog" LED on your controller has to be turned on or this daemon won't work properly. When using a different controller, if no specific config file for your device is available, change the keycodes on the left according to those of your controller (evtest is your friend again).
 
-[keys]
+[bindings.keys]
 #CONTROLLER   MOUSE/KEYBOARD BINDINGS
 BTN_TRIGGER = ["KEY_LEFTMETA", "KEY_J"] #triangle
 BTN_THUMB = ["KEY_ENTER"] #circle
@@ -18,6 +18,8 @@ BTN_BASE4 = ["KEY_LEFTMETA", "KEY_D"] #start
 BTN_BASE3 = ["KEY_ESC"] #select
 BTN_BASE6 = ["KEY_LEFTMETA", "KEY_Q"] #R3
 BTN_BASE5 = ["BTN_MIDDLE"] #L3
+
+[bindings.axis]
 BTN_DPAD_UP = ["KEY_UP"] #directional pad up
 BTN_DPAD_RIGHT = ["KEY_RIGHT"] #directional pad right
 BTN_DPAD_DOWN = ["KEY_DOWN"] #directional pad down

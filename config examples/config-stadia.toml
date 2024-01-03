@@ -1,10 +1,10 @@
 #SAMPLE CONFIG FILE FOR GOOGLE STADIA CONTROLLERS
 #Put this in ~/.config/makima and rename it to the exact name of the device as shown by the 'evtest' command, including spaces and capitalization.
 #You can find all the available keycodes in /usr/include/linux/input-event-codes.h
-#If you're not sure which keycode corresponds to which key, you can run 'evtest', select your keyboard/mouse and press the corresponding key/button.
+#If you're not sure which keycode corresponds to which key, you can run 'evtest', select your device and press the corresponding key/button.
 #This config file is tested for Stadia controllers. When using a different controller, if no specific config file for your device is available, change the keycodes on the left according to those of your controller (evtest is your friend again). If your controller has a button to enable/disable analog sticks, make sure they're enabled.
 
-[keys]
+[bindings.keys]
 #CONTROLLER   MOUSE/KEYBOARD BINDINGS
 BTN_WEST = ["KEY_LEFTMETA", "KEY_J"] #Y
 BTN_EAST = ["KEY_ENTER"] #X
@@ -21,6 +21,8 @@ BTN_TRIGGER_HAPPY2 = ["BTN_LEFT"] #share/bubbles?
 BTN_THUMBR = ["KEY_LEFTMETA", "KEY_Q"] #R3
 BTN_THUMBL = ["BTN_MIDDLE"] #L3
 BTN_MODE = ["KEY_SPACE"] #Stadia button
+
+[bindings.axis]
 BTN_DPAD_UP = ["KEY_UP"] #directional pad up
 BTN_DPAD_RIGHT = ["KEY_RIGHT"] #directional pad right
 BTN_DPAD_DOWN = ["KEY_DOWN"] #directional pad down
