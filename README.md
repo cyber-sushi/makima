@@ -90,8 +90,8 @@ Example where Ctrl + Alt + Scrollwheel will do random stuff idk I have no more c
 KEY_LEFTCTRL-KEY_LEFTALT.SCROLL_WHEEL_UP = ["KEY_F5", "KEY_SLASH"]
 KEY_LEFTCTRL-KEY_LEFTALT.SCROLL_WHEEL_DOWN = ["KEY_MINUS", "KEY_APOSTROPHE"]
 ```
-If you don't need to remap your scroll wheel, just omit the entire `[bindings.axis]` and `[combinations.axis]` paragraphs and it'll fall back to default functionality.
-**Note: axis names are hardcoded, currently you can use `SCROLLWHEEL_UP`, `SCROLLWHEEL_DOWN`, `DPAD_UP`, `DPAD_DOWN`, `DPAD_LEFT` and `DPAD_RIGHT` (DPAD is used by game controllers).**
+If you don't need to remap your scroll wheel, just omit the entire `[bindings.axis]` and `[combinations.axis]` paragraphs and it'll fall back to default functionality.\
+**Note: axis names are hardcoded, currently you can use `SCROLL_WHEEL_UP`, `SCROLL_WHEEL_DOWN`, `DPAD_UP`, `DPAD_DOWN`, `DPAD_LEFT` and `DPAD_RIGHT`.** DPAD is used by game controllers.
 
 ### \[settings]
 There are currently 4 available settings:
