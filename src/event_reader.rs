@@ -129,7 +129,7 @@ impl EventReader {
         let path = self.config.get(&self.get_active_window().await).unwrap();
         let modifiers = self.modifiers.lock().await.clone();
         let value = {
-            if clamp_value == true && event.value() > 1 {
+            if clamp_value && event.value() > 1 {
                 1 
             } else {
                 event.value()
