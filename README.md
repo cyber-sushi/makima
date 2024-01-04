@@ -91,7 +91,10 @@ KEY_LEFTCTRL-KEY_LEFTALT.SCROLL_WHEEL_UP = ["KEY_F5", "KEY_SLASH"]
 KEY_LEFTCTRL-KEY_LEFTALT.SCROLL_WHEEL_DOWN = ["KEY_MINUS", "KEY_APOSTROPHE"]
 ```
 If you don't need to remap your scroll wheel, just omit the entire `[bindings.axis]` and `[combinations.axis]` paragraphs and it'll fall back to default functionality.
-**Note: axis names are hardcoded, currently you can use `SCROLLWHEEL_UP`, `SCROLLWHEEL_DOWN`, `DPAD_UP`, `DPAD_DOWN`, `DPAD_LEFT` and `DPAD_RIGHT` (DPAD is used by game controllers).**
+**Note: axis names are hardcoded, currently you can use the following:**\
+`SCROLL_WHEEL_UP`, `SCROLL_WHEEL_DOWN` - for a mouse scroll wheel\
+`DPAD_UP`, `DPAD_DOWN`, `DPAD_LEFT`, `DPAD_RIGHT` - for a game controller's D-Pad\
+`BTN_TL2`, `BTN_TR2` - for a game controller's triggers (on most controllers - but not all - these can be put inside `[bindings.keys]` as well, and it will take priority over `[bindings.axis]`)
 
 ### \[settings]
 There are currently 4 available settings:
