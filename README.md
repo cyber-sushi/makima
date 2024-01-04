@@ -74,7 +74,7 @@ KEY_LEFTCTRL-KEY_LEFTSHIFT.KEY_K = ["KEY_A"]
 ```
 To see all of the available key codes, refer to the file `/usr/include/linux/input-event-codes.h`.\
 Remember that keys like Ctrl and Alt will have key codes like `KEY_LEFTCTRL`, `KEY_RIGHTCTRL`, `KEY_LEFTALT` and `KEY_RIGHTALT`. Just using `KEY_CTRL` and `KEY_ALT` will throw a parsing error because the key code does not exist.\
-Keys that are not explicitly remapped will keep their default functionality.
+Keys that are not explicitly remapped will keep their default functionality.\
 If you don't need to remap any key, you can just omit the entire `[bindings.keys]` and `[combinations.keys]` paragraphs.
 
 ### \[bindings.axis] and \[combinations.axis]
@@ -90,7 +90,8 @@ Example where Ctrl + Alt + Scrollwheel will do random stuff idk I have no more c
 KEY_LEFTCTRL-KEY_LEFTALT.SCROLL_WHEEL_UP = ["KEY_F5", "KEY_SLASH"]
 KEY_LEFTCTRL-KEY_LEFTALT.SCROLL_WHEEL_DOWN = ["KEY_MINUS", "KEY_APOSTROPHE"]
 ```
-If you don't need to remap your scroll wheel, just omit the entire `[bindings.axis]` and `[combinations.axis]` paragraphs and it'll fall back to default functionality.
+Events that are not explicitly remapped will keep their default functionality.\
+If you don't need to remap any axis event, you can just omit the entire `[bindings.axis]` and `[combinations.axis]` paragraphs.
 **Note: axis names are hardcoded, currently you can use the following:**\
 `SCROLL_WHEEL_UP`, `SCROLL_WHEEL_DOWN` - for a mouse scroll wheel\
 `DPAD_UP`, `DPAD_DOWN`, `DPAD_LEFT`, `DPAD_RIGHT` - for a game controller's D-Pad\
