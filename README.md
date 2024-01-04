@@ -90,12 +90,12 @@ Example where Ctrl + Alt + Scrollwheel will do random stuff idk I have no more c
 KEY_LEFTCTRL-KEY_LEFTALT.SCROLL_WHEEL_UP = ["KEY_F5", "KEY_SLASH"]
 KEY_LEFTCTRL-KEY_LEFTALT.SCROLL_WHEEL_DOWN = ["KEY_MINUS", "KEY_APOSTROPHE"]
 ```
-Events that are not explicitly remapped will keep their default functionality.\
-If you don't need to remap any axis event, you can just omit the entire `[bindings.axis]` and `[combinations.axis]` paragraphs.
 **Note: axis names are hardcoded, currently you can use the following:**\
 `SCROLL_WHEEL_UP`, `SCROLL_WHEEL_DOWN` - for a mouse scroll wheel\
 `DPAD_UP`, `DPAD_DOWN`, `DPAD_LEFT`, `DPAD_RIGHT` - for a game controller's D-Pad\
-`BTN_TL2`, `BTN_TR2` - for a game controller's triggers (on most controllers - but not all - these can be put inside `[bindings.keys]` as well, and it will take priority over `[bindings.axis]`)
+`BTN_TL2`, `BTN_TR2` - for a game controller's triggers (on most controllers - but not all - these can be put inside `[bindings.keys]` as well, and it will take priority over `[bindings.axis]`)\
+Events that are not explicitly remapped will keep their default functionality.\
+If you don't need to remap any axis event, you can just omit the entire `[bindings.axis]` and `[combinations.axis]` paragraphs.
 
 ### \[settings]
 There are currently 4 available settings:
