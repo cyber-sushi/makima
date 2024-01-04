@@ -19,7 +19,7 @@ Previously only a controller daemon, the scope has now been expanded because I h
 2. Create a TOML config file inside `~/.config/makima` (or pick one of the default ones) and rename it with the _exact_ name of your device. You can check the name by running `evtest`. If the name includes a `/`, just omit it.
 3. Assign your keybindings inside the config file, follow [this documentation](https://github.com/cyber-sushi/makima/tree/main#configuration) for more info.
 4. Make sure the `makima` executable has permission to be executed as a program. If not, `cd` into the directory of the executable and use `chmod +x makima`. Alternatively, Right Click > Properties > "allow executing as program" or something like that.
-5. Make sure that your user has access to event devices. If it doesn't, use `sudo usermod -aG input yourusername`.
+5. Make sure that your user has access to event devices. If it doesn't, use `sudo usermod -aG input yourusername` and reboot.
 6. Launch Makima and it'll automatically recognize all connected devices that have a corresponding config file inside `~/.config/makima`.
    - To launch Makima, you can use one of these methods:
      - Launch it from your file manager by double clicking.
@@ -135,14 +135,17 @@ Refer to the sample config files on this Github for more information about contr
 To add other controllers, please open an issue.
 
 ## Troubleshooting and possible questions:
-Q: My device actually shows as three different devices in evtest, do I need to create three different config files, one for each device?\
-A: Yes, most mice with additional keys are usually seen as a mouse and a keyboard by the kernel and they need to be mapped separately.
+**Q**: My device actually shows as three different devices in evtest, do I need to create three different config files, one for each device?\
+**A**: Each device will have a certain set of features, e.g. a DS4 controller is recognized as a touchpad, a motion sensor and a controller. A mouse is usually recognized as a mouse and a keyboard (for the additional keys). Just create a config file for the devices/features that you need to remap, and ignore the others.
 
-Q: Can I map a key sequence (e.g. Ctrl+C) to something else?\
-A: Yes! Since version 0.4.0, you can remap key modifiers (Ctrl, Shift, Alt, Meta) + key, to call another key or macro.
+**Q**: Can I map a key sequence (e.g. Ctrl+C) to something else?\
+**A**: Yes! Since version 0.4.0, you can remap key modifiers (Ctrl, Shift, Alt, Meta) + key, to call another key or macro.
 
-Q: My controller works when using Bluetooth but not when using wired connection or vice-versa, why?\
-A: Some devices have a different evdev name when connected through Bluetooth, for example a `Sony Interactive Entertainment Wireless Controller` is just seen as `Wireless Controller` when connected via Bluetooth. You'll need to create a copy of the config file with that name.
+**Q**: My controller works when using Bluetooth but not when using wired connection or vice-versa, why?\
+**A**: Some devices have a different evdev name when connected through Bluetooth, for example a `Sony Interactive Entertainment Wireless Controller` is just seen as `Wireless Controller` when connected via Bluetooth. You'll need to create a copy of the config file with that name.
 
-Q: Will adaptive bindings (change mapping based on the currently active app) be implemented for desktops other than Hyprland and Sway?\
-A: I plan on implementing adaptive bindings for X11 at some point.
+**Q**: Will adaptive bindings (changing mapping based on the currently active app) be implemented for desktops other than Hyprland and Sway?\
+**A**: I plan on implementing adaptive bindings for X11 at some point.
+
+**Q**: Makima gives me a "Permission Denied" error when launching, what do I do?\
+**A**: If you're certain that you've correctly added your user to the `input` group through `sudo usermod -aG input yourusername` and rebooted (you can verify it by running `groups` and see if it returns `input`), then maybe the `uinput` kernel module isn't loaded. You can load it with `sudo modprobe uinput`. To make it permanent, create `/etc/modules-load.d/uinput.conf` and write `uinput` inside.
