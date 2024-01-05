@@ -184,7 +184,7 @@ impl EventReader {
                 self.toggle_modifiers(Key(event.code()), event.value()).await;
                 virt_dev.keys.emit(&[event]).unwrap();
             },
-            EventType::RELATIVE => virt_dev.relative_axes.emit(&[event]).unwrap(),
+            EventType::RELATIVE => virt_dev.axis.emit(&[event]).unwrap(),
             _ => {}
         }
     }
@@ -207,7 +207,7 @@ impl EventReader {
     }
     
     async fn get_axis_value(&self, has_signed_axis_value: &str, event: &InputEvent) -> i32 {
-        let rel_value: i32 = match &has_signed_axis_value {
+        let axis_value: i32 = match &has_signed_axis_value {
             &"false" => {
                 let distance_from_center: i32 = event.value() as i32 - 128;
                 distance_from_center / 10
@@ -216,7 +216,7 @@ impl EventReader {
                 event.value() as i32 / 2000
             }
         };
-        return rel_value
+        return axis_value
     }
     
     async fn toggle_modifiers(&self, key: Key, value: i32) {
@@ -248,8 +248,8 @@ impl EventReader {
                         let virtual_event_x: InputEvent = InputEvent::new_now(EventType::RELATIVE, 0, analog_position[0]);
                         let virtual_event_y: InputEvent = InputEvent::new_now(EventType::RELATIVE, 1, analog_position[1]);
                         let mut virt_dev = self.virt_dev.lock().await;
-                        virt_dev.relative_axes.emit(&[virtual_event_x]).unwrap();
-                        virt_dev.relative_axes.emit(&[virtual_event_y]).unwrap();
+                        virt_dev.axis.emit(&[virtual_event_x]).unwrap();
+                        virt_dev.axis.emit(&[virtual_event_y]).unwrap();
                     }
                 }
                 tokio::time::sleep(std::time::Duration::from_millis(polling_rate)).await;

@@ -1,16 +1,28 @@
-use evdev::uinput::VirtualDevice;
+use evdev::{Key, uinput::{VirtualDevice, VirtualDeviceBuilder}};
 
 
 pub struct VirtualDevices {
     pub keys: VirtualDevice,
-    pub relative_axes: VirtualDevice,
+    pub axis: VirtualDevice,
 }
 
 impl VirtualDevices {
-    pub fn new(keys: VirtualDevice, relative_axes: VirtualDevice) -> Self {
+    pub fn new() -> Self {
+        let mut key_capabilities = evdev::AttributeSet::new();
+        for i in 1..334 {key_capabilities.insert(Key(i));};
+        let mut axis_capabilities = evdev::AttributeSet::new();
+        for i in 0..13 {axis_capabilities.insert(evdev::RelativeAxisType(i));};
+        let keys_builder = VirtualDeviceBuilder::new().unwrap()
+            .name("Makima Virtual Keyboard/Mouse")
+            .with_keys(&key_capabilities).unwrap();
+        let axis_builder = VirtualDeviceBuilder::new().unwrap()
+            .name("Makima Virtual Pointer")
+            .with_relative_axes(&axis_capabilities).unwrap();
+        let virtual_device_keys = keys_builder.build().unwrap();
+        let virtual_device_axis = axis_builder.build().unwrap();
         Self {
-            keys: keys,
-            relative_axes: relative_axes,
+            keys: virtual_device_keys,
+            axis: virtual_device_axis,
         }
     }
 }

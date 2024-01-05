@@ -2,7 +2,7 @@ use std::{collections::{HashMap, BTreeMap}, sync::Arc, path::Path, env};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tokio_stream::StreamExt;
-use evdev::{Device, EventStream, Key, uinput::VirtualDeviceBuilder};
+use evdev::{Device, EventStream, Key};
 use crate::Config;
 use crate::event_reader::EventReader;
 use crate::virtual_devices::VirtualDevices;
@@ -96,9 +96,7 @@ pub async fn create_new_reader(device: String, config: HashMap<String, Config>, 
             )
         )
     );
-    let virt_dev: Arc<Mutex<VirtualDevices>> = Arc::new (
-        Mutex::new(new_virtual_devices())
-    );
+    let virt_dev: Arc<Mutex<VirtualDevices>> = Arc::new(Mutex::new(VirtualDevices::new()));
     let reader = EventReader::new(config.clone(), stream, virt_dev, modifiers, current_desktop);
     println!("Mapped device detected at {:?}, reading events.", device);
     tokio::join!(
@@ -121,23 +119,6 @@ pub fn get_event_stream(path: &Path, config: HashMap<String, Config>) -> EventSt
 
     let stream: EventStream = device.into_event_stream().unwrap();
     return stream
-}
-
-pub fn new_virtual_devices() -> VirtualDevices {
-    let mut key_capabilities = evdev::AttributeSet::new();
-    for i in 1..334 {key_capabilities.insert(Key(i));};
-    let mut rel_capabilities = evdev::AttributeSet::new();
-    for i in 0..13 {rel_capabilities.insert(evdev::RelativeAxisType(i));};
-    let keys_builder = VirtualDeviceBuilder::new().unwrap()
-        .name("Makima Virtual Keyboard/Mouse")
-        .with_keys(&key_capabilities).unwrap();
-    let rel_builder = VirtualDeviceBuilder::new().unwrap()
-        .name("Makima Virtual Pointer")
-        .with_relative_axes(&rel_capabilities).unwrap();
-    let virtual_device_keys = keys_builder.build().unwrap();
-    let virtual_device_rel = rel_builder.build().unwrap();
-    let virtual_devices = VirtualDevices::new(virtual_device_keys, virtual_device_rel);
-    return virtual_devices;
 }
 
 pub fn is_mapped(udev_device: &tokio_udev::Device, config_files: &Vec<Config>) -> bool {
