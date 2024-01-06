@@ -22,7 +22,6 @@ impl EventReader {
     pub fn new(
         config: HashMap<String, Config>,
         stream: Arc<Mutex<EventStream>>,
-        virt_dev: Arc<Mutex<VirtualDevices>>,
         modifiers: Arc<Mutex<BTreeMap<Key, i32>>>,
         current_desktop: Option<String>,
     ) -> Self {
@@ -30,6 +29,7 @@ impl EventReader {
         for i in [0, 0] {position_vector.push(i)};
         let position_vector_mutex = Arc::new(Mutex::new(position_vector));
         let device_is_connected: Arc<Mutex<bool>> = Arc::new(Mutex::new(true));
+        let virt_dev = Arc::new(Mutex::new(VirtualDevices::new()));
         Self {
             config: config,
             stream: stream,
@@ -42,6 +42,14 @@ impl EventReader {
     }
 
     pub async fn start(&self) {
+        println!("{:?} detected, reading events.", self.config.get(&self.get_active_window().await).unwrap().name);
+        tokio::join!(
+            self.event_loop(),
+            self.cursor_loop(),
+        );
+    }
+
+    pub async fn event_loop(&self) {
         let mut stream = self.stream.lock().await;
         let mut analog_mode: &str = "left";
         if let Some(stick) = self.config.get(&self.get_active_window().await).unwrap().settings.get("POINTER_STICK") {
@@ -107,6 +115,7 @@ impl EventReader {
         }
         let mut device_is_connected = self.device_is_connected.lock().await;
         *device_is_connected = false;
+        println!("Disconnected device {}.", self.config.get(&self.get_active_window().await).unwrap().name);
     }
 
     async fn convert_key_events(&self, event: InputEvent) {
