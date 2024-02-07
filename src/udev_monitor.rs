@@ -40,21 +40,31 @@ pub fn launch_tasks(config_files: &Vec<Config>, tasks: &mut Vec<JoinHandle<()>>)
             ])
         )
     );
-    let current_desktop: Option<String> = match env::var("XDG_CURRENT_DESKTOP") {
-        Ok(desktop) if vec!["Hyprland".to_string(), "sway".to_string()].contains(&desktop)  => {
+    let current_desktop: Option<String> = match (env::var("XDG_SESSION_TYPE"), env::var("XDG_CURRENT_DESKTOP")) {
+        (Ok(session), Ok(desktop)) if session == "wayland".to_string() && vec!["Hyprland".to_string(), "sway".to_string()].contains(&desktop)  => {
             println!(">> Running on {}, active window detection enabled.\n", desktop);
             Option::Some(desktop)
         },
-        Ok(desktop) => {
-            println!(">> Unsupported desktop: {}, won't be able to change bindings according to active window.\n
+        (Ok(session), Ok(desktop)) if session == "wayland".to_string() => {
+            println!(">> Unsupported compositor: {}, won't be able to change bindings according to active window.\n
                     Currently supported desktops: Hyprland, Sway.\n", desktop);
             Option::None
         },
-        Err(_) => {
+        (Ok(session), _) if session == "x11".to_string() => {
+            println!(">> Running on X11, active window detection enabled.");
+            Option::Some("x11".to_string())
+        },
+        (Ok(session), Err(_)) if session == "wayland".to_string() => {
             println!(">> Unable to retrieve the current desktop based on XDG_CURRENT_DESKTOP env var.\n
                     Won't be able to change bindings according to the active window.\n");
             Option::None
         },
+        (Err(_), _) => {
+            println!(">> Unable to retrieve the session type based on XDG_SESSION_TYPE env var.\n
+                    Won't be able to change bindings according to the active window.\n");
+            Option::None
+        },
+        _ => Option::None
     };
     let devices: evdev::EnumerateDevices = evdev::enumerate();
     for device in devices {

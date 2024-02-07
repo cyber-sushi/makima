@@ -299,6 +299,9 @@ impl EventReader {
                     String::from("default")
                 }
             },
+            "x11" => {
+                String::from("default")
+            },
             _ => String::from("default")
         }
     }
