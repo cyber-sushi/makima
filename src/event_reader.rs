@@ -2,10 +2,9 @@ use std::{collections::{HashMap, BTreeMap}, sync::Arc, option::Option};
 use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
 use evdev::{EventStream, Key, RelativeAxisType, AbsoluteAxisType, EventType, InputEvent};
-use hyprland::{data::Client, prelude::*};
-use swayipc_async::Connection;
 use crate::virtual_devices::VirtualDevices;
 use crate::Config;
+use crate::active_client::*;
 
 
 pub struct EventReader {
@@ -42,7 +41,7 @@ impl EventReader {
     }
 
     pub async fn start(&self) {
-        println!("{:?} detected, reading events.", self.config.get(&self.get_active_window().await).unwrap().name);
+        println!("{:?} detected, reading events.", self.config.get(&get_active_window(&self.current_desktop, &self.config).await).unwrap().name);
         tokio::join!(
             self.event_loop(),
             self.cursor_loop(),
@@ -52,11 +51,11 @@ impl EventReader {
     pub async fn event_loop(&self) {
         let mut stream = self.stream.lock().await;
         let mut analog_mode: &str = "left";
-        if let Some(stick) = self.config.get(&self.get_active_window().await).unwrap().settings.get("POINTER_STICK") {
+        if let Some(stick) = self.config.get(&get_active_window(&self.current_desktop, &self.config).await).unwrap().settings.get("POINTER_STICK") {
             analog_mode = stick.as_str();
         }
         let mut has_signed_axis_value: &str = "false";
-        if let Some(axis_value) = self.config.get(&self.get_active_window().await).unwrap().settings.get("SIGNED_AXIS_VALUE") {
+        if let Some(axis_value) = self.config.get(&get_active_window(&self.current_desktop, &self.config).await).unwrap().settings.get("SIGNED_AXIS_VALUE") {
             has_signed_axis_value = axis_value.as_str();
         }
         while let Some(Ok(event)) = stream.next().await {
@@ -115,11 +114,11 @@ impl EventReader {
         }
         let mut device_is_connected = self.device_is_connected.lock().await;
         *device_is_connected = false;
-        println!("Disconnected device {}.", self.config.get(&self.get_active_window().await).unwrap().name);
+        println!("Disconnected device {}.", self.config.get(&get_active_window(&self.current_desktop, &self.config).await).unwrap().name);
     }
 
     async fn convert_key_events(&self, event: InputEvent) {
-        let path = self.config.get(&self.get_active_window().await).unwrap();
+        let path = self.config.get(&get_active_window(&self.current_desktop, &self.config).await).unwrap();
         let modifiers = self.modifiers.lock().await.clone();
         if let Some(event_hashmap) = path.modifiers.keys.get(&modifiers) {
             if let Some(event_list) = event_hashmap.get(&Key(event.code())) {
@@ -135,7 +134,7 @@ impl EventReader {
     }
     
     async fn convert_axis_events(&self, event: InputEvent, event_string: &String, send_zero: bool, clamp_value: bool) {
-        let path = self.config.get(&self.get_active_window().await).unwrap();
+        let path = self.config.get(&get_active_window(&self.current_desktop, &self.config).await).unwrap();
         let modifiers = self.modifiers.lock().await.clone();
         let value = {
             if clamp_value && event.value() > 1 {
@@ -236,7 +235,7 @@ impl EventReader {
     }
     
     async fn released_keys(&self, modifiers: &BTreeMap<Key, i32>) -> Vec<Key> {
-        let path = self.config.get(&self.get_active_window().await).unwrap();
+        let path = self.config.get(&get_active_window(&self.current_desktop, &self.config).await).unwrap();
         let mut released_keys: Vec<Key> = Vec::new();
         if let Some(event_hashmap) = path.modifiers.keys.get(&modifiers) {
             event_hashmap.iter().for_each(|(_modifiers, event_list)| released_keys.extend(event_list));
@@ -248,7 +247,7 @@ impl EventReader {
     }
 
     pub async fn cursor_loop(&self) {
-        if let Some(sensitivity) = self.config.get(&self.get_active_window().await).unwrap().settings.get("ANALOG_SENSITIVITY") {
+        if let Some(sensitivity) = self.config.get(&get_active_window(&self.current_desktop, &self.config).await).unwrap().settings.get("ANALOG_SENSITIVITY") {
             let polling_rate: u64 = sensitivity.parse::<u64>().expect("Invalid analog sensitivity.");
             while *self.device_is_connected.lock().await {
                 {
@@ -265,44 +264,6 @@ impl EventReader {
             }
         } else {
             return
-        }
-    }
-
-    async fn get_active_window(&self) -> String {
-        let active_client = self.current_desktop.clone().unwrap_or(String::from("default"));
-        match active_client.as_str() {
-            "Hyprland" => {
-                let active_window: String = match Client::get_active_async().await.unwrap() {
-                    Some(window) => window.class,
-                    None => String::from("default")
-                };
-                if self.config.contains_key(&active_window) {
-                    active_window
-                } else {
-                    String::from("default")
-                }
-            },
-            "sway" => {
-                let mut connection = Connection::new().await.unwrap();
-                let active_window = match connection.get_tree().await.unwrap().find_focused(|window| window.focused) {
-                    Some(window) => {
-                        match window.app_id {
-                            Some(id) => id,
-                            None => window.window_properties.unwrap().class.unwrap()
-                        }
-                    },
-                    None => String::from("default")
-                };
-                if self.config.contains_key(&active_window) {
-                    active_window
-                } else {
-                    String::from("default")
-                }
-            },
-            "x11" => {
-                String::from("default")
-            },
-            _ => String::from("default")
         }
     }
 }

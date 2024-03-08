@@ -2,6 +2,7 @@ mod config;
 mod virtual_devices;
 mod event_reader;
 mod udev_monitor;
+mod active_client;
 
 use tokio;
 use home;
