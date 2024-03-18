@@ -30,4 +30,4 @@ BTN_DPAD_LEFT = ["KEY_LEFT"] #directional pad left
 ANALOG_SENSITIVITY = "6" #lower value is higher sensitivity, minimum 1
 MOVE_MOUSE_WITH_STICK = "left" #left, right or none
 GRAB_DEVICE = "false" #gain exclusivity on the device
-XBOX_CONTROLLER = "true" #xbox controllers use different values for analog sticks so it needs to be specified
+SIGNED_AXIS_VALUE = "true" #necessary for Xbox controllers and Switch joycons, use false for other controllers
