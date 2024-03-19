@@ -145,7 +145,7 @@ Refer to the sample config files on this Github for more information about contr
 
 To add other controllers, please open an issue.
 
-## Troubleshooting and possible questions:
+## Troubleshooting and FAQ:
 **Q**: My device actually shows as three different devices in evtest, do I need to create three different config files, one for each device?\
 **A**: Each device will have a certain set of features, e.g. a DS4 controller is recognized as a touchpad, a motion sensor and a controller. A mouse is usually recognized as a mouse and a keyboard (for the additional keys). Just create a config file for the devices/features that you need to remap, and ignore the others.
 
