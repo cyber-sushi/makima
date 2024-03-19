@@ -4,20 +4,30 @@ Makima is a daemon for Linux to remap keyboards, mice, controllers and tablets.\
 It works on Wayland, X11 and even tty, as it relies on the `evdev` kernel interface.\
 Previously only a controller daemon, the scope has now been expanded because I had nothing better to do.
 
-## Features:
-- Configure your keybindings through simple TOML config files, one for each device.
-- Remap keys, buttons or entire combinations to other keys and macros.
-- Supports keyboards, mice and any other device that uses input events present inside `/usr/include/linux/input-event-codes.h`.
+## Features
+- Remap keys, buttons or entire combinations to other keys and macros using simple TOML config files, one for each different device.
+- Works with keyboards, mice, controllers and any other device that uses input events present inside `/usr/include/linux/input-event-codes.h`.
 - Hotplug to connect and disconnect your devices whenever you want.
 - Supports wired and Bluetooth connections.
 - If you connect a [supported game controller](https://github.com/cyber-sushi/makima/tree/main#tested-controllers), you can move your cursor using analog sticks with adjustable sensitivity.
-- You can have multiple sets of key bindings that automatically switch based on the active window (only on Hyprland and Sway currently).
-- Written in Rust so it's blazingly fast, I think?
+- You can have multiple sets of key bindings that automatically switch based on the active window (only on Hyprland, Sway and X11 currently).
 
-## How to use:
+# Index
+- [How to use](https://github.com/cyber-sushi/makima/tree/main#how-to-use)
+- [Configuration](https://github.com/cyber-sushi/makima/tree/main#configuration)
+    - [Example config files](https://github.com/cyber-sushi/makima/tree/main/examples)
+    - [Application-specific bindings](https://github.com/cyber-sushi/makima/tree/main#application-specific-bindings)
+    - [Change bindings](https://github.com/cyber-sushi/makima/tree/main#change-bindings)
+        - [Keys](https://github.com/cyber-sushi/makima/tree/main#bindingskeys-and-combinationskeys)
+        - [Axis](https://github.com/cyber-sushi/makima/tree/main#bindingsaxis-and-combinationsaxis)
+        - [Settings](https://github.com/cyber-sushi/makima/tree/main#settings)
+- [Tested controllers](https://github.com/cyber-sushi/makima/tree/main#tested-controllers)
+- [Troubleshooting and FAQ](https://github.com/cyber-sushi/makima/tree/main#troubleshooting-and-faq)
+
+## How to use
 1. Download the executable from the Releases page or compile it yourself using Cargo.
-2. Create a TOML config file inside `~/.config/makima` (or pick one of the default ones) and rename it with the _exact_ name of your device. You can check the name by running `evtest`. If the name includes a `/`, just omit it.
-3. Assign your keybindings inside the config file, follow [this documentation](https://github.com/cyber-sushi/makima/tree/main#configuration) for more info.
+2. Create a TOML config file inside `~/.config/makima` (or pick one of the [default ones](https://github.com/cyber-sushi/makima/tree/main/examples)) and rename it with the _exact_ name of your device. You can check the name by running `evtest`. If the name includes a `/`, just omit it.
+3. Assign your keybindings inside the config file, follow the [Configuration](https://github.com/cyber-sushi/makima/tree/main#configuration) section for more info.
 4. Make sure the `makima` executable has permission to be executed as a program. If not, `cd` into the directory of the executable and use `chmod +x makima`. Alternatively, Right Click > Properties > "allow executing as program" or something like that.
 5. Make sure that your user has access to event devices. If it doesn't, use `sudo usermod -aG input yourusername` and reboot.
 6. Launch Makima and it'll automatically recognize all connected devices that have a corresponding config file inside `~/.config/makima`.
@@ -28,19 +38,20 @@ Previously only a controller daemon, the scope has now been expanded because I h
      - Create a .desktop file and launch it using that.
      - Autostart it from your window manager's config file (usually `exec /path/to/makima`).
 
-## Configuration:
+## Configuration
 You can find some sample config files on this Github; pick one that fits your use case and copy it inside `~/.config/makima`, then edit it to your needs.\
 **To associate a config file to an input device, the file name should be identical to that of the device. If your device's name includes a `/`, just omit it.**\
 Example: you run `evtest` and see that your Dualshock 4 controller is named `Sony Interactive Entertainment Wireless Controller`; all you have to do is rename your config file `Sony Interactive Entertainment Wireless Controller.toml`.\
 All config files will be parsed automatically when `makima` is launched.
 
-### Adaptive bindings for each application (Hyprland and Sway only atm):
+### Application-specific bindings
+**HYPRLAND, SWAY AND X11 ONLY**
 Have you ever wanted to have a different set of macros for each game that you play? Or maybe you want your controller to input Space when you press X, but only when MPV is focused? Then this is exactly what you're looking for!\
 To have app-specific config files, just put `::window_class` at the end of their filename, before `.toml`.\
 Example: you want your DS4 controller to have a specific set of keybindings for Firefox, name that file `Sony Interactive Entertainment Wireless Controller::firefox.toml`. To retrieve the window class of a specific application, refer to your compositor's documentation, e.g. on Hyprland type `hyprctl clients` in your terminal while that application is open.\
-**Note: on Sway, make sure that the `XDG_DESKTOP_SESSION=sway` environment variable is set, or Makima won't be able to use adaptive bindings.**
+**Note: on Sway, make sure that the `XDG_DESKTOP_SESSION=sway` environment variable is set, or Makima won't be able to use application-specific bindings.**
 
-## The config files:
+## Change bindings
 The config file is divided into multiple sections:
 - `[bindings.keys]`, where you can rebind single keys or buttons to other keys or macros.
 - `[bindings.axis]`, where you can rebind axis type events (e.g. mouse scroll wheel, controller D-Pad) to other keys or macros.
@@ -144,8 +155,8 @@ To add other controllers, please open an issue.
 **Q**: My controller works when using Bluetooth but not when using wired connection or vice-versa, why?\
 **A**: Some devices have a different evdev name when connected through Bluetooth, for example a `Sony Interactive Entertainment Wireless Controller` is just seen as `Wireless Controller` when connected via Bluetooth. You'll need to create a copy of the config file with that name.
 
-**Q**: Will adaptive bindings (changing mapping based on the currently active app) be implemented for desktops other than Hyprland and Sway?\
-**A**: I plan on implementing adaptive bindings for X11 at some point.
+**Q**: Will application-specific bindings be implemented for desktops other than Hyprland, Sway and X11?\
+**A**: If someone requests it, I might look into it.
 
 **Q**: Makima gives me a "Permission Denied" error when launching, what do I do?\
 **A**: If you're certain that you've correctly added your user to the `input` group through `sudo usermod -aG input yourusername` and rebooted (you can verify it by running `groups` and see if it returns `input`), then maybe the `uinput` kernel module isn't loaded. You can load it with `sudo modprobe uinput`. To make it permanent, create `/etc/modules-load.d/uinput.conf` and write `uinput` inside.
