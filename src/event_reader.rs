@@ -11,7 +11,8 @@ pub struct EventReader {
     config: HashMap<String, Config>,
     stream: Arc<Mutex<EventStream>>,
     virt_dev: Arc<Mutex<VirtualDevices>>,
-    analog_position: Arc<Mutex<Vec<i32>>>,
+    cursor_analog_position: Arc<Mutex<Vec<i32>>>,
+    scroll_analog_position: Arc<Mutex<Vec<i32>>>,
     modifiers: Arc<Mutex<BTreeMap<Key, i32>>>,
     device_is_connected: Arc<Mutex<bool>>,
     current_desktop: Option<String>,
@@ -26,14 +27,16 @@ impl EventReader {
     ) -> Self {
         let mut position_vector: Vec<i32> = Vec::new();
         for i in [0, 0] {position_vector.push(i)};
-        let position_vector_mutex = Arc::new(Mutex::new(position_vector));
+        let cursor_position_vector_mutex = Arc::new(Mutex::new(position_vector.clone()));
+        let scroll_position_vector_mutex = Arc::new(Mutex::new(position_vector.clone()));
         let device_is_connected: Arc<Mutex<bool>> = Arc::new(Mutex::new(true));
         let virt_dev = Arc::new(Mutex::new(VirtualDevices::new()));
         Self {
             config: config,
             stream: stream,
             virt_dev: virt_dev,
-            analog_position: position_vector_mutex,
+            cursor_analog_position: cursor_position_vector_mutex,
+            scroll_analog_position: scroll_position_vector_mutex,
             modifiers: modifiers,
             device_is_connected: device_is_connected,
             current_desktop: current_desktop,
@@ -45,25 +48,30 @@ impl EventReader {
         tokio::join!(
             self.event_loop(),
             self.cursor_loop(),
+            self.scroll_loop(),
         );
     }
 
     pub async fn event_loop(&self) {
         let mut stream = self.stream.lock().await;
-        let mut analog_mode: &str = "left";
-        if let Some(stick) = self.config.get(&get_active_window(&self.current_desktop, &self.config).await).unwrap().settings.get("POINTER_STICK") {
-            analog_mode = stick.as_str();
+        let mut cursor_analog_mode: &str = "left";
+        if let Some(stick) = self.config.get(&"default".to_string()).unwrap().settings.get("CURSOR_STICK") {
+            cursor_analog_mode = stick.as_str();
+        }
+        let mut scroll_analog_mode: &str = "right";
+        if let Some(stick) = self.config.get(&"default".to_string()).unwrap().settings.get("SCROLL_STICK") {
+            scroll_analog_mode = stick.as_str();
         }
         let mut has_signed_axis_value: &str = "false";
-        if let Some(axis_value) = self.config.get(&get_active_window(&self.current_desktop, &self.config).await).unwrap().settings.get("SIGNED_AXIS_VALUE") {
+        if let Some(axis_value) = self.config.get(&"default".to_string()).unwrap().settings.get("SIGNED_AXIS_VALUE") {
             has_signed_axis_value = axis_value.as_str();
         }
         while let Some(Ok(event)) = stream.next().await {
-            match (event.event_type(), RelativeAxisType(event.code()), AbsoluteAxisType(event.code()), analog_mode) {
-                (EventType::KEY, _, _, _) => {
+            match (event.event_type(), RelativeAxisType(event.code()), AbsoluteAxisType(event.code())) {
+                (EventType::KEY, _, _) => {
                     self.convert_key_events(event).await;
                 },
-                (_, RelativeAxisType::REL_WHEEL | RelativeAxisType::REL_WHEEL_HI_RES, _, _) => {
+                (_, RelativeAxisType::REL_WHEEL | RelativeAxisType::REL_WHEEL_HI_RES, _) => {
                     let event_string_option: Option<String> = match event.value() {
                         -1 => Option::Some("SCROLL_WHEEL_DOWN".to_string()),
                         1 => Option::Some("SCROLL_WHEEL_UP".to_string()),
@@ -75,7 +83,7 @@ impl EventReader {
                         self.emit_default_event(event).await;
                     }
                 },
-                (_, _, AbsoluteAxisType::ABS_HAT0X, _) => {
+                (_, _, AbsoluteAxisType::ABS_HAT0X) => {
                     let event_string: String = match event.value() {
                         -1 => "BTN_DPAD_LEFT".to_string(),
                         0 => "NONE_X".to_string(),
@@ -84,7 +92,7 @@ impl EventReader {
                     };
                     self.convert_axis_events(event, &event_string, false, false).await;
                 },
-                (_, _, AbsoluteAxisType::ABS_HAT0Y, _) => {
+                (_, _, AbsoluteAxisType::ABS_HAT0Y) => {
                     let event_string: String = match event.value() {
                         -1 => "BTN_DPAD_UP".to_string(),
                         0 => "NONE_Y".to_string(),
@@ -93,20 +101,32 @@ impl EventReader {
                     };
                     self.convert_axis_events(event, &event_string, false, false).await;
                 },
-                (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_X | AbsoluteAxisType::ABS_Y, "left") => {
-                    let axis_value = self.get_axis_value(&has_signed_axis_value, &event).await;
-                    let mut analog_position = self.analog_position.lock().await;
-                    analog_position[event.code() as usize] = axis_value;
+                (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_X | AbsoluteAxisType::ABS_Y) => {
+                    if cursor_analog_mode == "left" {
+                        let axis_value = self.get_axis_value(&has_signed_axis_value, &event).await;
+                        let mut cursor_analog_position = self.cursor_analog_position.lock().await;
+                        cursor_analog_position[event.code() as usize] = axis_value;
+                    } else if scroll_analog_mode == "left" {
+                        let axis_value = self.get_axis_value(&has_signed_axis_value, &event).await;
+                        let mut scroll_analog_position = self.scroll_analog_position.lock().await;
+                        scroll_analog_position[event.code() as usize] = axis_value;
+                    }
                 },
-                (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_RX | AbsoluteAxisType::ABS_RY, "right") => {
-                    let axis_value = self.get_axis_value(&has_signed_axis_value, &event).await;
-                    let mut analog_position = self.analog_position.lock().await;
-                    analog_position[(event.code() as usize) -3] = axis_value;
+                (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_RX | AbsoluteAxisType::ABS_RY) => {
+                    if cursor_analog_mode == "right" {
+                        let axis_value = self.get_axis_value(&has_signed_axis_value, &event).await;
+                        let mut cursor_analog_position = self.cursor_analog_position.lock().await;
+                        cursor_analog_position[event.code() as usize -3] = axis_value;
+                    } else if scroll_analog_mode == "right" {
+                        let axis_value = self.get_axis_value(&has_signed_axis_value, &event).await;
+                        let mut scroll_analog_position = self.scroll_analog_position.lock().await;
+                        scroll_analog_position[event.code() as usize -3] = axis_value;
+                    }
                 },
-                (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_Z, _) => {
+                (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_Z) => {
                     self.convert_axis_events(event, &"BTN_TL2".to_string(), false, true).await;
                 },
-                (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_RZ, _) => {
+                (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_RZ) => {
                     self.convert_axis_events(event, &"BTN_TR2".to_string(), false, true).await;
                 },
                 _ => {self.emit_default_event(event).await;}
@@ -247,14 +267,34 @@ impl EventReader {
     }
 
     pub async fn cursor_loop(&self) {
-        if let Some(sensitivity) = self.config.get(&get_active_window(&self.current_desktop, &self.config).await).unwrap().settings.get("ANALOG_SENSITIVITY") {
-            let polling_rate: u64 = sensitivity.parse::<u64>().expect("Invalid analog sensitivity.");
+        if let Some(sensitivity) = self.config.get(&"default".to_string()).unwrap().settings.get("CURSOR_SENSITIVITY") {
+            let polling_rate: u64 = sensitivity.parse::<u64>().expect("Invalid cursor sensitivity.");
             while *self.device_is_connected.lock().await {
                 {
-                    let analog_position = self.analog_position.lock().await;
-                    if analog_position[0] != 0 || analog_position[1] != 0 {
-                        let virtual_event_x: InputEvent = InputEvent::new_now(EventType::RELATIVE, 0, analog_position[0]);
-                        let virtual_event_y: InputEvent = InputEvent::new_now(EventType::RELATIVE, 1, analog_position[1]);
+                    let cursor_analog_position = self.cursor_analog_position.lock().await;
+                    if cursor_analog_position[0] != 0 || cursor_analog_position[1] != 0 {
+                        let virtual_event_x: InputEvent = InputEvent::new_now(EventType::RELATIVE, 0, cursor_analog_position[0]);
+                        let virtual_event_y: InputEvent = InputEvent::new_now(EventType::RELATIVE, 1, cursor_analog_position[1]);
+                        let mut virt_dev = self.virt_dev.lock().await;
+                        virt_dev.axis.emit(&[virtual_event_x]).unwrap();
+                        virt_dev.axis.emit(&[virtual_event_y]).unwrap();
+                    }
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(polling_rate)).await;
+            }
+        } else {
+            return
+        }
+    }
+    pub async fn scroll_loop(&self) {
+        if let Some(sensitivity) = self.config.get(&"default".to_string()).unwrap().settings.get("SCROLL_SENSITIVITY") {
+            let polling_rate: u64 = sensitivity.parse::<u64>().expect("Invalid scroll sensitivity.");
+            while *self.device_is_connected.lock().await {
+                {
+                    let scroll_analog_position = self.scroll_analog_position.lock().await;
+                    if scroll_analog_position[0] != 0 || scroll_analog_position[1] != 0 {
+                        let virtual_event_x: InputEvent = InputEvent::new_now(EventType::RELATIVE, 12, scroll_analog_position[0]);
+                        let virtual_event_y: InputEvent = InputEvent::new_now(EventType::RELATIVE, 11, scroll_analog_position[1]);
                         let mut virt_dev = self.virt_dev.lock().await;
                         virt_dev.axis.emit(&[virtual_event_x]).unwrap();
                         virt_dev.axis.emit(&[virtual_event_y]).unwrap();

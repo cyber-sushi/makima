@@ -111,10 +111,12 @@ Events that are not explicitly remapped will keep their default functionality.\
 If you don't need to remap any axis event, you can just omit the entire `[bindings.axis]` and `[combinations.axis]` paragraphs.
 
 ### \[settings]
-There are currently 4 available settings:
+There are currently 6 available settings:
 - `GRAB_DEVICE` will set if Makima should have exclusivity over the device. If set to `"true"`, no other program will read the original input of the device. If set to `"false"`, both the original input and the remapped input will be read by applications. The event reader won't start if this is not set.
-- `MOVE_MOUSE_WITH_STICK` will set if your mouse cursor should be moved using your controller's analog sticks, and which of the two sticks should move your cursor. Can be set to `"left"`, `"right"` or `"none"`. Defaults to `"left"` if not set.
-- `ANALOG_SENSITIVITY` will change the speed of your mouse cursor when moved through an analog stick. Lower value is higher sensitivity, minimum `"1"`, suggested `"6"`. The analog stick won't be read if this is not set.
+- `CURSOR_STICK` will set if your mouse cursor should be moved using your controller's analog sticks, and which of the two sticks should move your cursor. Can be set to `"left"`, `"right"` or `"none"`. Defaults to `"left"` if not set.
+- `SCROLL_STICK` will set if 2D scrolling using your controller's analog sticks should be anabled, and which of the two sticks should move your cursor. Can be set to `"left"`, `"right"` or `"none"`. Defaults to `"left"` if not set. If both `CURSOR_STICK` and `SCROLL_STICK` are set to the same value, `CURSOR_STICK` will have priority.
+- `CURSOR_SENSITIVITY` will change the speed of your mouse cursor when it's being moved with an analog stick. Lower value is higher sensitivity, minimum `"1"`, suggested `"6"`. If this isn't set, cursor movement will be disabled.
+- `SCROLL_SENSITIVITY` will change the scroll speed when scrolling with an analog stick. Lower value is higher sensitivity, minimum `"1"`, suggested `"6"`. If this isn't set, scrolling will be disabled.
 - `SIGNED_AXIS_VALUE` is needed if you're using Xbox controllers and Switch Joy-Cons to properly calibrate the analog stick's sensitivity. Set to `"true"` if you're using those controllers. Can be left out otherwise.
 
 Example settings for a keyboard or mouse, notice that only the `GRAB_DEVICE` setting is needed in this case and you can leave everything else out:
@@ -125,8 +127,10 @@ GRAB_DEVICE = "true"
 Example settings for a an Xbox 360/One controller:
 ```
 [settings]
-ANALOG_SENSITIVITY = "6"
-MOVE_MOUSE_WITH_STICK =	"left"
+CURSOR_SENSITIVITY = "6"
+SCROLL_SENSITIVITY = "6"
+CURSOR_STICK = "left"
+SCROLL_STICK = "right"
 GRAB_DEVICE = "false"
 SIGNED_AXIS_VALUE = "true"
 ```
