@@ -12,17 +12,17 @@ Previously only a controller daemon, the scope has now been expanded because I h
 - If you connect a [supported game controller](https://github.com/cyber-sushi/makima/tree/main#tested-controllers), you can move your cursor using analog sticks with adjustable sensitivity.
 - You can have multiple sets of key bindings that automatically switch based on the active window (only on Hyprland, Sway and X11 currently).
 
-## Index
-1. [How to use](https://github.com/cyber-sushi/makima/tree/main#how-to-use)
-2. [Configuration](https://github.com/cyber-sushi/makima/tree/main#configuration)
-    - 2.1 [Example config files](https://github.com/cyber-sushi/makima/tree/main/examples)
-    - 2.2 [Application-specific bindings](https://github.com/cyber-sushi/makima/tree/main#application-specific-bindings)
-    - 2.3 [Change bindings](https://github.com/cyber-sushi/makima/tree/main#change-bindings)
-        - 2.3.1 [Keys](https://github.com/cyber-sushi/makima/tree/main#bindingskeys-and-combinationskeys)
-        - 2.3.2 [Axis](https://github.com/cyber-sushi/makima/tree/main#bindingsaxis-and-combinationsaxis)
-        - 2.3.3 [Settings](https://github.com/cyber-sushi/makima/tree/main#settings)
-3. [Tested controllers](https://github.com/cyber-sushi/makima/tree/main#tested-controllers)
-4. [Troubleshooting and FAQ](https://github.com/cyber-sushi/makima/tree/main#troubleshooting-and-faq)
+# Index
+- [How to use](https://github.com/cyber-sushi/makima/tree/main#how-to-use)
+- [Configuration](https://github.com/cyber-sushi/makima/tree/main#configuration)
+    - [Example config files](https://github.com/cyber-sushi/makima/tree/main/examples)
+    - [Application-specific bindings](https://github.com/cyber-sushi/makima/tree/main#application-specific-bindings)
+    - [Change bindings](https://github.com/cyber-sushi/makima/tree/main#change-bindings)
+        - [Keys](https://github.com/cyber-sushi/makima/tree/main#bindingskeys-and-combinationskeys)
+        - [Axis](https://github.com/cyber-sushi/makima/tree/main#bindingsaxis-and-combinationsaxis)
+        - [Settings](https://github.com/cyber-sushi/makima/tree/main#settings)
+- [Tested controllers](https://github.com/cyber-sushi/makima/tree/main#tested-controllers)
+- [Troubleshooting and FAQ](https://github.com/cyber-sushi/makima/tree/main#troubleshooting-and-faq)
 
 ## How to use
 1. Download the executable from the Releases page or compile it yourself using Cargo.
@@ -45,7 +45,7 @@ Example: you run `evtest` and see that your Dualshock 4 controller is named `Son
 All config files will be parsed automatically when `makima` is launched.
 
 ### Application-specific bindings
-**HYPRLAND, SWAY AND X11 ONLY**\
+**HYPRLAND, SWAY AND X11 ONLY**
 Have you ever wanted to have a different set of macros for each game that you play? Or maybe you want your controller to input Space when you press X, but only when MPV is focused? Then this is exactly what you're looking for!\
 To have app-specific config files, just put `::window_class` at the end of their filename, before `.toml`.\
 Example: you want your DS4 controller to have a specific set of keybindings for Firefox, name that file `Sony Interactive Entertainment Wireless Controller::firefox.toml`. To retrieve the window class of a specific application, refer to your compositor's documentation, e.g. on Hyprland type `hyprctl clients` in your terminal while that application is open.\
@@ -114,7 +114,7 @@ If you don't need to remap any axis event, you can just omit the entire `[bindin
 There are currently 6 available settings:
 - `GRAB_DEVICE` will set if Makima should have exclusivity over the device. If set to `"true"`, no other program will read the original input of the device. If set to `"false"`, both the original input and the remapped input will be read by applications. The event reader won't start if this is not set.
 - `CURSOR_STICK` will set if your mouse cursor should be moved using your controller's analog sticks, and which of the two sticks should move your cursor. Can be set to `"left"`, `"right"` or `"none"`. Defaults to `"left"` if not set.
-- `SCROLL_STICK` will set if 2D scrolling using your controller's analog sticks should be anabled, and which of the two sticks should move your cursor. Can be set to `"left"`, `"right"` or `"none"`. Defaults to `"left"` if not set. If both `CURSOR_STICK` and `SCROLL_STICK` are set to the same value, `CURSOR_STICK` will have priority.
+- `SCROLL_STICK` will set if 2D scrolling using your controller's analog sticks should be anabled, and which of the two sticks should move your cursor. Can be set to `"left"`, `"right"` or `"none"`. Defaults to `"right"` if not set. If both `CURSOR_STICK` and `SCROLL_STICK` are set to the same value, `CURSOR_STICK` will have priority.
 - `CURSOR_SENSITIVITY` will change the speed of your mouse cursor when it's being moved with an analog stick. Lower value is higher sensitivity, minimum `"1"`, suggested `"6"`. If this isn't set, cursor movement will be disabled.
 - `SCROLL_SENSITIVITY` will change the scroll speed when scrolling with an analog stick. Lower value is higher sensitivity, minimum `"1"`, suggested `"6"`. If this isn't set, scrolling will be disabled.
 - `SIGNED_AXIS_VALUE` is needed if you're using Xbox controllers and Switch Joy-Cons to properly calibrate the analog stick's sensitivity. Set to `"true"` if you're using those controllers. Can be left out otherwise.
