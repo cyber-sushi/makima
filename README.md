@@ -9,7 +9,7 @@ Previously only a controller daemon, the scope has now been expanded because I h
 - Works with keyboards, mice, controllers and any other device that uses input events present inside `/usr/include/linux/input-event-codes.h`.
 - Hotplug to connect and disconnect your devices whenever you want.
 - Supports wired and Bluetooth connections.
-- If you connect a [supported game controller](https://github.com/cyber-sushi/makima/tree/main#tested-controllers), you can move your cursor using analog sticks with adjustable sensitivity.
+- If you connect a [supported game controller](https://github.com/cyber-sushi/makima/tree/main#tested-controllers), you can control your cursor and scroll through pages using analog sticks, with adjustable sensitivity.
 - You can have multiple sets of key bindings that automatically switch based on the active window (only on Hyprland, Sway and X11 currently).
 
 # Index
@@ -45,7 +45,7 @@ Example: you run `evtest` and see that your Dualshock 4 controller is named `Son
 All config files will be parsed automatically when `makima` is launched.
 
 ### Application-specific bindings
-**HYPRLAND, SWAY AND X11 ONLY**
+**(HYPRLAND, SWAY AND X11 ONLY)**\
 Have you ever wanted to have a different set of macros for each game that you play? Or maybe you want your controller to input Space when you press X, but only when MPV is focused? Then this is exactly what you're looking for!\
 To have app-specific config files, just put `::window_class` at the end of their filename, before `.toml`.\
 Example: you want your DS4 controller to have a specific set of keybindings for Firefox, name that file `Sony Interactive Entertainment Wireless Controller::firefox.toml`. To retrieve the window class of a specific application, refer to your compositor's documentation, e.g. on Hyprland type `hyprctl clients` in your terminal while that application is open.\
