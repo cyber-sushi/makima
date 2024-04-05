@@ -111,7 +111,7 @@ Events that are not explicitly remapped will keep their default functionality.\
 If you don't need to remap any axis event, you can just omit the entire `[bindings.axis]` and `[combinations.axis]` paragraphs.
 
 ### \[settings]
-There are currently 6 available settings:
+There are currently 7 available settings:
 - `GRAB_DEVICE` will set if Makima should have exclusivity over the device. If set to `"true"`, no other program will read the original input of the device. If set to `"false"`, both the original input and the remapped input will be read by applications. The event reader won't start if this is not set.
 - `CURSOR_STICK` will set if your mouse cursor should be moved using your controller's analog sticks, and which of the two sticks should move your cursor. Can be set to `"left"`, `"right"` or `"none"`. Defaults to `"left"` if not set.
 - `SCROLL_STICK` will set if 2D scrolling using your controller's analog sticks should be anabled, and which of the two sticks should move your cursor. Can be set to `"left"`, `"right"` or `"none"`. Defaults to `"right"` if not set. If both `CURSOR_STICK` and `SCROLL_STICK` are set to the same value, `CURSOR_STICK` will have priority.
