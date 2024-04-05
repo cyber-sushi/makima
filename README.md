@@ -117,6 +117,7 @@ There are currently 6 available settings:
 - `SCROLL_STICK` will set if 2D scrolling using your controller's analog sticks should be anabled, and which of the two sticks should move your cursor. Can be set to `"left"`, `"right"` or `"none"`. Defaults to `"right"` if not set. If both `CURSOR_STICK` and `SCROLL_STICK` are set to the same value, `CURSOR_STICK` will have priority.
 - `CURSOR_SENSITIVITY` will change the speed of your mouse cursor when it's being moved with an analog stick. Lower value is higher sensitivity, minimum `"1"`, suggested `"6"`. If this isn't set, cursor movement will be disabled.
 - `SCROLL_SENSITIVITY` will change the scroll speed when scrolling with an analog stick. Lower value is higher sensitivity, minimum `"1"`, suggested `"6"`. If this isn't set, scrolling will be disabled.
+- `DEADZONE` will change how much your analog sticks should be tilted before their inputs are detected. Particularly useful for older devices that suffer from drifting. Use a value from `"0"` to `"128"`.
 - `SIGNED_AXIS_VALUE` is needed if you're using Xbox controllers and Switch Joy-Cons to properly calibrate the analog stick's sensitivity. Set to `"true"` if you're using those controllers. Can be left out otherwise.
 
 Example settings for a keyboard or mouse, notice that only the `GRAB_DEVICE` setting is needed in this case and you can leave everything else out:

@@ -31,4 +31,6 @@ CURSOR_SENSITIVITY = "6" #lower value is higher sensitivity, minimum 1
 SCROLL_SENSITIVITY = "6" #lower value is higher sensitivity, minimum 1
 CURSOR_STICK = "left" #left, right or none
 SCROLL_STICK = "right" #left, right or none
+DEADZONE = "5" #integer between 0 and 128, bigger number is wider deadzone, default 5
 SIGNED_AXIS_VALUE = "true" #necessary for Xbox controllers and Switch joycons, use false for other controllers
+GRAB_DEVICE = "false" #gain exclusivity on the device

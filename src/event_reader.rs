@@ -66,6 +66,10 @@ impl EventReader {
         if let Some(axis_value) = self.config.get(&"default".to_string()).unwrap().settings.get("SIGNED_AXIS_VALUE") {
             has_signed_axis_value = axis_value.as_str();
         }
+        let mut deadzone: i32 = 5;
+        if let Some(deadzone_str) = self.config.get(&"default".to_string()).unwrap().settings.get("DEADZONE") {
+            deadzone = deadzone_str.parse::<i32>().expect("Invalid value for DEADZONE, please use an integer between 0 and 128.");
+        }
         while let Some(Ok(event)) = stream.next().await {
             match (event.event_type(), RelativeAxisType(event.code()), AbsoluteAxisType(event.code())) {
                 (EventType::KEY, _, _) => {
@@ -103,22 +107,22 @@ impl EventReader {
                 },
                 (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_X | AbsoluteAxisType::ABS_Y) => {
                     if cursor_analog_mode == "left" {
-                        let axis_value = self.get_axis_value(&has_signed_axis_value, &event).await;
+                        let axis_value = self.get_axis_value(&has_signed_axis_value, &event, deadzone).await;
                         let mut cursor_analog_position = self.cursor_analog_position.lock().await;
                         cursor_analog_position[event.code() as usize] = axis_value;
                     } else if scroll_analog_mode == "left" {
-                        let axis_value = self.get_axis_value(&has_signed_axis_value, &event).await;
+                        let axis_value = self.get_axis_value(&has_signed_axis_value, &event, deadzone).await;
                         let mut scroll_analog_position = self.scroll_analog_position.lock().await;
                         scroll_analog_position[event.code() as usize] = axis_value;
                     }
                 },
                 (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_RX | AbsoluteAxisType::ABS_RY) => {
                     if cursor_analog_mode == "right" {
-                        let axis_value = self.get_axis_value(&has_signed_axis_value, &event).await;
+                        let axis_value = self.get_axis_value(&has_signed_axis_value, &event, deadzone).await;
                         let mut cursor_analog_position = self.cursor_analog_position.lock().await;
                         cursor_analog_position[event.code() as usize -3] = axis_value;
                     } else if scroll_analog_mode == "right" {
-                        let axis_value = self.get_axis_value(&has_signed_axis_value, &event).await;
+                        let axis_value = self.get_axis_value(&has_signed_axis_value, &event, deadzone).await;
                         let mut scroll_analog_position = self.scroll_analog_position.lock().await;
                         scroll_analog_position[event.code() as usize -3] = axis_value;
                     }
@@ -234,17 +238,16 @@ impl EventReader {
         }
     }
     
-    async fn get_axis_value(&self, has_signed_axis_value: &str, event: &InputEvent) -> i32 {
-        let axis_value: i32 = match &has_signed_axis_value {
-            &"false" => {
-                let distance_from_center: i32 = event.value() as i32 - 128;
-                distance_from_center / 10
-            }
-            _ => {
-                event.value() as i32 / 2000
-            }
+    async fn get_axis_value(&self, has_signed_axis_value: &str, event: &InputEvent, deadzone: i32) -> i32 {
+        let distance_from_center: i32 = match &has_signed_axis_value {
+            &"false" => (event.value() as i32 - 128) * 200,
+            _ => event.value() as i32
         };
-        return axis_value
+        if distance_from_center.abs() <= deadzone * 200 {
+            0
+        } else {
+            (distance_from_center + 2000 - 1) / 2000
+        }
     }
     
     async fn toggle_modifiers(&self, key: Key, value: i32) {
