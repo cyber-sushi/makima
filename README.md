@@ -42,7 +42,8 @@ Previously only a controller daemon, the scope has now been expanded because I h
 You can find some sample config files on this Github; pick one that fits your use case and copy it inside `~/.config/makima`, then edit it to your needs.\
 **To associate a config file to an input device, the file name should be identical to that of the device. If your device's name includes a `/`, just omit it.**\
 Example: you run `evtest` and see that your Dualshock 4 controller is named `Sony Interactive Entertainment Wireless Controller`; all you have to do is rename your config file `Sony Interactive Entertainment Wireless Controller.toml`.\
-All config files will be parsed automatically when `makima` is launched.
+All config files will be parsed automatically when `makima` is launched.\
+Files that don't end with `.toml` and files that start with `.` (dotfiles) won't be parsed, so you can add a dot at the beginning of the filename to mask it from Makima.
 
 ### Application-specific bindings
 **(HYPRLAND, SWAY AND X11 ONLY)**\
