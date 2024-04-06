@@ -17,7 +17,7 @@ async fn main() {
     let mut config_files: Vec<Config> = Vec::new();
     for file in config_path {
         let filename: String = file.as_ref().unwrap().file_name().into_string().unwrap();
-        if filename.contains(".toml") {
+        if filename.ends_with(".toml") && !filename.starts_with(".") {
             let name: String = filename.split(".toml").collect::<Vec<&str>>()[0].to_string();
             let config_file: Config = Config::new_from_file(file.unwrap().path().to_str().unwrap(), name);
             config_files.push(config_file);
