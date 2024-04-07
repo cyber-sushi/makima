@@ -89,7 +89,7 @@ impl EventReader {
                 (EventType::KEY, _, _) => {
                     self.convert_key_events(event).await;
                 },
-                (_, RelativeAxisType::REL_WHEEL, _) => {
+                (_, RelativeAxisType::REL_WHEEL | RelativeAxisType::REL_WHEEL_HI_RES, _) => {
                     let event_string_option: Option<String> = match event.value() {
                         -1 => Option::Some("SCROLL_WHEEL_DOWN".to_string()),
                         1 => Option::Some("SCROLL_WHEEL_UP".to_string()),
@@ -97,8 +97,6 @@ impl EventReader {
                     };
                     if let Some(event_string) = event_string_option {
                         self.convert_axis_events(event, &event_string, true, false).await;
-                    } else {
-                        self.emit_default_event(event).await;
                     }
                 },
                 (_, _, AbsoluteAxisType::ABS_HAT0X) => {
