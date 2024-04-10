@@ -44,7 +44,6 @@ impl EventReader {
         let rstick_position = Arc::new(Mutex::new(position_vector.clone()));
         let device_is_connected: Arc<Mutex<bool>> = Arc::new(Mutex::new(true));
         let virt_dev = Arc::new(Mutex::new(VirtualDevices::new()));
-
         let lstick_function = config.get(&"default".to_string()).unwrap()
             .settings.get("LSTICK").unwrap_or(&"cursor".to_string()).to_string();
         let lstick_sensitivity: u64 = config.get(&"default".to_string()).unwrap()
@@ -100,6 +99,8 @@ impl EventReader {
     }
 
     pub async fn event_loop(&self) {
+        let mut lstick_values = HashMap::from([("x", 0), ("y", 0)]);
+        let mut rstick_values = HashMap::from([("x", 0), ("y", 0)]);
         let mut stream = self.stream.lock().await;
         while let Some(Ok(event)) = stream.next().await {
             match (event.event_type(), RelativeAxisType(event.code()), AbsoluteAxisType(event.code())) {
@@ -113,7 +114,7 @@ impl EventReader {
                         _ => Option::None,
                     };
                     if let Some(event_string) = event_string_option {
-                        self.convert_axis_events(event, &event_string, true, false).await;
+                        self.convert_axis_events(event, &event_string, true).await;
                     }
                 },
                 (_, _, AbsoluteAxisType::ABS_HAT0X) => {
@@ -123,7 +124,7 @@ impl EventReader {
                         1 => "BTN_DPAD_RIGHT".to_string(),
                         _ => "BTN_DPAD_X".to_string(),
                     };
-                    self.convert_axis_events(event, &event_string, false, false).await;
+                    self.convert_axis_events(event, &event_string, false).await;
                 },
                 (_, _, AbsoluteAxisType::ABS_HAT0Y) => {
                     let event_string: String = match event.value() {
@@ -132,7 +133,7 @@ impl EventReader {
                         1 => "BTN_DPAD_DOWN".to_string(),
                         _ => "BTN_DPAD_Y".to_string(),
                     };
-                    self.convert_axis_events(event, &event_string, false, false).await;
+                    self.convert_axis_events(event, &event_string, false).await;
                 },
                 (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_X | AbsoluteAxisType::ABS_Y) => {
                     if ["cursor", "scroll"].contains(&self.settings.lstick.function.as_str()) {
@@ -148,17 +149,35 @@ impl EventReader {
                             else if AbsoluteAxisType(event.code()) == AbsoluteAxisType::ABS_Y { "y" }
                             else { "none" };
                         let event_string_option: Option<String> = match clamped_value {
-                            -1 if axis == "x" => Option::Some("LSTICK_LEFT".to_string()),
-                            -1 if axis == "y" => Option::Some("LSTICK_UP".to_string()),
-                            0 if axis == "x" => Option::Some("LSTICK_X".to_string()),
-                            0 if axis == "y" => Option::Some("LSTICK_Y".to_string()),
-                            1 if axis == "x" => Option::Some("LSTICK_RIGHT".to_string()),
-                            1 if axis == "y" => Option::Some("LSTICK_DOWN".to_string()),
+                            -1 if axis == "x" && lstick_values.get("x").unwrap() != &-1 => {
+                                lstick_values.insert("x", -1);
+                                Option::Some("LSTICK_LEFT".to_string())
+                            },
+                            -1 if axis == "y" && lstick_values.get("y").unwrap() != &-1 => {
+                                lstick_values.insert("y", -1);
+                                Option::Some("LSTICK_UP".to_string())
+                            },
+                            0 if axis == "x" && lstick_values.get("x").unwrap() != &0 => {
+                                lstick_values.insert("x", 0);
+                                Option::Some("LSTICK_X".to_string())
+                            },
+                            0 if axis == "y" && lstick_values.get("y").unwrap() != &0 => {
+                                lstick_values.insert("y", 0);
+                                Option::Some("LSTICK_Y".to_string())
+                            },
+                            1 if axis == "x" && lstick_values.get("x").unwrap() != &1 => {
+                                lstick_values.insert("x", 1);
+                                Option::Some("LSTICK_RIGHT".to_string())
+                            },
+                            1 if axis == "y" && lstick_values.get("y").unwrap() != &1 => {
+                                lstick_values.insert("y", 1);
+                                Option::Some("LSTICK_DOWN".to_string())
+                            },
                             _ => Option::None,
                         };
                         if let Some(event_string) = event_string_option {
                             let clamped_event = InputEvent::new_now(event.event_type(), event.code(), clamped_value);
-                            self.convert_axis_events(clamped_event, &event_string, false, false).await;
+                            self.convert_axis_events(clamped_event, &event_string, false).await;
                         }
                     } else {
                         self.emit_default_event(event).await;
@@ -178,27 +197,49 @@ impl EventReader {
                             else if AbsoluteAxisType(event.code()) == AbsoluteAxisType::ABS_RY { "y" }
                             else { "none" };
                         let event_string_option: Option<String> = match clamped_value {
-                            -1 if axis == "x" => Option::Some("RSTICK_LEFT".to_string()),
-                            -1 if axis == "y" => Option::Some("RSTICK_UP".to_string()),
-                            0 if axis == "x" => Option::Some("RSTICK_X".to_string()),
-                            0 if axis == "y" => Option::Some("RSTICK_Y".to_string()),
-                            1 if axis == "x" => Option::Some("RSTICK_RIGHT".to_string()),
-                            1 if axis == "y" => Option::Some("RSTICK_DOWN".to_string()),
+                            -1 if axis == "x" && rstick_values.get("x").unwrap() != &-1 => {
+                                rstick_values.insert("x", -1);
+                                Option::Some("RSTICK_LEFT".to_string())
+                            },
+                            -1 if axis == "y" && rstick_values.get("y").unwrap() != &-1 => {
+                                rstick_values.insert("y", -1);
+                                Option::Some("RSTICK_UP".to_string())
+                            },
+                            0 if axis == "x" && rstick_values.get("x").unwrap() != &0 => {
+                                rstick_values.insert("x", 0);
+                                Option::Some("RSTICK_X".to_string())
+                            },
+                            0 if axis == "y" && rstick_values.get("y").unwrap() != &0 => {
+                                rstick_values.insert("y", 0);
+                                Option::Some("RSTICK_Y".to_string())
+                            },
+                            1 if axis == "x" && rstick_values.get("x").unwrap() != &1 => {
+                                rstick_values.insert("x", 1);
+                                Option::Some("RSTICK_RIGHT".to_string())
+                            },
+                            1 if axis == "y" && rstick_values.get("y").unwrap() != &1 => {
+                                rstick_values.insert("y", 1);
+                                Option::Some("RSTICK_DOWN".to_string())
+                            },
                             _ => Option::None,
                         };
                         if let Some(event_string) = event_string_option {
                             let clamped_event = InputEvent::new_now(event.event_type(), event.code(), clamped_value);
-                            self.convert_axis_events(clamped_event, &event_string, false, false).await;
+                            self.convert_axis_events(clamped_event, &event_string, false).await;
                         }
                     } else {
                         self.emit_default_event(event).await;
                     }
                 },
                 (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_Z) => {
-                    self.convert_axis_events(event, &"BTN_TL2".to_string(), false, true).await;
+                    let clamped_value = if event.value() > 0 { 1 } else { 0 };
+                    let clamped_event = InputEvent::new_now(event.event_type(), event.code(), clamped_value);
+                    self.convert_axis_events(clamped_event, &"BTN_TL2".to_string(), false).await;
                 },
                 (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_RZ) => {
-                    self.convert_axis_events(event, &"BTN_TR2".to_string(), false, true).await;
+                    let clamped_value = if event.value() > 0 { 1 } else { 0 };
+                    let clamped_event = InputEvent::new_now(event.event_type(), event.code(), clamped_value);
+                    self.convert_axis_events(clamped_event, &"BTN_TR2".to_string(), false).await;
                 },
                 _ => {self.emit_default_event(event).await;}
             }
@@ -224,19 +265,12 @@ impl EventReader {
         }
     }
     
-    async fn convert_axis_events(&self, event: InputEvent, event_string: &String, send_zero: bool, clamp_value: bool) {
+    async fn convert_axis_events(&self, event: InputEvent, event_string: &String, send_zero: bool) {
         let path = self.config.get(&get_active_window(&self.current_desktop, &self.config).await).unwrap();
         let modifiers = self.modifiers.lock().await.clone();
-        let value = {
-            if clamp_value && event.value() > 1 {
-                1 
-            } else {
-                event.value()
-            }
-        };
         if let Some(event_hashmap) = path.modifiers.axis.get(&modifiers) {
             if let Some(event_list) = event_hashmap.get(event_string) {
-                self.emit_event_without_modifiers(event_list, &modifiers, value).await;
+                self.emit_event_without_modifiers(event_list, &modifiers, event.value()).await;
                 if send_zero {
                     self.emit_event_without_modifiers(event_list, &modifiers, 0).await;
                 }
@@ -245,7 +279,7 @@ impl EventReader {
         }
         if let Some(event_list) = path.bindings.axis.get(event_string) {
             println!("{:?}", event_list);
-            self.emit_event(event_list, value).await;
+            self.emit_event(event_list, event.value()).await;
             if send_zero {
                 self.emit_event_without_modifiers(event_list, &modifiers, 0).await;
             }
