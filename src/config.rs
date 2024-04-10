@@ -88,23 +88,45 @@ impl Config {
             modifiers.axis.insert(modmap, map.clone());
         }
 
-        let mut pad_horizontal: Vec<Key> = bindings.axis.get("BTN_DPAD_LEFT")
+        let mut pad_x: Vec<Key> = bindings.axis.get("BTN_DPAD_LEFT")
             .unwrap_or(&Vec::new()).clone();
-        pad_horizontal.extend(bindings.axis.get("BTN_DPAD_RIGHT")
+        pad_x.extend(bindings.axis.get("BTN_DPAD_RIGHT")
             .unwrap_or(&Vec::new()));
-        let mut pad_vertical: Vec<Key> = bindings.axis.get("BTN_DPAD_UP")
+        let mut pad_y: Vec<Key> = bindings.axis.get("BTN_DPAD_UP")
             .unwrap_or(&Vec::new()).clone();
-        pad_vertical.extend(bindings.axis.get("BTN_DPAD_DOWN")
+        pad_y.extend(bindings.axis.get("BTN_DPAD_DOWN")
             .unwrap_or(&Vec::new()));
-        bindings.axis.insert("NONE_X".to_string(), pad_horizontal);
-        bindings.axis.insert("NONE_Y".to_string(), pad_vertical);
+        bindings.axis.insert("NONE_X".to_string(), pad_x);
+        bindings.axis.insert("NONE_Y".to_string(), pad_y);
+
+        let mut lstick_x: Vec<Key> = bindings.axis.get("LSTICK_LEFT")
+            .unwrap_or(&Vec::new()).clone();
+        lstick_x.extend(bindings.axis.get("LSTICK_RIGHT")
+            .unwrap_or(&Vec::new()));
+        let mut lstick_y: Vec<Key> = bindings.axis.get("LSTICK_UP")
+            .unwrap_or(&Vec::new()).clone();
+        lstick_y.extend(bindings.axis.get("LSTICK_DOWN")
+            .unwrap_or(&Vec::new()));
+        bindings.axis.insert("LSTICK_X".to_string(), lstick_x);
+        bindings.axis.insert("LSTICK_Y".to_string(), lstick_y);
+
+        let mut rstick_x: Vec<Key> = bindings.axis.get("RSTICK_LEFT")
+            .unwrap_or(&Vec::new()).clone();
+        rstick_x.extend(bindings.axis.get("RSTICK_RIGHT")
+            .unwrap_or(&Vec::new()));
+        let mut rstick_y: Vec<Key> = bindings.axis.get("RSTICK_UP")
+            .unwrap_or(&Vec::new()).clone();
+        rstick_y.extend(bindings.axis.get("RSTICK_DOWN")
+            .unwrap_or(&Vec::new()));
+        bindings.axis.insert("RSTICK_X".to_string(), rstick_x);
+        bindings.axis.insert("RSTICK_Y".to_string(), rstick_y);
 
         Self {
             name: file_name,
-            bindings: bindings,
-            combinations: combinations,
-            modifiers: modifiers,
-            settings: settings,
+            bindings,
+            combinations,
+            modifiers,
+            settings,
         }
     }
 }
