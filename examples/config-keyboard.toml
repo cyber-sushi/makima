@@ -16,7 +16,7 @@ KEY_LEFTSHIFT-KEY_LEFTMETA-KEY_LEFTALT.BTN_RIGHT = ["KEY_LEFTCTRL", "KEY_C"]
 [commands]
 #Examples of Modifier + Key => run a shell command
 KEY_LEFTCTRL.KEY_N = ["nautilus"]
-KEY_LEFTMETA.KEY_F = ["firefox", "discord"]
+KEY_LEFTMETA.KEY_P = ["firefox", "discord"]
 KEY_LEFTALT.KEY_SPACE = ["foot sh -c 'pacman -Q | wc -l && sleep 1 && neofetch' && sleep 5"]
 KEY_LEFTCTRL-KEY_LEFTALT-KEY_LEFTSHIFT.KEY_O = ["notify-send 'OwO'"]
 
