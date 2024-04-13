@@ -1,4 +1,4 @@
-use std::{collections::{HashMap, BTreeMap}, sync::Arc, option::Option};
+use std::{collections::{HashMap, BTreeMap}, sync::Arc, option::Option, process::Command};
 use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
 use evdev::{EventStream, Key, RelativeAxisType, AbsoluteAxisType, EventType, InputEvent};
@@ -257,9 +257,16 @@ impl EventReader {
                 self.emit_event_without_modifiers(event_list, &modifiers, event.value()).await;
                 return
             }
+        } else if let Some(command_hashmap) = path.modifiers.keys_sh.get(&modifiers) {
+            if let Some(command_list) = command_hashmap.get(&Key(event.code())) {
+                spawn_subprocess(command_list).await;
+                return
+            }
         }
         if let Some(event_list) = path.bindings.keys.get(&Key(event.code())) {
             self.emit_event(event_list, event.value()).await;
+        } else if let Some(command_list) = path.bindings.keys_sh.get(&Key(event.code())) {
+            spawn_subprocess(command_list).await;
         } else {
             self.emit_default_event(event).await;
         }
@@ -276,13 +283,19 @@ impl EventReader {
                 }
                 return
             }
+        } else if let Some(command_hashmap) = path.modifiers.axis_sh.get(&modifiers) {
+            if let Some(command_list) = command_hashmap.get(event_string) {
+                spawn_subprocess(command_list).await;
+                return
+            }
         }
         if let Some(event_list) = path.bindings.axis.get(event_string) {
-            println!("{:?}", event_list);
             self.emit_event(event_list, event.value()).await;
             if send_zero {
                 self.emit_event_without_modifiers(event_list, &modifiers, 0).await;
             }
+        } else if let Some(command_list) = path.bindings.axis_sh.get(event_string) {
+            spawn_subprocess(command_list).await;
         } else {
             self.emit_default_event(event).await;
         }
@@ -339,7 +352,7 @@ impl EventReader {
             virt_dev.keys.emit(&[virtual_event]).unwrap();
         }
     }
-    
+
     async fn get_axis_value(&self, event: &InputEvent, deadzone: &i32) -> i32 {
         let distance_from_center: i32 = match self.settings.axis_16_bit {
             false => (event.value() as i32 - 128) * 200,
@@ -438,3 +451,12 @@ impl EventReader {
     }
 }
 
+async fn spawn_subprocess(command_list: &Vec<String>) {
+    for command in command_list {
+        Command::new("sh")
+            .arg("-c")
+            .arg(command)
+            .spawn()
+            .expect("Failed to run command.");
+    }
+}
