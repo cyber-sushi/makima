@@ -6,7 +6,7 @@ Previously only a controller daemon, the scope has now been expanded because I h
 
 ## Features
 - Remap keys, buttons or entire combinations to other keys, sequences or shell commands using simple TOML config files, one for each different device.
-- Works with keyboards, mice, controllers and any other device that uses KEY input events present inside `/usr/include/linux/input-event-codes.h`, and also supports common ABS and REL events.
+- Works with keyboards, mice, controllers and any other device that uses `KEY` input events present inside `/usr/include/linux/input-event-codes.h`, and also supports common `ABS` and `REL` events.
 - Hotplug to connect and disconnect your devices whenever you want.
 - Supports wired and Bluetooth connections.
 - If you connect a [supported game controller](https://github.com/cyber-sushi/makima/tree/main#tested-controllers), you can move your cursor or scroll through pages using analog sticks, with adjustable sensitivity and deadzone.
@@ -48,7 +48,7 @@ All config files will be parsed automatically when `makima` is launched.\
 Files that don't end with `.toml` and files that start with `.` (dotfiles) won't be parsed, so you can add a dot at the beginning of the filename to mask them from Makima.
 
 ### Application-specific bindings
-**(HYPRLAND, SWAY AND X11 ONLY)**\
+**Hyprland, Sway and X11 only.**\
 Have you ever wanted to have a different set of bindings for each game or application? Then this is exactly what you're looking for!\
 To have app-specific config files, just put `::<window_class>` at the end of their filename, before `.toml`.\
 Example: you want your DS4 controller to have a specific set of keybindings for Firefox, name that file `Sony Interactive Entertainment Wireless Controller::firefox.toml`.\
@@ -61,30 +61,40 @@ The config file is divided into multiple sections:
 - `[commands]`, where you can rebind keys, buttons, combinations and some axis events to shell commands.
 - `[settings]`, where you can configure a few settings.
 
-### \[remap]
+**Base syntax:**
+
+### **[remap]**
 ```
-#Switch Ctrl and Caps
-KEY_CAPSLOCK = ["KEY_LEFTCTRL"]
-KEY_LEFTCTRL = ["KEY_CAPSLOCK"]
+#Remap a key to another key
+KEY1 = ["KEY2"]
 
-#Pressing Caps Lock triggers the Ctrl+C sequence:
-KEY_CAPSLOCK = ["KEY_LEFTCTRL", "KEY_C"]
+#Remap a key to a key sequence
+KEY1 = ["KEY2", "KEY3", "KEY4"]
 
-#Pressing Ctrl+Shift+K outputs A
-KEY_LEFTCTRL-KEY_LEFTSHIFT.KEY_K = ["KEY_A"]
+#Remap a key sequence (Ctrl/Alt/Shift/Meta + Key) to another key
+MODIFIER1-MODIFIER2-MODIFIER3.KEY1 = ["KEY1"]
 
-#Scrolling up and down with a mouse wheel will copy and paste
-SCROLL_WHEEL_UP = ["KEY_LEFTCTRL", "KEY_C"]
-SCROLL_WHEEL_DOWN = ["KEY_LEFTCTRL", "KEY_V"]
-
-#Pressing Ctrl+Alt+Scrollwheel will do random stuff idk I have no more creativity:
-KEY_LEFTCTRL-KEY_LEFTALT.SCROLL_WHEEL_UP = ["KEY_F5", "KEY_SLASH"]
-KEY_LEFTCTRL-KEY_LEFTALT.SCROLL_WHEEL_DOWN = ["KEY_MINUS", "KEY_APOSTROPHE"]
+#Remap a key sequence (with modifiers, e.g. Ctrl, Alt, Shift, etc) to a key sequence
+MODIFIER1-MODIFIER2-MODIFIER3.KEY1 = ["KEY1", "KEY2", "KEY3"]
 ```
-To see all of the available key codes, refer to the file `/usr/include/linux/input-event-codes.h`.\
-Remember that keys like Ctrl and Alt will have key codes like `KEY_LEFTCTRL`, `KEY_RIGHTCTRL`, `KEY_LEFTALT` and `KEY_RIGHTALT`. Just using `KEY_CTRL` and `KEY_ALT` will throw a parsing error because the key code does not exist.\
-Keys that are not explicitly remapped will keep their default functionality.\
-If you don't need to remap any key, you can just omit the entire `[remap]` or `[commands]` paragraphs.
+
+### **[commands]**
+```
+#Use a key to invoke a shell command
+KEY1 = ["command1"]
+
+#Use a key to invoke a list of shell commands
+KEY1 = ["command1", "command2", "command3"]
+
+#Use a key sequence (Ctrl/Alt/Shift/Meta + Key) to invoke a shell command
+MODIFIER1-MODIFIER2-MODIFIER3.KEY1 = ["command1"]
+
+#Remap a key sequence (with modifiers, e.g. Ctrl, Alt, Shift, etc) to a key sequence
+MODIFIER1-MODIFIER2-MODIFIER3.KEY1 = ["command1", "command2", "command3"]
+```
+You can find the `KEY` names inside `/usr/include/linux/input-event-codes.h`, or launch `evtest` to see the events emitted by your devices.\
+Remember that keys like Ctrl and Alt have names like `KEY_LEFTCTRL`, `KEY_LEFTALT` etc. Just using `KEY_CTRL` and `KEY_ALT` will throw a parsing error because the key code does not exist.\
+Keys that are not explicitly remapped will keep their default functionality.
 
 **Note: axis events such as scroll wheels and analog stick movements are hardcoded, currently you can use the following:**
 - `SCROLL_WHEEL_UP`, `SCROLL_WHEEL_DOWN` - for a mouse's scroll wheel
@@ -92,33 +102,19 @@ If you don't need to remap any key, you can just omit the entire `[remap]` or `[
 - `BTN_TL2`, `BTN_TR2` - for a game controller's triggers
 - `LSTICK_UP`, `LSTICK_DOWN`, `LSTICK_LEFT`, `LSTICK_RIGHT`, `RSTICK_UP`, `RSTICK_DOWN`, `RSTICK_LEFT`, `RSTICK_RIGHT`, - for a game controller's analog sticks
 
-### \[commands]
-```
-#Pressing Ctrl+N launches Nautilus
-KEY_LEFTCTRL.KEY_N = ["nautilus"]
+Refer to the [sample config files](https://github.com/cyber-sushi/makima/tree/main/examples) for more information.
 
-#Pressing Meta+P launches Firefox and Discord contemporarily
-KEY_LEFTMETA.KEY_P = ["firefox", "discord"]
-
-#Pressing Alt+Space will open a Foot window, print the number of Pacman packages installed, run Neofetch and then close Foot after 5 seconds
-KEY_LEFTALT.KEY_SPACE = ["foot sh -c 'pacman -Q | wc -l && sleep 1 && neofetch' && sleep 5"]
-
-#Pressing Ctrl+Alt+Shift+O will send a notification
-KEY_LEFTCTRL-KEY_LEFTALT-KEY_LEFTSHIFT.KEY_O = ["notify-send 'OwO'"]
-```
-
-**Note: everything mentioned at the end of the `[remap]` paragraph is also valid for commands.
 
 ### \[settings]
-There are currently 8 available settings:
-- `GRAB_DEVICE` will set if Makima should have exclusivity over the device. If set to `"true"`, no other program will read the original input of the device. If set to `"false"`, both the original input and the remapped input will be read by applications. The event reader won't start if this is not set.
-- `LSTICK` and `RSTICK` will set the function of your left and right analog sticks, respectively. `"bind"` will make them available for rebinding in `[remap]` and `[commands]`, `"cursor"` will use them to move your mouse cursor, `"scroll"` will use them to scroll, `"disabled"` will disable them.
-- `LSTICK_SENSITIVITY` and `RSTICK_SENSITIVITY` will change the sensitivity of your left and right analog sticks when using them to scroll or move your cursor. Lower value is higher sensitivity, minimum `"1"`, suggested `"6"`. If this is set to `"0"` or if it's not set, cursor movement and scroll will be disabled.
-- `LSTICK_DEADZONE` and `RSTICK_DEADZONE` will change how much your analog sticks should be tilted before their inputs are detected. Particularly useful for older devices that suffer from drifting. Use a value between `"0"` and `"128"`.
-- `16_BIT_AXIS` is needed if you're using Xbox controllers and Switch Joy-Cons to properly calibrate the analog stick's sensitivity. Set to `"true"` if you're using those controllers. Can be left out otherwise.
+- `GRAB_DEVICE` sets if Makima should have exclusivity over the device. _If set to `"true"`, no other program will read the original input of the device. If set to `"false"`, both the original input and the remapped input will be read by applications. The event reader won't start if this is not set._
+- `LSTICK` and `RSTICK` set the function of the left and right analog sticks, respectively. _`"bind"` will make them available for rebinding in `[remap]` and `[commands]`, `"cursor"` will use them to move your mouse cursor, `"scroll"` will use them to scroll, `"disabled"` will disable them._
+- `LSTICK_SENSITIVITY` and `RSTICK_SENSITIVITY` set the sensitivity of your left and right analog sticks when using them to scroll or move your cursor. _Lower value is higher sensitivity, minimum `"1"`, suggested `"6"`. If this is set to `"0"` or if it's not set, cursor movement and scroll will be disabled._
+- `LSTICK_DEADZONE` and `RSTICK_DEADZONE` set how much your analog sticks should be tilted before their inputs are detected. _Particularly useful for older devices that suffer from drifting. Use a value between `"0"` and `"128"`._
+- `16_BIT_AXIS` is needed if you're using Xbox controllers and Switch Joy-Cons to properly calibrate the analog stick's sensitivity. _Set to `"true"` if you're using those controllers._
 
-**Note: only the `GRAB_DEVICE` setting is mandatory, everything else can be left out if not needed.**\
-Refer to the sample config files on this Github for more information.
+**Note: only the `GRAB_DEVICE` setting is mandatory, everything else can be left out if not needed.**
+
+Refer to the [sample config files](https://github.com/cyber-sushi/makima/tree/main/examples) for more information.
 
 ## Tested controllers:
 - DualShock 2
