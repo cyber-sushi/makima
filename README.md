@@ -39,7 +39,7 @@ Previously only a controller daemon, the scope has now been expanded because I h
      - Autostart it from your window manager's config file (usually `exec /path/to/makima` or `exec-once = /path/to/makima`).
 
 ## Configuration
-You can find some sample config files on this Github; pick one that fits your use case and copy it inside `~/.config/makima`, rename it and edit it to your needs.
+You can pick one of the [sample config files](https://github.com/cyber-sushi/makima/tree/main/examples) and copy it inside `~/.config/makima`, rename it and edit it to your needs.
 
 ### Config file naming
 **To associate a config file to an input device, the file name should be identical to that of the device. If your device's name includes a `/`, just omit it.**\
