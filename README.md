@@ -32,11 +32,11 @@ Previously only a controller daemon, the scope has now been expanded because I h
 4. Make sure the `makima` executable has permission to be executed as a program. If not, `cd` into the directory of the executable and use `chmod +x makima`. Alternatively, Right Click > Properties > "allow executing as program" or something like that.
 5. Make sure that your user has access to event devices. If it doesn't, use `sudo usermod -aG input yourusername` and reboot.
 6. Launch Makima and it'll automatically recognize all connected devices that have a corresponding config file inside `~/.config/makima`. To launch Makima, you can use one of these methods:
- - Launch it from your file manager by double clicking.
- - Launch it from terminal by `cd`ing to the directory of the executable, then using `./makima`.
- - Move the executable to a directory that's in PATH, then launch it using `rofi`, `dmenu` or whatever launcher you use. I personally added `~/.local/share/bin` to PATH and put all my executables there.
- - Create a .desktop file and launch it using that.
- - Autostart it from your window manager's config file (usually `exec /path/to/makima` or `exec-once = /path/to/makima`).
+     - Launch it from your file manager by double clicking.
+     - Launch it from terminal by `cd`ing to the directory of the executable, then using `./makima`.
+     - Move the executable to a directory that's in PATH, then launch it using `rofi`, `dmenu` or whatever launcher you use. I personally added `~/.local/share/bin` to PATH and put all my executables there.
+     - Create a .desktop file and launch it using that.
+     - Autostart it from your window manager's config file (usually `exec /path/to/makima` or `exec-once = /path/to/makima`).
 
 ## Configuration
 You can find some sample config files on this Github; pick one that fits your use case and copy it inside `~/.config/makima`, rename it and edit it to your needs.
