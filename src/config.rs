@@ -99,8 +99,8 @@ fn parse_raw_config(raw_config: RawConfig) -> (Bindings, Combinations, HashMap<S
         "RSTICK_DOWN",
         "RSTICK_LEFT",
         "RSTICK_RIGHT",
-        "SCROLLWHEEL_UP",
-        "SCROLLWHEEL_DOWN",
+        "SCROLL_WHEEL_UP",
+        "SCROLL_WHEEL_DOWN",
         "BTN_TL2",
         "BTN_TR2",
     ];
