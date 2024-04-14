@@ -50,7 +50,7 @@ Files that don't end with `.toml` and files that start with `.` (dotfiles) won't
 ### Application-specific bindings
 **Hyprland, Sway and X11 only.**\
 Have you ever wanted to have a different set of bindings for each game or application? Then this is exactly what you're looking for!\
-To have app-specific config files, just put `::<window_class>` at the end of their filename, before `.toml`.\
+To apply a config file only to a specific application, just put `::<window_class>` at the end of their filename, before `.toml`.\
 Example: you want your DS4 controller to have a specific set of keybindings for Firefox, name that file `Sony Interactive Entertainment Wireless Controller::firefox.toml`.\
 To retrieve the window class of a specific application, refer to your compositor's documentation, e.g. on Hyprland type `hyprctl clients` in your terminal while that application is open.\
 **Note: on Sway, make sure that the `XDG_DESKTOP_SESSION=sway` environment variable is set, or Makima won't be able to use application-specific bindings.**
@@ -74,7 +74,7 @@ KEY1 = ["KEY2", "KEY3", "KEY4"]
 #Remap a key sequence (Ctrl/Alt/Shift/Meta + Key) to another key
 MODIFIER1-MODIFIER2-MODIFIER3.KEY1 = ["KEY1"]
 
-#Remap a key sequence (with modifiers, e.g. Ctrl, Alt, Shift, etc) to a key sequence
+#Remap a key sequence (Ctrl/Alt/Shift/Meta + Key) to a key sequence
 MODIFIER1-MODIFIER2-MODIFIER3.KEY1 = ["KEY1", "KEY2", "KEY3"]
 ```
 
@@ -89,7 +89,7 @@ KEY1 = ["command1", "command2", "command3"]
 #Use a key sequence (Ctrl/Alt/Shift/Meta + Key) to invoke a shell command
 MODIFIER1-MODIFIER2-MODIFIER3.KEY1 = ["command1"]
 
-#Remap a key sequence (with modifiers, e.g. Ctrl, Alt, Shift, etc) to a key sequence
+#Use a key sequence (Ctrl/Alt/Shift/Meta + Key) to invoke a list of shell commands
 MODIFIER1-MODIFIER2-MODIFIER3.KEY1 = ["command1", "command2", "command3"]
 ```
 You can find the `KEY` names inside `/usr/include/linux/input-event-codes.h`, or launch `evtest` to see the events emitted by your devices.\
