@@ -72,10 +72,10 @@ KEY1 = ["KEY2"]
 KEY1 = ["KEY2", "KEY3", "KEY4"]
 
 #Remap a key sequence (Ctrl/Alt/Shift/Meta + Key) to another key
-MODIFIER1-MODIFIER2-MODIFIER3.KEY1 = ["KEY1"]
+MODIFIER1-MODIFIER2-MODIFIER3-KEY1 = ["KEY1"]
 
 #Remap a key sequence (Ctrl/Alt/Shift/Meta + Key) to a key sequence
-MODIFIER1-MODIFIER2-MODIFIER3.KEY1 = ["KEY1", "KEY2", "KEY3"]
+MODIFIER1-MODIFIER2-MODIFIER3-KEY1 = ["KEY1", "KEY2", "KEY3"]
 ```
 
 ### **[commands]**
@@ -87,20 +87,21 @@ KEY1 = ["command1"]
 KEY1 = ["command1", "command2", "command3"]
 
 #Use a key sequence (Ctrl/Alt/Shift/Meta + Key) to invoke a shell command
-MODIFIER1-MODIFIER2-MODIFIER3.KEY1 = ["command1"]
+MODIFIER1-MODIFIER2-MODIFIER3-KEY1 = ["command1"]
 
 #Use a key sequence (Ctrl/Alt/Shift/Meta + Key) to invoke a list of shell commands
-MODIFIER1-MODIFIER2-MODIFIER3.KEY1 = ["command1", "command2", "command3"]
+MODIFIER1-MODIFIER2-MODIFIER3-KEY1 = ["command1", "command2", "command3"]
 ```
 You can find the `KEY` names inside `/usr/include/linux/input-event-codes.h`, or launch `evtest` to see the events emitted by your devices.\
 Remember that keys like Ctrl and Alt have names like `KEY_LEFTCTRL`, `KEY_LEFTALT` etc. Just using `KEY_CTRL` and `KEY_ALT` will throw a parsing error because the key code does not exist.\
+You can use as many modifiers as you want when declaring a binding, but only one non-modifier key is supported.
 Keys that are not explicitly remapped will keep their default functionality.
 
 **Note: axis events such as scroll wheels and analog stick movements are hardcoded, currently you can use the following:**
 - `SCROLL_WHEEL_UP`, `SCROLL_WHEEL_DOWN` - for a mouse's scroll wheel
 - `DPAD_UP`, `DPAD_DOWN`, `DPAD_LEFT`, `DPAD_RIGHT` - for a game controller's D-Pad
 - `BTN_TL2`, `BTN_TR2` - for a game controller's triggers
-- `LSTICK_UP`, `LSTICK_DOWN`, `LSTICK_LEFT`, `LSTICK_RIGHT`, `RSTICK_UP`, `RSTICK_DOWN`, `RSTICK_LEFT`, `RSTICK_RIGHT`, - for a game controller's analog sticks
+- `LSTICK_UP`, `LSTICK_DOWN`, `LSTICK_LEFT`, `LSTICK_RIGHT`, `RSTICK_UP`, `RSTICK_DOWN`, `RSTICK_LEFT`, `RSTICK_RIGHT` - for a game controller's analog sticks
 
 Refer to the [sample config files](https://github.com/cyber-sushi/makima/tree/main/examples) for more information.
 
