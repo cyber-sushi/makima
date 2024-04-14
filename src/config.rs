@@ -106,8 +106,8 @@ fn parse_raw_config(raw_config: RawConfig) -> (Bindings, Combinations, HashMap<S
     ];
 
     for (input, output) in remap.clone().into_iter() {
-        if input.contains(".") {
-            let (mods, key) = input.split_once(".").unwrap();
+        if input.contains("-") {
+            let (mods, key) = input.rsplit_once("-").unwrap();
             if abs.contains(&key) {
                 if !combinations.axis.contains_key(&mods.to_string()) {
                     combinations.axis.insert(mods.to_string(), HashMap::from([(key.to_string(), output)]));
@@ -131,8 +131,8 @@ fn parse_raw_config(raw_config: RawConfig) -> (Bindings, Combinations, HashMap<S
     }
 
     for (input, output) in commands.clone().into_iter() {
-        if input.contains(".") {
-            let (mods, key) = input.split_once(".").unwrap();
+        if input.contains("-") {
+            let (mods, key) = input.rsplit_once("-").unwrap();
             if abs.contains(&key) {
                 if !combinations.axis_sh.contains_key(&mods.to_string()) {
                     combinations.axis_sh.insert(mods.to_string(), HashMap::from([(key.to_string(), output)]));
