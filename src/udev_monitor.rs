@@ -47,7 +47,7 @@ pub fn launch_tasks(config_files: &Vec<Config>, tasks: &mut Vec<JoinHandle<()>>)
         },
         (Ok(session), Ok(desktop)) if session == "wayland".to_string() => {
             println!(">> Unsupported compositor: {}, won't be able to change bindings according to active window.\n\
-                    Currently supported desktops: Hyprland, Sway.\n", desktop);
+                    Currently supported desktops: Hyprland, Sway, X11.\n", desktop);
             Option::None
         },
         (Ok(session), _) if session == "x11".to_string() => {
