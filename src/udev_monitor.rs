@@ -1,4 +1,4 @@
-use std::{collections::{HashMap, BTreeMap}, sync::Arc, path::Path, env};
+use std::{collections::{HashMap, BTreeMap}, sync::Arc, path::Path, process::Command, env};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tokio_stream::StreamExt;
@@ -9,14 +9,14 @@ use crate::event_reader::EventReader;
 
 pub async fn start_monitoring_udev(config_files: Vec<Config>, mut tasks: Vec<JoinHandle<()>>) {
     launch_tasks(&config_files, &mut tasks);
-    let mut monitor = tokio_udev::AsyncMonitorSocket::new(
+    let mut monitor = tokio_udev::AsyncMonitorSocket::new (
         tokio_udev::MonitorBuilder::new().unwrap()
         .match_subsystem(std::ffi::OsStr::new("input")).unwrap()
         .listen().unwrap()
         ).unwrap();
     while let Some(Ok(event)) = monitor.next().await {
         if is_mapped(&event.device(), &config_files) {
-            println!("Reinitializing...");
+            println!("---------------------\nReinitializing...\n");
             for task in &tasks {
                 task.abort();
             }
@@ -66,7 +66,28 @@ pub fn launch_tasks(config_files: &Vec<Config>, tasks: &mut Vec<JoinHandle<()>>)
         },
         _ => Option::None
     };
+    let user_has_access = match Command::new("groups").output() {
+        Ok(groups) if std::str::from_utf8(&groups.stdout.as_slice()).unwrap().contains("input") => {
+            println!("Running with evdev permissions.\nScanning for event devices with a matching config file...\n"); //todo: make the config dir customizable through env variable
+            true
+        },
+        Ok(groups) if std::str::from_utf8(&groups.stdout.as_slice()).unwrap().contains("root") => {
+            println!("Running as root.\nScanning for event devices with a matching config file...\n");
+            true
+        }
+        Ok(groups) => {
+            println!("Warning: user has no access to event devices, Makima might not be able to detect all connected devices.\n\
+                Note: use `sudo usermod -aG input <username>` and reboot. Alternatively, run Makima as root. Continuing...\n");
+            println!("{:?}", &std::str::from_utf8(&groups.stdout.as_slice()).unwrap());
+            false
+        },
+        Err(_) => {
+            println!("Unable to determine if user has access to event devices. Continuing...\n");
+            false
+        },
+    };
     let devices: evdev::EnumerateDevices = evdev::enumerate();
+    let mut devices_found = 0;
     for device in devices {
         let mut config_map: HashMap<String, Config> = HashMap::new();
         for config in config_files {
@@ -86,7 +107,13 @@ pub fn launch_tasks(config_files: &Vec<Config>, tasks: &mut Vec<JoinHandle<()>>)
             let stream = Arc::new(Mutex::new(get_event_stream(Path::new(&event_device), config_map.clone())));
             let reader = EventReader::new(config_map.clone(), stream, modifiers.clone(), current_desktop.clone());
             tasks.push(tokio::spawn(start_reader(reader)));
+            devices_found += 1
         }
+    }
+    if devices_found == 0 && !user_has_access {
+        println!("No matching devices found.\nNote: make sure that your user has access to event devices.\n");
+    } else if devices_found == 0 && user_has_access {
+        println!("No matching devices found.\nNote: double-check that your device and its respective config file have the same name, as reported by `evtest`.\n");
     }
 }
 

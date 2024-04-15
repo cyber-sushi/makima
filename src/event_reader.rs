@@ -90,7 +90,7 @@ impl EventReader {
     }
 
     pub async fn start(&self) {
-        println!("{:?} detected, reading events.", self.config.get(&get_active_window(&self.current_desktop, &self.config).await).unwrap().name);
+        println!("{:?} detected, reading events.\n", self.config.get(&get_active_window(&self.current_desktop, &self.config).await).unwrap().name);
         tokio::join!(
             self.event_loop(),
             self.cursor_loop(),
@@ -246,7 +246,7 @@ impl EventReader {
         }
         let mut device_is_connected = self.device_is_connected.lock().await;
         *device_is_connected = false;
-        println!("Disconnected device {}.", self.config.get(&get_active_window(&self.current_desktop, &self.config).await).unwrap().name);
+        println!("Disconnected device \"{}\".\n", self.config.get(&get_active_window(&self.current_desktop, &self.config).await).unwrap().name);
     }
 
     async fn convert_key_events(&self, event: InputEvent) {
