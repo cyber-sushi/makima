@@ -40,7 +40,7 @@ pub struct RawConfig {
 
 impl RawConfig {
     fn new_from_file(file: &str) -> Self {
-        println!("Parsing config file:\n{:?}\n", file);
+        println!("Parsing config file:\n{:?}\n", file.rsplit_once("/").unwrap().1);
         let file_content: String = std::fs::read_to_string(file).unwrap();
         let raw_config: RawConfig = toml::from_str(&file_content)
             .expect("Couldn't parse config file.");
