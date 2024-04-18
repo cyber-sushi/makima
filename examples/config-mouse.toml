@@ -26,5 +26,4 @@ BTN_MIDDLE = ["notify-send 'OwO'"]
 BTN_EXTRA-SCROLL_WHEEL_UP = ["pkill firefox"]
 
 [settings]
-GRAB_DEVICE = "true" #gain exclusivity on the device
 CUSTOM_MODIFIERS = "BTN_EXTRA-KEY_FORWARD" #The keys listed here will be treated as modifiers and will only emit their own event when released. If another key is pressed before the custom modifier is released, it will not emit any event. If you declare a binding that uses a non-modifier key as a modifier in the [remap] or [commands] sections, it's automatically added to this setting.

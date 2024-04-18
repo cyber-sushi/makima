@@ -24,5 +24,4 @@ KEY_MINUS-KEY_K = ["pkill firefox"]
 #Keep in mind that if you want to use Modifiers across multiple devices (e.g. KEY_LEFTCTRL on your keyboard and BTN_RIGHT on your mouse), both devices will have to be read by Makima and thus both will need a config file, even if empty. Having a config file is just a way to tell Makima "Hey, read this device!".
 
 [settings]
-GRAB_DEVICE = "true" #Gain exclusivity on the device
 CUSTOM_MODIFIERS = "KEY_GRAVE-KEY_BACKSLASH" #The keys listed here will be treated as modifiers and will only emit their own event when released. If another key is pressed before the custom modifier is released, it will not emit any event. If you declare a binding that uses a non-modifier key as a modifier in the [remap] or [commands] sections, it's automatically added to this setting.
