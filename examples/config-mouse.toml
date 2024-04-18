@@ -16,11 +16,15 @@ KEY_LEFTCTRL-KEY_LEFTSHIFT-BTN_LEFT = ["KEY_LEFTSHIFT", "KEY_DELETE"]
 #Examples of Modifier(s) + Axis event => Key(s)
 KEY_LEFTCTRL-KEY_LEFTSHIFT-SCROLL_WHEEL_UP = ["KEY_HOME"]
 KEY_LEFTCTRL-KEY_LEFTSHIFT-KEY_LEFTALT-SCROLL_WHEEL_DOWN = ["KEY_LEFTALT", "KEY_F4"]
+#Keep in mind that if you want to use Modifiers across multiple devices (e.g. KEY_LEFTCTRL on your keyboard and BTN_RIGHT on your mouse), both devices will have to be read by Makima and thus both will need a config file, even if empty. Having a config file is just a way to tell Makima "Hey, read this device!".
 
 [commands]
 #Examples of Modifier + Key => run a shell command
 KEY_LEFTCTRL-KEY_LEFTSHIFT-SCROLL_WHEEL_DOWN = ["foot sh -c 'pacman -Q | wc -l && sleep 1 && neofetch' && sleep 5"]
 BTN_MIDDLE = ["notify-send 'OwO'"]
+#You can also use non-modifier keys as Modifiers, and their behavior will be changed automatically to act as Modifiers (refer to the CUSTOM_MODIFIERS setting for more info).
+BTN_EXTRA-SCROLL_WHEEL_UP = ["pkill firefox"]
 
 [settings]
 GRAB_DEVICE = "true" #gain exclusivity on the device
+CUSTOM_MODIFIERS = "BTN_EXTRA-KEY_FORWARD" #The keys listed here will be treated as modifiers and will only emit their own event when released. If another key is pressed before the custom modifier is released, it will not emit any event. If you declare a binding that uses a non-modifier key as a modifier in the [remap] or [commands] sections, it's automatically added to this setting.
