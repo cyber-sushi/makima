@@ -42,7 +42,7 @@ Previously only a controller daemon, the scope has now been expanded because I h
 You can pick one of the [sample config files](https://github.com/cyber-sushi/makima/tree/main/examples) and copy it inside Makima's config directory (defaults to `~/.config/makima` but can be changed through the `MAKIMA_CONFIG` environment variable), rename it and edit it to your needs.
 
 ### Config file naming
-**To associate a config file to an input device, the file name should be identical to that of the device. If your device's name includes a `/`, just omit it.**\
+To associate a config file to an input device, the file name should be identical to that of the device. If your device's name includes a `/`, just omit it.\
 Example: you run `evtest` and see that your Dualshock 4 controller is named `Sony Interactive Entertainment Wireless Controller`; all you have to do is rename your config file `Sony Interactive Entertainment Wireless Controller.toml`.\
 All config files will be parsed automatically when `makima` is launched.\
 Files that don't end with `.toml` and files that start with `.` (dotfiles) won't be parsed, so you can add a dot at the beginning of the filename to mask them from Makima.
@@ -60,8 +60,6 @@ The config file is divided into multiple sections:
 - `[remap]`, where you can rebind keys, buttons, combinations and some axis events to other keys, buttons and combinations.
 - `[commands]`, where you can rebind keys, buttons, combinations and some axis events to shell commands.
 - `[settings]`, where you can configure a few settings.
-
-**Base syntax:**
 
 ### **[remap]**
 ```
@@ -92,15 +90,20 @@ MODIFIER1-MODIFIER2-MODIFIER3-KEY1 = ["command1"]
 #Use a key sequence to invoke a list of shell commands
 MODIFIER1-MODIFIER2-MODIFIER3-KEY1 = ["command1", "command2", "command3"]
 ```
+#### Key names
 You can find the `KEY` names inside `/usr/include/linux/input-event-codes.h`, or launch `evtest` to see the events emitted by your devices.\
-Remember that keys like Ctrl and Alt have names like `KEY_LEFTCTRL`, `KEY_LEFTALT` etc. Just using `KEY_CTRL` and `KEY_ALT` will throw a parsing error because the key code does not exist.\
-**Note: you can use as many modifiers as you want when declaring a binding, but the last one _has_ to be a non-modifier key.**\
-**You can use a non-modifier key (e.g. `KEY_A`) as a modifier, which will automatically change the behavior of that key: on key-down, it will only act as a modifier without emitting a `KEY` event, on key-up it will emit its own event. If some other key is pressed between key-down and key-up, the fake modifier key won't emit its own event on key-up.**\
-If you want a non-modifier key to act as a modifier without remapping it for that device (e.g. you need it as a modifier when used in combination with another device), you can add it to the `CUSTOM_MODIFIERS` setting. Refer to the `[settings]` section for more info.\
-**Keep in mind that if you want to use modifiers across multiple devices (e.g. `KEY_LEFTCTRL` on your keyboard and `BTN_RIGHT` on your mouse), both devices will have to be read by Makima and thus both will need a config file, even if empty. Having a config file is just a way to tell Makima "Hey, read this device!".**\
-Keys that are not explicitly remapped will keep their default functionality.
+Remember that keys like Ctrl and Alt have names like `KEY_LEFTCTRL`, `KEY_LEFTALT` etc. Just using `KEY_CTRL` and `KEY_ALT` will throw a parsing error because the key code does not exist.
 
-**Note: axis events such as scroll wheels and analog stick movements are hardcoded, currently you can use the following:**
+#### Modifiers and custom modifiers
+You can use as many modifiers as you want when declaring a binding, but the last one _has_ to be a non-modifier key.\
+You can use a non-modifier key (e.g. `KEY_A`) as a modifier, which will automatically change the behavior of that key: on key-down, it will only act as a modifier without emitting a `KEY` event, on key-up it will emit its own event. If some other key is pressed between key-down and key-up, the fake modifier key won't emit its own event on key-up.\
+If you want a non-modifier key to act as a modifier without remapping it for that device (e.g. you need it as a modifier when used in combination with another device), you can add it to the `CUSTOM_MODIFIERS` setting. Refer to the `[settings]` section for more info.
+
+#### Modifiers across multiple devices
+Keep in mind that if you want to use modifiers across multiple devices (e.g. `KEY_LEFTCTRL` on your keyboard and `BTN_RIGHT` on your mouse), both devices will have to be read by Makima and thus both will need a config file, even if empty. Having a config file is just a way to tell Makima "Hey, read this device!".
+
+#### Axis events
+Axis events such as scroll wheels and analog stick movements are hardcoded, currently you can use the following:
 - `SCROLL_WHEEL_UP`, `SCROLL_WHEEL_DOWN` - for a mouse's scroll wheel
 - `DPAD_UP`, `DPAD_DOWN`, `DPAD_LEFT`, `DPAD_RIGHT` - for a game controller's D-Pad
 - `BTN_TL2`, `BTN_TR2` - for a game controller's triggers
@@ -110,14 +113,26 @@ Refer to the [sample config files](https://github.com/cyber-sushi/makima/tree/ma
 
 
 ### \[settings]
-- `GRAB_DEVICE` sets if Makima should have exclusivity over the device. _If set to `"true"`, no other program will read the original input of the device. If set to `"false"`, both the original input and the remapped input will be read by applications. The event reader won't start if this is not set._
-- `LSTICK` and `RSTICK` set the function of the left and right analog sticks, respectively. _`"bind"` will make them available for rebinding in `[remap]` and `[commands]`, `"cursor"` will use them to move your mouse cursor, `"scroll"` will use them to scroll, `"disabled"` will disable them._
-- `LSTICK_SENSITIVITY` and `RSTICK_SENSITIVITY` set the sensitivity of your left and right analog sticks when using them to scroll or move your cursor. _Lower value is higher sensitivity, minimum `"1"`, suggested `"6"`. If this is set to `"0"` or if it's not set, cursor movement and scroll will be disabled._
-- `LSTICK_DEADZONE` and `RSTICK_DEADZONE` set how much your analog sticks should be tilted before their inputs are detected. _Particularly useful for older devices that suffer from drifting. Use a value between `"0"` and `"128"`._
-- `16_BIT_AXIS` is needed if you're using Xbox controllers and Switch Joy-Cons to properly calibrate the analog stick's sensitivity. _Set to `"true"` if you're using those controllers._
-- `CUSTOM_MODIFIERS` changes the behavior of a key to act as a modifier. _On key-down, it will only act as a modifier without emitting a `KEY` event, on key-up it will emit its own event. If some other key is pressed between key-down and key-up, the fake modifier key won't emit its own event on key-up. You can list multiple keys to treat as modifiers with the following syntax: `CUSTOM_MODIFIERS = "KEY_A-KEY_BACKSLASH-KEY_GRAVE"`._
-
-**Note: only the `GRAB_DEVICE` setting is mandatory, everything else can be left out if not needed.**
+#### `GRAB_DEVICE`
+Sets if Makima should have exclusivity over the device.\
+If `"true"`, no other program will read the original input of the device. If `"false"`, both the original input and the remapped input will be read by applications.
+#### `LSTICK` and `RSTICK`
+Set the function of the left and right analog sticks, respectively.\
+`"bind"` will make them available for rebinding in `[remap]` and `[commands]`, `"cursor"` will use them to move your mouse cursor, `"scroll"` will use them to scroll, `"disabled"` will disable them.
+#### `LSTICK_SENSITIVITY` and `RSTICK_SENSITIVITY`
+Set the sensitivity of your left and right analog sticks when using them to scroll or move your cursor.\
+Lower value is higher sensitivity, minimum `"1"`, suggested `"6"`. If this is set to `"0"` or if it's not set, cursor movement and scroll will be disabled.
+#### `LSTICK_DEADZONE` and `RSTICK_DEADZONE`
+Set how much your analog sticks should be tilted before their inputs are detected.\
+Particularly useful for older devices that suffer from drifting. Use a value between `"0"` and `"128"`.
+#### `16_BIT_AXIS`
+This is needed if you're using Xbox controllers and Switch Joy-Cons to properly calibrate the analog stick's sensitivity.\
+Set to `"true"` if you're using those controllers.
+#### `CUSTOM_MODIFIERS`
+The keys listed in this parameter will change their behavior to act as modifiers.\
+While pressed, they will act as modifiers without emitting their respective `KEY` event, possibly changing the behavior of other keys if specified in `[remap]`. On release, they will emit their default `KEY` event only if no other keystroke happened while they were pressed.\
+This is useful if you want to have a key that behaves like a modifier but can still emit its own event if pressed alone.\
+You can list multiple keys to treat as modifiers with the following syntax: `CUSTOM_MODIFIERS = "KEY_A-KEY_BACKSLASH-KEY_GRAVE"`.
 
 Refer to the [sample config files](https://github.com/cyber-sushi/makima/tree/main/examples) for more information.
 
