@@ -1,4 +1,4 @@
-use std::collections::{HashMap, BTreeMap};
+use std::collections::HashMap;
 use std::str::FromStr;
 use evdev::Key;
 use serde;
@@ -14,20 +14,11 @@ pub struct Bindings {
 
 #[derive(Default, Debug, Clone)]
 pub struct Combinations {
-    pub keys: HashMap<String, HashMap<Key, Vec<Key>>>,
-    pub axis: HashMap<String, HashMap<String, Vec<Key>>>,
-    pub keys_sh: HashMap<String, HashMap<Key, Vec<String>>>,
-    pub axis_sh: HashMap<String, HashMap<String, Vec<String>>>,
+    pub keys: HashMap<Key, HashMap<Vec<Key>, Vec<Key>>>,
+    pub axis: HashMap<String, HashMap<Vec<Key>, Vec<Key>>>,
+    pub keys_sh: HashMap<Key, HashMap<Vec<Key>, Vec<String>>>,
+    pub axis_sh: HashMap<String, HashMap<Vec<Key>, Vec<String>>>,
 }
-
-#[derive(Default, Debug, Clone)]
-pub struct Modifiers {
-    pub keys: HashMap<BTreeMap<Key, i32>, HashMap<Key, Vec<Key>>>,
-    pub axis: HashMap<BTreeMap<Key, i32>, HashMap<String, Vec<Key>>>,
-    pub keys_sh: HashMap<BTreeMap<Key, i32>, HashMap<Key, Vec<String>>>,
-    pub axis_sh: HashMap<BTreeMap<Key, i32>, HashMap<String, Vec<String>>>,
-}
-
 
 #[derive(serde::Deserialize, Debug, Clone)]
 pub struct RawConfig {
@@ -36,6 +27,13 @@ pub struct RawConfig {
     #[serde(default)]
     pub commands: HashMap<String, Vec<String>>,
     pub settings: HashMap<String, String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct MappedModifiers {
+    pub default: Vec<Key>,
+    pub custom: Vec<Key>,
+    pub all: Vec<Key>,
 }
 
 impl RawConfig {
@@ -59,32 +57,55 @@ impl RawConfig {
 pub struct Config {
     pub name: String,
     pub bindings: Bindings,
-    pub modifiers: Modifiers,
+    pub combinations: Combinations,
     pub settings: HashMap<String, String>,
+    pub mapped_modifiers: MappedModifiers,
 }
 
 impl Config {
     pub fn new_from_file(file: &str, file_name: String) -> Self {
         let raw_config = RawConfig::new_from_file(file);
-        let (bindings, combinations, settings) = parse_raw_config(raw_config);
+        let (bindings, combinations, settings, mapped_modifiers) = parse_raw_config(raw_config);
         let bindings: Bindings = merge_axis_bindings(bindings);
-        let modifiers: Modifiers = parse_modifiers(combinations);
 
         Self {
             name: file_name,
             bindings,
-            modifiers,
+            combinations,
             settings,
+            mapped_modifiers,
         }
     }
 }
 
-fn parse_raw_config(raw_config: RawConfig) -> (Bindings, Combinations, HashMap<String, String>) {
+fn parse_raw_config(raw_config: RawConfig) -> (Bindings, Combinations, HashMap<String, String>, MappedModifiers) {
     let remap: HashMap<String, Vec<Key>> = raw_config.remap;
     let commands: HashMap<String, Vec<String>> = raw_config.commands;
     let settings: HashMap<String, String> = raw_config.settings;
     let mut bindings: Bindings = Default::default();
     let mut combinations: Combinations = Default::default();
+    let default_modifiers = vec![
+        Key::KEY_LEFTSHIFT,
+        Key::KEY_LEFTCTRL,
+        Key::KEY_LEFTALT,
+        Key::KEY_RIGHTSHIFT,
+        Key::KEY_RIGHTCTRL,
+        Key::KEY_RIGHTALT,
+        Key::KEY_LEFTMETA,
+    ];
+    let mut mapped_modifiers = MappedModifiers {
+        default: default_modifiers.clone(),
+        custom: Vec::new(),
+        all: Vec::new(),
+    };
+    let custom_modifiers: Vec<Key> = match settings.get(&"CUSTOM_MODIFIERS".to_string()) {
+        Some(modifiers) => {
+            modifiers.split("-").collect::<Vec<&str>>().iter()
+            .map(|key_str| Key::from_str(key_str).expect("Invalid KEY value used as modifier in CUSTOM_MODIFIERS.")).collect()
+        },
+        None => Vec::new(),
+    };
+    mapped_modifiers.custom.extend(custom_modifiers);
 
     let abs = [
         "DPAD_UP",
@@ -108,24 +129,32 @@ fn parse_raw_config(raw_config: RawConfig) -> (Bindings, Combinations, HashMap<S
     for (input, output) in remap.clone().into_iter() {
         if input.contains("-") {
             let (mods, key) = input.rsplit_once("-").unwrap();
+            let mut modifiers: Vec<Key> = mods.split("-").collect::<Vec<&str>>().iter().map(|key_str| Key::from_str(key_str).expect("Invalid KEY value used as modifier.")).collect();
+            modifiers.sort();
+            modifiers.dedup();
+            for modifier in &modifiers {
+                if !mapped_modifiers.default.contains(&modifier) {
+                    mapped_modifiers.custom.push(modifier.clone());
+                }
+            }
             if abs.contains(&key) {
-                if !combinations.axis.contains_key(&mods.to_string()) {
-                    combinations.axis.insert(mods.to_string(), HashMap::from([(key.to_string(), output)]));
+                if !combinations.axis.contains_key(&key.to_string()) {
+                    combinations.axis.insert(key.to_string(), HashMap::from([(modifiers , output)]));
                 } else {
-                    combinations.axis.get_mut(mods).unwrap().insert(key.to_string(), output);
+                    combinations.axis.get_mut(key).unwrap().insert(modifiers, output);
                 }
             } else {
-                if !combinations.keys.contains_key(&mods.to_string()) {
-                    combinations.keys.insert(mods.to_string(), HashMap::from([(Key::from_str(key).expect("Invalid KEY value."), output)]));
+                if !combinations.keys.contains_key(&Key::from_str(key).unwrap()) {
+                    combinations.keys.insert(Key::from_str(key).unwrap(), HashMap::from([(modifiers, output)]));
                 } else {
-                    combinations.keys.get_mut(mods).unwrap().insert(Key::from_str(key).expect("Invalid KEY value."), output);
+                    combinations.keys.get_mut(&Key::from_str(key).unwrap()).unwrap().insert(modifiers, output);
                 }
             }
         } else {
             if abs.contains(&input.as_str()) {
                 bindings.axis.insert(input, output);
             } else {
-                bindings.keys.insert(Key::from_str(input.as_str()).expect("Invalid KEY value."), output);
+                bindings.keys.insert(Key::from_str(input.as_str()).expect("Invalid KEY value used for rebinding."), output);
             }
         }
     }
@@ -133,74 +162,44 @@ fn parse_raw_config(raw_config: RawConfig) -> (Bindings, Combinations, HashMap<S
     for (input, output) in commands.clone().into_iter() {
         if input.contains("-") {
             let (mods, key) = input.rsplit_once("-").unwrap();
+            let mut modifiers: Vec<Key> = mods.split("-").collect::<Vec<&str>>().iter().map(|key_str| Key::from_str(key_str).expect("Invalid KEY value used as modifier.")).collect();
+            modifiers.sort();
+            modifiers.dedup();
+            for modifier in &modifiers {
+                if !mapped_modifiers.default.contains(&modifier) {
+                    mapped_modifiers.custom.push(modifier.clone());
+                }
+            }
             if abs.contains(&key) {
-                if !combinations.axis_sh.contains_key(&mods.to_string()) {
-                    combinations.axis_sh.insert(mods.to_string(), HashMap::from([(key.to_string(), output)]));
+                if !combinations.axis_sh.contains_key(&key.to_string()) {
+                    combinations.axis_sh.insert(key.to_string(), HashMap::from([(modifiers, output)]));
                 } else {
-                    combinations.axis_sh.get_mut(mods).unwrap().insert(key.to_string(), output);
+                    combinations.axis_sh.get_mut(key).unwrap().insert(modifiers, output);
                 }
             } else {
-                if !combinations.keys_sh.contains_key(&mods.to_string()) {
-                    combinations.keys_sh.insert(mods.to_string(), HashMap::from([(Key::from_str(key).expect("Invalid KEY value."), output)]));
+                if !combinations.keys_sh.contains_key(&Key::from_str(key).unwrap()) {
+                    combinations.keys_sh.insert(Key::from_str(key).unwrap(), HashMap::from([(modifiers, output)]));
                 } else {
-                    combinations.keys_sh.get_mut(mods).unwrap().insert(Key::from_str(key).expect("Invalid KEY value."), output);
+                    combinations.keys_sh.get_mut(&Key::from_str(key).unwrap()).unwrap().insert(modifiers, output);
                 }
             }
         } else {
             if abs.contains(&input.as_str()) {
                 bindings.axis_sh.insert(input, output);
             } else {
-                bindings.keys_sh.insert(Key::from_str(input.as_str()).expect("Invalid KEY value."), output);
+                bindings.keys_sh.insert(Key::from_str(input.as_str()).expect("Invalid KEY value used for rebinding."), output);
             }
         }
     }
-    (bindings, combinations, settings)
-}
 
-fn parse_modifiers(combinations: Combinations) -> Modifiers {
-    let empty_modmap = BTreeMap::from ([
-        (Key::KEY_LEFTSHIFT, 0),
-        (Key::KEY_LEFTCTRL, 0),
-        (Key::KEY_LEFTALT, 0),
-        (Key::KEY_RIGHTSHIFT, 0),
-        (Key::KEY_RIGHTCTRL, 0),
-        (Key::KEY_RIGHTALT, 0),
-        (Key::KEY_LEFTMETA, 0)
-    ]);
-    let mut modifiers: Modifiers = Default::default();
-    for (mods, key) in combinations.keys.iter() {
-        let mods_vector = mods.split("-").map(str::to_string).collect::<Vec<String>>();
-        let mut modmap = empty_modmap.clone();
-        for modifier in mods_vector {
-            modmap.insert(Key::from_str(&modifier).unwrap(), 1);
-        }
-        modifiers.keys.insert(modmap, key.clone());
-    }
-    for (mods, key) in combinations.axis.iter() {
-        let mods_vector = mods.split("-").map(str::to_string).collect::<Vec<String>>();
-        let mut modmap = empty_modmap.clone();
-        for modifier in mods_vector {
-            modmap.insert(Key::from_str(&modifier).unwrap(), 1);
-        }
-        modifiers.axis.insert(modmap, key.clone());
-    }
-    for (mods, key) in combinations.keys_sh.iter() {
-        let mods_vector = mods.split("-").map(str::to_string).collect::<Vec<String>>();
-        let mut modmap = empty_modmap.clone();
-        for modifier in mods_vector {
-            modmap.insert(Key::from_str(&modifier).unwrap(), 1);
-        }
-        modifiers.keys_sh.insert(modmap, key.clone());
-    }
-    for (mods, key) in combinations.axis_sh.iter() {
-        let mods_vector = mods.split("-").map(str::to_string).collect::<Vec<String>>();
-        let mut modmap = empty_modmap.clone();
-        for modifier in mods_vector {
-            modmap.insert(Key::from_str(&modifier).unwrap(), 1);
-        }
-        modifiers.axis_sh.insert(modmap, key.clone());
-    }
-    modifiers
+    mapped_modifiers.custom.sort();
+    mapped_modifiers.custom.dedup();
+    mapped_modifiers.all.extend(mapped_modifiers.default.clone());
+    mapped_modifiers.all.extend(mapped_modifiers.custom.clone());
+    mapped_modifiers.all.sort();
+    mapped_modifiers.all.dedup();
+
+    (bindings, combinations, settings, mapped_modifiers)
 }
 
 fn merge_axis_bindings(mut bindings: Bindings) -> Bindings {
@@ -238,3 +237,5 @@ fn merge_axis_bindings(mut bindings: Bindings) -> Bindings {
         bindings.axis.insert("RSTICK_Y".to_string(), rstick_y);
         bindings
 }
+
+

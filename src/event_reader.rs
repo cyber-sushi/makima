@@ -1,4 +1,4 @@
-use std::{collections::{HashMap, BTreeMap}, sync::Arc, option::Option, process::Command};
+use std::{collections::HashMap, sync::Arc, option::Option, process::Command};
 use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
 use evdev::{EventStream, Key, RelativeAxisType, AbsoluteAxisType, EventType, InputEvent};
@@ -25,7 +25,8 @@ pub struct EventReader {
     virt_dev: Arc<Mutex<VirtualDevices>>,
     lstick_position: Arc<Mutex<Vec<i32>>>,
     rstick_position: Arc<Mutex<Vec<i32>>>,
-    modifiers: Arc<Mutex<BTreeMap<Key, i32>>>,
+    modifiers: Arc<Mutex<Vec<Key>>>,
+    modifier_was_activated: Arc<Mutex<bool>>,
     device_is_connected: Arc<Mutex<bool>>,
     current_desktop: Option<String>,
     settings: Settings,
@@ -35,7 +36,8 @@ impl EventReader {
     pub fn new(
         config: HashMap<String, Config>,
         stream: Arc<Mutex<EventStream>>,
-        modifiers: Arc<Mutex<BTreeMap<Key, i32>>>,
+        modifiers: Arc<Mutex<Vec<Key>>>,
+        modifier_was_activated: Arc<Mutex<bool>>,
         current_desktop: Option<String>,
     ) -> Self {
         let mut position_vector: Vec<i32> = Vec::new();
@@ -83,6 +85,7 @@ impl EventReader {
             lstick_position,
             rstick_position,
             modifiers,
+            modifier_was_activated,
             device_is_connected,
             current_desktop,
             settings,
@@ -252,13 +255,13 @@ impl EventReader {
     async fn convert_key_events(&self, event: InputEvent) {
         let path = self.config.get(&get_active_window(&self.current_desktop, &self.config).await).unwrap();
         let modifiers = self.modifiers.lock().await.clone();
-        if let Some(event_hashmap) = path.modifiers.keys.get(&modifiers) {
-            if let Some(event_list) = event_hashmap.get(&Key(event.code())) {
+        if let Some(event_hashmap) = path.combinations.keys.get(&Key(event.code())) {
+            if let Some(event_list) = event_hashmap.get(&modifiers) {
                 self.emit_event_without_modifiers(event_list, &modifiers, event.value()).await;
                 return
             }
-        } else if let Some(command_hashmap) = path.modifiers.keys_sh.get(&modifiers) {
-            if let Some(command_list) = command_hashmap.get(&Key(event.code())) {
+        } else if let Some(command_hashmap) = path.combinations.keys_sh.get(&Key(event.code())) {
+            if let Some(command_list) = command_hashmap.get(&modifiers) {
                 spawn_subprocess(command_list).await;
                 return
             }
@@ -275,16 +278,16 @@ impl EventReader {
     async fn convert_axis_events(&self, event: InputEvent, event_string: &String, send_zero: bool) {
         let path = self.config.get(&get_active_window(&self.current_desktop, &self.config).await).unwrap();
         let modifiers = self.modifiers.lock().await.clone();
-        if let Some(event_hashmap) = path.modifiers.axis.get(&modifiers) {
-            if let Some(event_list) = event_hashmap.get(event_string) {
+        if let Some(event_hashmap) = path.combinations.axis.get(event_string) {
+            if let Some(event_list) = event_hashmap.get(&modifiers) {
                 self.emit_event_without_modifiers(event_list, &modifiers, event.value()).await;
                 if send_zero {
                     self.emit_event_without_modifiers(event_list, &modifiers, 0).await;
                 }
                 return
             }
-        } else if let Some(command_hashmap) = path.modifiers.axis_sh.get(&modifiers) {
-            if let Some(command_list) = command_hashmap.get(event_string) {
+        } else if let Some(command_hashmap) = path.combinations.axis_sh.get(event_string) {
+            if let Some(command_list) = command_hashmap.get(&modifiers) {
                 spawn_subprocess(command_list).await;
                 return
             }
@@ -302,8 +305,10 @@ impl EventReader {
     }
 
     async fn emit_event(&self, event_list: &Vec<Key>, value: i32) {
+        let path = self.config.get(&get_active_window(&self.current_desktop, &self.config).await).unwrap();
         let mut virt_dev = self.virt_dev.lock().await;
         let modifiers = self.modifiers.lock().await.clone();
+        let mut modifier_was_activated = self.modifier_was_activated.lock().await;
         let released_keys: Vec<Key> = self.released_keys(&modifiers).await;
         for key in released_keys {
             self.toggle_modifiers(key, 0).await;
@@ -312,13 +317,28 @@ impl EventReader {
         }
         for key in event_list {
             self.toggle_modifiers(*key, value).await;
-            let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), value);
-            virt_dev.keys.emit(&[virtual_event]).unwrap();
+            if path.mapped_modifiers.custom.contains(&key) {
+                if value == 0 && !*modifier_was_activated {
+                    let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), 1);
+                    virt_dev.keys.emit(&[virtual_event]).unwrap();
+                    let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), 0);
+                    virt_dev.keys.emit(&[virtual_event]).unwrap();
+                    *modifier_was_activated = true;
+                } else if value == 1 {
+                    *modifier_was_activated = false;
+                }
+            } else {
+                let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), value);
+                virt_dev.keys.emit(&[virtual_event]).unwrap();
+                *modifier_was_activated = true;
+            }
         }
     }
     
     async fn emit_default_event(&self, event: InputEvent) {
+        let path = self.config.get(&get_active_window(&self.current_desktop, &self.config).await).unwrap();
         let mut virt_dev = self.virt_dev.lock().await;
+        let mut modifier_was_activated = self.modifier_was_activated.lock().await;
         match event.event_type() {
             EventType::KEY => {
                 let modifiers = self.modifiers.lock().await.clone();
@@ -329,27 +349,53 @@ impl EventReader {
                     virt_dev.keys.emit(&[virtual_event]).unwrap()
                 }
                 self.toggle_modifiers(Key(event.code()), event.value()).await;
-                virt_dev.keys.emit(&[event]).unwrap();
+                if path.mapped_modifiers.custom.contains(&Key(event.code())) {
+                    if event.value() == 0 && !*modifier_was_activated {
+                        let virtual_event: InputEvent = InputEvent::new_now(event.event_type(), event.code(), 1);
+                        virt_dev.keys.emit(&[virtual_event]).unwrap();
+                        let virtual_event: InputEvent = InputEvent::new_now(event.event_type(), event.code(), 0);
+                        virt_dev.keys.emit(&[virtual_event]).unwrap();
+                        *modifier_was_activated = true;
+                    } else if event.value() == 1 {
+                        *modifier_was_activated = false;
+                    }
+                } else {
+                    virt_dev.keys.emit(&[event]).unwrap();
+                    *modifier_was_activated = true;
+                }
             },
-            EventType::RELATIVE => virt_dev.axis.emit(&[event]).unwrap(),
+            EventType::RELATIVE => {
+                virt_dev.axis.emit(&[event]).unwrap();
+                *modifier_was_activated = true;
+            },
             _ => {}
         }
     }
     
-    async fn emit_event_without_modifiers(&self, event_list: &Vec<Key>, modifiers: &BTreeMap<Key, i32>, value: i32) {
-        let modifiers_list = modifiers.iter()
-            .filter(|(_key, value)| value == &&1)
-            .collect::<HashMap<&Key, &i32>>()
-            .into_keys().copied()
-            .collect::<Vec<Key>>();
+    async fn emit_event_without_modifiers(&self, event_list: &Vec<Key>, modifiers: &Vec<Key>, value: i32) {
+        let path = self.config.get(&get_active_window(&self.current_desktop, &self.config).await).unwrap();
         let mut virt_dev = self.virt_dev.lock().await;
-        for key in modifiers_list {
+        let mut modifier_was_activated = self.modifier_was_activated.lock().await;
+        for key in modifiers {
             let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), 0);
             virt_dev.keys.emit(&[virtual_event]).unwrap();
         }
         for key in event_list {
-            let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), value);
-            virt_dev.keys.emit(&[virtual_event]).unwrap();
+            if path.mapped_modifiers.custom.contains(&key) {
+                if value == 0 && !*modifier_was_activated {
+                    let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), 1);
+                    virt_dev.keys.emit(&[virtual_event]).unwrap();
+                    let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), 0);
+                    virt_dev.keys.emit(&[virtual_event]).unwrap();
+                    *modifier_was_activated = true;
+                } else if value == 1 {
+                    *modifier_was_activated = false;
+                }
+            } else {
+                let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), value);
+                virt_dev.keys.emit(&[virtual_event]).unwrap();
+                *modifier_was_activated = true;
+            }
         }
     }
 
@@ -366,20 +412,33 @@ impl EventReader {
     }
     
     async fn toggle_modifiers(&self, key: Key, value: i32) {
+        let path = self.config.get(&get_active_window(&self.current_desktop, &self.config).await).unwrap();
         let mut modifiers = self.modifiers.lock().await;
-        if modifiers.contains_key(&key) && vec![0, 1].contains(&value) {
-            modifiers.insert(key, value).unwrap();
+        if path.mapped_modifiers.all.contains(&key) {
+            match value {
+                1 => {
+                    modifiers.push(key);
+                    modifiers.sort();
+                    modifiers.dedup();
+                },
+                0 => modifiers.retain(|&x| x != key),
+                _ => {},
+            }
         }
     }
-    
-    async fn released_keys(&self, modifiers: &BTreeMap<Key, i32>) -> Vec<Key> {
+
+    async fn released_keys(&self, modifiers: &Vec<Key>) -> Vec<Key> {
         let path = self.config.get(&get_active_window(&self.current_desktop, &self.config).await).unwrap();
         let mut released_keys: Vec<Key> = Vec::new();
-        if let Some(event_hashmap) = path.modifiers.keys.get(&modifiers) {
-            event_hashmap.iter().for_each(|(_modifiers, event_list)| released_keys.extend(event_list));
+        for (_key, hashmap) in path.combinations.keys.iter() {
+            if let Some(event_list) = hashmap.get(modifiers) {
+                released_keys.extend(event_list);
+            }
         }
-        if let Some(event_hashmap) = path.modifiers.axis.get(&modifiers) {
-            event_hashmap.iter().for_each(|(_modifiers, event_list)| released_keys.extend(event_list));
+        for (_key, hashmap) in path.combinations.axis.iter() {
+            if let Some(event_list) = hashmap.get(modifiers) {
+                released_keys.extend(event_list);
+            }
         }
         released_keys
     }
@@ -460,3 +519,6 @@ async fn spawn_subprocess(command_list: &Vec<String>) {
             .expect("Failed to run command.");
     }
 }
+
+
+

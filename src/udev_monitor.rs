@@ -1,4 +1,4 @@
-use std::{collections::{HashMap, BTreeMap}, sync::Arc, path::Path, process::Command, env};
+use std::{collections::HashMap, sync::Arc, path::Path, process::Command, env};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tokio_stream::StreamExt;
@@ -16,7 +16,7 @@ pub async fn start_monitoring_udev(config_files: Vec<Config>, mut tasks: Vec<Joi
         ).unwrap();
     while let Some(Ok(event)) = monitor.next().await {
         if is_mapped(&event.device(), &config_files) {
-            println!("---------------------\nReinitializing...\n");
+            println!("---------------------\n\nReinitializing...\n");
             for task in &tasks {
                 task.abort();
             }
@@ -27,19 +27,8 @@ pub async fn start_monitoring_udev(config_files: Vec<Config>, mut tasks: Vec<Joi
 }
 
 pub fn launch_tasks(config_files: &Vec<Config>, tasks: &mut Vec<JoinHandle<()>>) {
-    let modifiers: Arc<Mutex<BTreeMap<Key, i32>>> = Arc::new (
-        Mutex::new (
-            BTreeMap::from ([
-                (Key::KEY_LEFTSHIFT, 0),
-                (Key::KEY_LEFTCTRL, 0),
-                (Key::KEY_LEFTALT, 0),
-                (Key::KEY_RIGHTSHIFT, 0),
-                (Key::KEY_RIGHTCTRL, 0),
-                (Key::KEY_RIGHTALT, 0),
-                (Key::KEY_LEFTMETA, 0)
-            ])
-        )
-    );
+    let modifiers: Arc<Mutex<Vec<Key>>> = Arc::new(Mutex::new(Default::default()));
+    let modifier_was_activated: Arc<Mutex<bool>> = Arc::new(Mutex::new(true));
     let current_desktop: Option<String> = match (env::var("XDG_SESSION_TYPE"), env::var("XDG_CURRENT_DESKTOP")) {
         (Ok(session), Ok(desktop)) if session == "wayland".to_string() && vec!["Hyprland".to_string(), "sway".to_string()].contains(&desktop)  => {
             println!(">> Running on {}, active window detection enabled.\n", desktop);
@@ -68,7 +57,7 @@ pub fn launch_tasks(config_files: &Vec<Config>, tasks: &mut Vec<JoinHandle<()>>)
     };
     let user_has_access = match Command::new("groups").output() {
         Ok(groups) if std::str::from_utf8(&groups.stdout.as_slice()).unwrap().contains("input") => {
-            println!("Running with evdev permissions.\nScanning for event devices with a matching config file...\n"); //todo: make the config dir customizable through env variable
+            println!("Running with evdev permissions.\nScanning for event devices with a matching config file...\n");
             true
         },
         Ok(groups) if std::str::from_utf8(&groups.stdout.as_slice()).unwrap().contains("root") => {
@@ -105,7 +94,7 @@ pub fn launch_tasks(config_files: &Vec<Config>, tasks: &mut Vec<JoinHandle<()>>)
         let event_device = device.0.as_path().to_str().unwrap().to_string();
         if !config_map.is_empty() {
             let stream = Arc::new(Mutex::new(get_event_stream(Path::new(&event_device), config_map.clone())));
-            let reader = EventReader::new(config_map.clone(), stream, modifiers.clone(), current_desktop.clone());
+            let reader = EventReader::new(config_map.clone(), stream, modifiers.clone(), modifier_was_activated.clone(), current_desktop.clone());
             tasks.push(tokio::spawn(start_reader(reader)));
             devices_found += 1
         }
