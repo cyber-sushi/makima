@@ -95,8 +95,8 @@ You can find the `KEY` names inside `/usr/include/linux/input-event-codes.h`, or
 Remember that keys like Ctrl and Alt have names like `KEY_LEFTCTRL`, `KEY_LEFTALT` etc. Just using `KEY_CTRL` and `KEY_ALT` will throw a parsing error because the key code does not exist.
 
 #### Modifiers and custom modifiers
-You can use as many modifiers as you want when declaring a binding, but the last one _has_ to be a non-modifier key.\
-You can use a non-modifier key (e.g. `KEY_A`) as a modifier, which will automatically change the behavior of that key: on key-down, it will only act as a modifier without emitting a `KEY` event, on key-up it will emit its own event. If some other key is pressed between key-down and key-up, the fake modifier key won't emit its own event on key-up.\
+You can use as many modifiers as you want when declaring a binding, but the last key _has_ to be a non-modifier key.\
+Additionally, you can set a non-modifier key (e.g. `KEY_A`) in place of a modifier, which will automatically change the behavior of that key: when used in combination with other keys, it will only act as a modifier, but when used alone, it will retain its default functionality, although the input event will be dispatched on key-up instead of key-down.
 If you want a non-modifier key to act as a modifier without remapping it for that device (e.g. you need it as a modifier when used in combination with another device), you can add it to the `CUSTOM_MODIFIERS` setting. Refer to the `[settings]` section for more info.
 
 #### Modifiers across multiple devices
@@ -132,7 +132,8 @@ Set to `"true"` if you're using those controllers.
 The keys listed in this parameter will change their behavior to act as modifiers.\
 While pressed, they will act as modifiers without emitting their respective `KEY` event, possibly changing the behavior of other keys if specified in `[remap]`. On release, they will emit their default `KEY` event only if no other keystroke happened while they were pressed.\
 This is useful if you want to have a key that behaves like a modifier but can still emit its own event if pressed alone.\
-You can list multiple keys to treat as modifiers with the following syntax: `CUSTOM_MODIFIERS = "KEY_A-KEY_BACKSLASH-KEY_GRAVE"`.
+You can list multiple keys to treat as modifiers with the following syntax:\
+`CUSTOM_MODIFIERS = "KEY_A-KEY_BACKSLASH-KEY_GRAVE"`
 
 Refer to the [sample config files](https://github.com/cyber-sushi/makima/tree/main/examples) for more information.
 
