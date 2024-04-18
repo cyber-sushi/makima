@@ -27,19 +27,19 @@ Previously only a controller daemon, the scope has now been expanded because I h
 
 ## How to use
 1. Download the executable from the Releases page or compile it yourself using Cargo.
-2. Create a TOML config file inside `~/.config/makima` (or pick one of the [default ones](https://github.com/cyber-sushi/makima/tree/main/examples)) and rename it with the _exact_ name of your device. You can check the name by running `evtest`. If the name includes a `/`, just omit it.
+2. Create a TOML config file inside Makima's config directory (defaults to `~/.config/makima` but can be changed through the `MAKIMA_CONFIG` environment variable), or pick one of the [default ones](https://github.com/cyber-sushi/makima/tree/main/examples) and rename it with the _exact_ name of your device. You can check the name by running `evtest`. If the name includes a `/`, just omit it.
 3. Assign your keybindings inside the config file, follow the [Configuration](https://github.com/cyber-sushi/makima/tree/main#configuration) section for more info.
 4. Make sure the `makima` executable has permission to be executed as a program. If not, `cd` into the directory of the executable and use `chmod +x makima`. Alternatively, Right Click > Properties > "allow executing as program" or something like that.
-5. Make sure that your user has access to event devices. If it doesn't, use `sudo usermod -aG input yourusername` and reboot.
-6. Launch Makima and it'll automatically recognize all connected devices that have a corresponding config file inside `~/.config/makima`. To launch Makima, you can use one of these methods:
-     - Launch it from your file manager by double clicking.
+5. Make sure your user has access to event devices. If it doesn't, use `sudo usermod -aG input yourusername` and reboot. Alternatively, you can launch Makima as root.
+6. Launch Makima and it'll automatically recognize all connected devices that have a corresponding config file inside `~/.config/makima` or your chosen directory. To launch Makima, you can use one of the following methods:
+     - Launch it from your file manager.
      - Launch it from terminal by `cd`ing to the directory of the executable, then using `./makima`.
-     - Move the executable to a directory that's in PATH, then launch it using `rofi`, `dmenu` or whatever launcher you use. I personally added `~/.local/share/bin` to PATH and put all my executables there.
+     - Move the executable to a directory that's in PATH, then launch it using `rofi`, `dmenu` or whatever launcher you use. Most people add `~/.local/share/bin` to PATH and put all their executable files there.
      - Create a .desktop file and launch it using that.
      - Autostart it from your window manager's config file (usually `exec /path/to/makima` or `exec-once = /path/to/makima`).
 
 ## Configuration
-You can pick one of the [sample config files](https://github.com/cyber-sushi/makima/tree/main/examples) and copy it inside `~/.config/makima`, rename it and edit it to your needs.
+You can pick one of the [sample config files](https://github.com/cyber-sushi/makima/tree/main/examples) and copy it inside Makima's config directory (defaults to `~/.config/makima` but can be changed through the `MAKIMA_CONFIG` environment variable), rename it and edit it to your needs.
 
 ### Config file naming
 **To associate a config file to an input device, the file name should be identical to that of the device. If your device's name includes a `/`, just omit it.**\
@@ -71,10 +71,10 @@ KEY1 = ["KEY2"]
 #Remap a key to a key sequence
 KEY1 = ["KEY2", "KEY3", "KEY4"]
 
-#Remap a key sequence (Ctrl/Alt/Shift/Meta + Key) to another key
+#Remap a key sequence to a single key
 MODIFIER1-MODIFIER2-MODIFIER3-KEY1 = ["KEY1"]
 
-#Remap a key sequence (Ctrl/Alt/Shift/Meta + Key) to a key sequence
+#Remap a key sequence to another key sequence
 MODIFIER1-MODIFIER2-MODIFIER3-KEY1 = ["KEY1", "KEY2", "KEY3"]
 ```
 
@@ -86,15 +86,18 @@ KEY1 = ["command1"]
 #Use a key to invoke a list of shell commands
 KEY1 = ["command1", "command2", "command3"]
 
-#Use a key sequence (Ctrl/Alt/Shift/Meta + Key) to invoke a shell command
+#Use a key sequence to invoke a shell command
 MODIFIER1-MODIFIER2-MODIFIER3-KEY1 = ["command1"]
 
-#Use a key sequence (Ctrl/Alt/Shift/Meta + Key) to invoke a list of shell commands
+#Use a key sequence to invoke a list of shell commands
 MODIFIER1-MODIFIER2-MODIFIER3-KEY1 = ["command1", "command2", "command3"]
 ```
 You can find the `KEY` names inside `/usr/include/linux/input-event-codes.h`, or launch `evtest` to see the events emitted by your devices.\
 Remember that keys like Ctrl and Alt have names like `KEY_LEFTCTRL`, `KEY_LEFTALT` etc. Just using `KEY_CTRL` and `KEY_ALT` will throw a parsing error because the key code does not exist.\
-You can use as many modifiers as you want when declaring a binding, but only one non-modifier key is supported.
+**Note: you can use as many modifiers as you want when declaring a binding, but the last one _has_ to be a non-modifier key.**\
+**You can use a non-modifier key (e.g. `KEY_A`) as a modifier, which will automatically change the behavior of that key: on key-down, it will only act as a modifier without emitting a `KEY` event, on key-up it will emit its own event. If some other key is pressed between key-down and key-up, the fake modifier key won't emit its own event on key-up.**\
+If you want a non-modifier key to act as a modifier without remapping it for that device (e.g. you need it as a modifier when used in combination with another device), you can add it to the `CUSTOM_MODIFIERS` setting. Refer to the `[settings]` section for more info.\
+**Keep in mind that if you want to use modifiers across multiple devices (e.g. `KEY_LEFTCTRL` on your keyboard and `BTN_RIGHT` on your mouse), both devices will have to be read by Makima and thus both will need a config file, even if empty. Having a config file is just a way to tell Makima "Hey, read this device!".**\
 Keys that are not explicitly remapped will keep their default functionality.
 
 **Note: axis events such as scroll wheels and analog stick movements are hardcoded, currently you can use the following:**
@@ -112,6 +115,7 @@ Refer to the [sample config files](https://github.com/cyber-sushi/makima/tree/ma
 - `LSTICK_SENSITIVITY` and `RSTICK_SENSITIVITY` set the sensitivity of your left and right analog sticks when using them to scroll or move your cursor. _Lower value is higher sensitivity, minimum `"1"`, suggested `"6"`. If this is set to `"0"` or if it's not set, cursor movement and scroll will be disabled._
 - `LSTICK_DEADZONE` and `RSTICK_DEADZONE` set how much your analog sticks should be tilted before their inputs are detected. _Particularly useful for older devices that suffer from drifting. Use a value between `"0"` and `"128"`._
 - `16_BIT_AXIS` is needed if you're using Xbox controllers and Switch Joy-Cons to properly calibrate the analog stick's sensitivity. _Set to `"true"` if you're using those controllers._
+- `CUSTOM_MODIFIERS` changes the behavior of a key to act as a modifier. _On key-down, it will only act as a modifier without emitting a `KEY` event, on key-up it will emit its own event. If some other key is pressed between key-down and key-up, the fake modifier key won't emit its own event on key-up. You can list multiple keys to treat as modifiers with the following syntax: `CUSTOM_MODIFIERS = "KEY_A-KEY_BACKSLASH-KEY_GRAVE"`._
 
 **Note: only the `GRAB_DEVICE` setting is mandatory, everything else can be left out if not needed.**
 
@@ -133,9 +137,6 @@ To add other controllers, please open an issue.
 ## Troubleshooting and FAQ:
 **Q**: My device actually shows as three different devices in evtest, do I need to create three different config files, one for each device?\
 **A**: Each device will have a certain set of features, e.g. a DS4 controller is recognized as a touchpad, a motion sensor and a controller. A mouse is usually recognized as a mouse and a keyboard (for the additional keys). Just create a config file for the devices/features that you need to remap, and ignore the others.
-
-**Q**: Can I map a key sequence (e.g. Ctrl+C) to something else?\
-**A**: Yes! Since version 0.4.0, you can remap key modifiers (Ctrl, Shift, Alt, Meta) + key, to call another key or macro.
 
 **Q**: My controller works when using Bluetooth but not when using wired connection or vice-versa, why?\
 **A**: Some devices have a different evdev name when connected through Bluetooth, for example a `Sony Interactive Entertainment Wireless Controller` is just seen as `Wireless Controller` when connected via Bluetooth. You'll need to create a copy of the config file with that name.
