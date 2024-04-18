@@ -112,15 +112,14 @@ pub async fn start_reader(reader: EventReader) {
 
 pub fn get_event_stream(path: &Path, config: HashMap<String, Config>) -> EventStream {
     let mut device: Device = Device::open(path).expect("Couldn't open device path.");
-    if config.get("default")
-        .unwrap()
-        .settings
-        .get("GRAB_DEVICE")
-        .expect("No GRAB_DEVICE setting specified, this device will be ignored.") == &"true".to_string()
-    {
-        device.grab().unwrap();
-    };
-
+	match config.get("default").unwrap().settings.get("GRAB_DEVICE") {
+		Some(value) => {
+			if value == &true.to_string() {
+				device.grab().unwrap()
+			}
+		}
+		None => device.grab().unwrap()
+	}
     let stream: EventStream = device.into_event_stream().unwrap();
     return stream
 }
@@ -142,5 +141,4 @@ pub fn is_mapped(udev_device: &tokio_udev::Device, config_files: &Vec<Config>) -
     }
     return false
 }
-
 

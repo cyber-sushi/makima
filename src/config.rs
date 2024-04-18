@@ -26,6 +26,7 @@ pub struct RawConfig {
     pub remap: HashMap<String, Vec<Key>>,
     #[serde(default)]
     pub commands: HashMap<String, Vec<String>>,
+    #[serde(default)]
     pub settings: HashMap<String, String>,
 }
 
