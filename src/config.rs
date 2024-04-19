@@ -109,10 +109,10 @@ fn parse_raw_config(raw_config: RawConfig) -> (Bindings, Combinations, HashMap<S
     mapped_modifiers.custom.extend(custom_modifiers);
 
     let abs = [
-        "DPAD_UP",
-        "DPAD_DOWN",
-        "DPAD_LEFT",
-        "DPAD_RIGHT",
+        "BTN_DPAD_UP",
+        "BTN_DPAD_DOWN",
+        "BTN_DPAD_LEFT",
+        "BTN_DPAD_RIGHT",
         "LSTICK_UP",
         "LSTICK_DOWN",
         "LSTICK_LEFT",
@@ -213,7 +213,7 @@ fn merge_axis_bindings(mut bindings: Bindings) -> Bindings {
         pad_y.extend(bindings.axis.get("BTN_DPAD_DOWN")
             .unwrap_or(&Vec::new()));
         bindings.axis.insert("BTN_DPAD_X".to_string(), pad_x);
-        bindings.axis.insert("BTN_DPAD_y".to_string(), pad_y);
+        bindings.axis.insert("BTN_DPAD_Y".to_string(), pad_y);
 
         let mut lstick_x: Vec<Key> = bindings.axis.get("LSTICK_LEFT")
             .unwrap_or(&Vec::new()).clone();

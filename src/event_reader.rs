@@ -104,6 +104,8 @@ impl EventReader {
     pub async fn event_loop(&self) {
         let mut lstick_values = HashMap::from([("x", 0), ("y", 0)]);
         let mut rstick_values = HashMap::from([("x", 0), ("y", 0)]);
+        let mut ltrigger_value = 0;
+        let mut rtrigger_value = 0;
         let mut stream = self.stream.lock().await;
         while let Some(Ok(event)) = stream.next().await {
             match (event.event_type(), RelativeAxisType(event.code()), AbsoluteAxisType(event.code())) {
@@ -236,13 +238,23 @@ impl EventReader {
                 },
                 (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_Z) => {
                     let clamped_value = if event.value() > 0 { 1 } else { 0 };
-                    let clamped_event = InputEvent::new_now(event.event_type(), event.code(), clamped_value);
-                    self.convert_axis_events(clamped_event, &"BTN_TL2".to_string(), false).await;
+                    if clamped_value == 1 && ltrigger_value == 0 {
+                        ltrigger_value = 1;
+                        let clamped_event = InputEvent::new_now(event.event_type(), event.code(), clamped_value);
+                        self.convert_axis_events(clamped_event, &"BTN_TL2".to_string(), false).await;
+                    } else if clamped_value == 0 {
+                        ltrigger_value = 0;
+                    }
                 },
                 (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_RZ) => {
                     let clamped_value = if event.value() > 0 { 1 } else { 0 };
-                    let clamped_event = InputEvent::new_now(event.event_type(), event.code(), clamped_value);
-                    self.convert_axis_events(clamped_event, &"BTN_TR2".to_string(), false).await;
+                    if clamped_value == 1 && rtrigger_value == 0 {
+                        rtrigger_value = 1;
+                        let clamped_event = InputEvent::new_now(event.event_type(), event.code(), clamped_value);
+                        self.convert_axis_events(clamped_event, &"BTN_TR2".to_string(), false).await;
+                    } else if clamped_value == 0 {
+                        rtrigger_value = 0;
+                    }
                 },
                 _ => {self.emit_default_event(event).await;}
             }
@@ -260,7 +272,8 @@ impl EventReader {
                 self.emit_event_without_modifiers(event_list, &modifiers, event.value()).await;
                 return
             }
-        } else if let Some(command_hashmap) = path.combinations.keys_sh.get(&Key(event.code())) {
+        }
+        if let Some(command_hashmap) = path.combinations.keys_sh.get(&Key(event.code())) {
             if let Some(command_list) = command_hashmap.get(&modifiers) {
                 if event.value() == 1 {self.spawn_subprocess(command_list).await};
                 return
@@ -268,11 +281,13 @@ impl EventReader {
         }
         if let Some(event_list) = path.bindings.keys.get(&Key(event.code())) {
             self.emit_event(event_list, event.value()).await;
-        } else if let Some(command_list) = path.bindings.keys_sh.get(&Key(event.code())) {
-            if event.value() == 1 {self.spawn_subprocess(command_list).await};
-        } else {
-            self.emit_default_event(event).await;
+            return
         }
+        if let Some(command_list) = path.bindings.keys_sh.get(&Key(event.code())) {
+            if event.value() == 1 {self.spawn_subprocess(command_list).await};
+            return
+        }
+        self.emit_default_event(event).await;
     }
     
     async fn convert_axis_events(&self, event: InputEvent, event_string: &String, send_zero: bool) {
@@ -280,28 +295,31 @@ impl EventReader {
         let modifiers = self.modifiers.lock().await.clone();
         if let Some(event_hashmap) = path.combinations.axis.get(event_string) {
             if let Some(event_list) = event_hashmap.get(&modifiers) {
-                self.emit_event_without_modifiers(event_list, &modifiers, event.value()).await;
+                self.emit_event_without_modifiers(event_list, &modifiers, event.value().abs()).await;
                 if send_zero {
                     self.emit_event_without_modifiers(event_list, &modifiers, 0).await;
                 }
                 return
             }
-        } else if let Some(command_hashmap) = path.combinations.axis_sh.get(event_string) {
+        }
+        if let Some(command_hashmap) = path.combinations.axis_sh.get(event_string) {
             if let Some(command_list) = command_hashmap.get(&modifiers) {
-                if event.value() == 1 {self.spawn_subprocess(command_list).await};
+                if event.value().abs() == 1 {self.spawn_subprocess(command_list).await};
                 return
             }
         }
         if let Some(event_list) = path.bindings.axis.get(event_string) {
-            self.emit_event(event_list, event.value()).await;
+            self.emit_event(event_list, event.value().abs()).await;
             if send_zero {
                 self.emit_event_without_modifiers(event_list, &modifiers, 0).await;
             }
-        } else if let Some(command_list) = path.bindings.axis_sh.get(event_string) {
-            if event.value() == 1 {self.spawn_subprocess(command_list).await};
-        } else {
-            self.emit_default_event(event).await;
+            return
         }
+        if let Some(command_list) = path.bindings.axis_sh.get(event_string) {
+            if event.value().abs() == 1 {self.spawn_subprocess(command_list).await};
+            return
+        }
+        self.emit_default_event(event).await;
     }
 
     async fn emit_event(&self, event_list: &Vec<Key>, value: i32) {
