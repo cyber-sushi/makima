@@ -262,14 +262,14 @@ impl EventReader {
             }
         } else if let Some(command_hashmap) = path.combinations.keys_sh.get(&Key(event.code())) {
             if let Some(command_list) = command_hashmap.get(&modifiers) {
-                spawn_subprocess(command_list).await;
+                self.spawn_subprocess(command_list).await;
                 return
             }
         }
         if let Some(event_list) = path.bindings.keys.get(&Key(event.code())) {
             self.emit_event(event_list, event.value()).await;
         } else if let Some(command_list) = path.bindings.keys_sh.get(&Key(event.code())) {
-            spawn_subprocess(command_list).await;
+            self.spawn_subprocess(command_list).await;
         } else {
             self.emit_default_event(event).await;
         }
@@ -288,7 +288,7 @@ impl EventReader {
             }
         } else if let Some(command_hashmap) = path.combinations.axis_sh.get(event_string) {
             if let Some(command_list) = command_hashmap.get(&modifiers) {
-                spawn_subprocess(command_list).await;
+                self.spawn_subprocess(command_list).await;
                 return
             }
         }
@@ -298,7 +298,7 @@ impl EventReader {
                 self.emit_event_without_modifiers(event_list, &modifiers, 0).await;
             }
         } else if let Some(command_list) = path.bindings.axis_sh.get(event_string) {
-            spawn_subprocess(command_list).await;
+            self.spawn_subprocess(command_list).await;
         } else {
             self.emit_default_event(event).await;
         }
@@ -396,6 +396,18 @@ impl EventReader {
                 virt_dev.keys.emit(&[virtual_event]).unwrap();
                 *modifier_was_activated = true;
             }
+        }
+    }
+
+    async fn spawn_subprocess(&self, command_list: &Vec<String>) {
+        let mut modifier_was_activated = self.modifier_was_activated.lock().await;
+        *modifier_was_activated = true;
+        for command in command_list {
+            Command::new("sh")
+                .arg("-c")
+                .arg(command)
+                .spawn()
+                .expect("Failed to run command.");
         }
     }
 
@@ -509,16 +521,4 @@ impl EventReader {
         }
     }
 }
-
-async fn spawn_subprocess(command_list: &Vec<String>) {
-    for command in command_list {
-        Command::new("sh")
-            .arg("-c")
-            .arg(command)
-            .spawn()
-            .expect("Failed to run command.");
-    }
-}
-
-
 
