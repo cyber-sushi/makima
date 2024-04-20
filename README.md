@@ -116,8 +116,10 @@ You can find the `KEY` names inside `/usr/include/linux/input-event-codes.h`, or
 Remember that keys like Ctrl and Alt have names like `KEY_LEFTCTRL`, `KEY_LEFTALT` etc. Just using `KEY_CTRL` and `KEY_ALT` will throw a parsing error because the key code does not exist.
 
 #### Modifiers and custom modifiers:
-You can use as many modifiers as you want when declaring a binding, but the last key _has_ to be a non-modifier key.\
-Additionally, you can set a non-modifier key (e.g. `KEY_A`) in place of a modifier, which will automatically change the behavior of that key: when used in combination with other keys, it will only act as a modifier, but when used alone, it will retain its default functionality, although the input event will be dispatched on key-up instead of key-down.
+You can use as many modifiers as you want when declaring a binding, but the last key _has_ to be a non-modifier key.
+
+Non-modifier keys (e.g. `KEY_A`) can be set in place of a modifier, automatically changing the behavior of that key: when used in combination with other keys, it will only act as a modifier, but when used alone, it will retain its default functionality, although the input event will be dispatched on key-up instead of key-down.
+
 If you want a non-modifier key to act as a modifier without remapping it for that device (e.g. you need it as a modifier when used in combination with another device), you can add it to the `CUSTOM_MODIFIERS` setting. Refer to the `[settings]` section for more info.
 
 #### Modifiers across multiple devices:
@@ -167,11 +169,11 @@ _Useful because you get a lot of diagnostics in case something doesn't work._
 - Move the executable to a directory that's in PATH, then launch it using `rofi`, `dmenu` or whatever launcher you use.\
 _Most people add `~/.local/share/bin` to PATH and put all their executable files there._
 - Create a .desktop file for Makima and put it inside `~/.local/share/applications`.\
-_This will add Makima to your DE's app drawer or app menu, and will make it visible in `rofi`, `wofi` etc when used in `drun` mode._\
+_This will add Makima to your DE's app drawer or app menu, and will make it visible in `rofi`, `wofi` etc when used in `drun` mode._
 - Autostart it from your window manager's config file.\
 _Most window managers and Wayland compositors have a way to start applications from their config file, like `exec /path/to/makima` (Sway) or `exec-once = /path/to/makima` (Hyprland)._
 - Create a systemd service for Makima.\
-_This will let you start/stop Makima using `systemctl start/stop makima` and enable/disable on startup it using `systemctl enable/disable makima`._
+_This will let you start/stop Makima using `systemctl start/stop makima` and enable/disable on startup using `systemctl enable/disable makima`._
 
 ## Tested controllers
 - DualShock 2
