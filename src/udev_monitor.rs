@@ -91,6 +91,9 @@ pub fn launch_tasks(config_files: &Vec<Config>, tasks: &mut Vec<JoinHandle<()>>)
                 config_map.insert(window_class, config.clone());
             };
         }
+        if config_map.len() > 0 && !config_map.contains_key(&"default".to_string()) {
+            config_map.insert("default".to_string(), Config::new_empty(device.1.name().unwrap().replace("/", "")));
+        }
         let event_device = device.0.as_path().to_str().unwrap().to_string();
         if !config_map.is_empty() {
             let stream = Arc::new(Mutex::new(get_event_stream(Path::new(&event_device), config_map.clone())));

@@ -30,7 +30,7 @@ pub struct RawConfig {
     pub settings: HashMap<String, String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct MappedModifiers {
     pub default: Vec<Key>,
     pub custom: Vec<Key>,
@@ -75,6 +75,16 @@ impl Config {
             combinations,
             settings,
             mapped_modifiers,
+        }
+    }
+
+    pub fn new_empty(file_name: String) -> Self {
+        Self {
+            name: file_name,
+            bindings: Default::default(),
+            combinations: Default::default(),
+            settings: Default::default(),
+            mapped_modifiers: Default::default(),
         }
     }
 }
