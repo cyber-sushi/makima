@@ -15,7 +15,6 @@ Previously only a controller daemon, the scope has now been expanded because I h
 # Index
 - [Installation](https://github.com/cyber-sushi/makima/tree/main#installation)
     - [Building from source](https://github.com/cyber-sushi/makima/tree/main#building-from-source)
-    - [Config files](https://github.com/cyber-sushi/makima/tree/main#config-files)
 - [Running makima](https://github.com/cyber-sushi/makima/tree/main#running-makima)
 - [Configuration](https://github.com/cyber-sushi/makima/tree/main#configuration)
     - [Example config files](https://github.com/cyber-sushi/makima/tree/main/examples)
@@ -43,11 +42,6 @@ cargo build --release
 Once Cargo is done compiling, you should find Makima's executable inside `~/makima/target/release/`.\
 After taking the executable, you can delete Makima's folder.
 
-#### Config files
-Makima's config directory defaults to `~/.config/makima` but can be changed through the `MAKIMA_CONFIG` environment variable.\
-You can pick one of the [sample config files](https://github.com/cyber-sushi/makima/tree/main/examples) and copy it inside Makima's config directory, or make your own from scratch.\
-You can find everything about config file naming and configuration in the [Configuration](https://github.com/cyber-sushi/makima/tree/main#configuration) section.
-
 ## Running Makima
 #### Executable permissions
 Make sure that the executable has permissions to be executed as a program with `chmod +x makima` or with Right Click > Properties > "allow executing as program" or something like that, depending on your file manager.
@@ -63,19 +57,23 @@ To run Makima, you can just `cd` to its directory and use `./makima` or you can 
 If you want to integrate it with your desktop experience, you can take a look at the [Desktop integration](https://github.com/cyber-sushi/makima/tree/main#desktop-integration) section.
 
 ## Configuration
+You can find a bunch of [example config files](https://github.com/cyber-sushi/makima/tree/main/examples) on this repo, either pick one of them or create your own from scratch.\
+Makima's config directory defaults to `~/.config/makima` but can be changed through the `MAKIMA_CONFIG` environment variable.
 
 ### Config file naming
 To associate a config file to an input device, the file name should be identical to that of the device. If your device's name includes a `/`, just omit it.\
-Example: you run `evtest` and see that your Dualshock 4 controller is named `Sony Interactive Entertainment Wireless Controller`; all you have to do is rename your config file `Sony Interactive Entertainment Wireless Controller.toml`.\
+_Example: you run `evtest` and see that your Dualshock 4 controller is named `Sony Interactive Entertainment Wireless Controller`; all you have to do is rename your config file `Sony Interactive Entertainment Wireless Controller.toml`._
+
 All config files will be parsed automatically when `makima` is launched.\
 Files that don't end with `.toml` and files that start with `.` (dotfiles) won't be parsed, so you can add a dot at the beginning of the filename to mask them from Makima.
 
 ### Application-specific bindings
 **Hyprland, Sway and X11 only.**\
-Have you ever wanted to have a different set of bindings for each game or application? Then this is exactly what you're looking for!\
 To apply a config file only to a specific application, just put `::<window_class>` at the end of their filename, before `.toml`.\
-Example: you want your DS4 controller to have a specific set of keybindings for Firefox, name that file `Sony Interactive Entertainment Wireless Controller::firefox.toml`.\
-To retrieve the window class of a specific application, refer to your compositor's documentation, e.g. on Hyprland type `hyprctl clients` in your terminal while that application is open.\
+_Example: you want your DS4 controller to have a specific set of keybindings for Firefox, name that file `Sony Interactive Entertainment Wireless Controller::firefox.toml`. Note that Flatpaks will have names like `org.mozilla.firefox`._
+
+To retrieve the window class of a specific application, refer to your compositor's documentation, e.g. on Hyprland type `hyprctl clients` in your terminal while that application is open.
+
 **Note: on Sway, make sure that the `XDG_DESKTOP_SESSION=sway` environment variable is set, or Makima won't be able to use application-specific bindings.**
 
 ## Bindings and settings
