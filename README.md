@@ -2,7 +2,7 @@
 
 Makima is a daemon for Linux to remap keyboards, mice, controllers and tablets.\
 It works on Wayland, X11 and even tty, as it relies on the `evdev` kernel interface.\
-Previously only a controller daemon, the scope has now been expanded because I had nothing better to do.
+Previously only a controller daemon, its scope has now been expanded because I had nothing better to do.
 
 ## Features
 - Remap keys, buttons or entire combinations to other keys, sequences or shell commands using simple TOML config files, one for each different device.
@@ -51,7 +51,7 @@ To do so, you can do **one of the following**:
 - **Use `sudo usermod -aG input username` and reboot.**\
 _Note: some users might not like this one because it makes all applications potentially able to read your inputs._
 - **Run Makima as root.**\
-_Note: if you use Makima to launch shell commands, some of them might not work, e.g. using `notify-send` will send notifications to your root user instead of your normal user. To work around this, you can launch your commands with `su - username -c 'command'`, which might nor might not work. I'll address this at some point._
+_Note: if you use Makima to launch shell commands, some of them might not work when running as root, e.g. using `notify-send` will send notifications to your root user instead of your normal user. To work around this, you can launch your commands with `su - username -c 'command'`, which might or might not work. I'll address this at some point._
 #### Usage
 To run Makima, you can just `cd` to its directory and use `./makima` or you can double-click it in your file manager to make it start in the background.\
 If you want to integrate it with your desktop experience, you can take a look at the [Desktop integration](https://github.com/cyber-sushi/makima/tree/main#desktop-integration) section.
@@ -62,7 +62,7 @@ Makima's config directory defaults to `~/.config/makima` but can be changed thro
 
 ### Config file naming
 To associate a config file to an input device, the file name should be identical to that of the device. If your device's name includes a `/`, just omit it.\
-_Example: you run `evtest` and see that your Dualshock 4 controller is named `Sony Interactive Entertainment Wireless Controller`; all you have to do is rename your config file `Sony Interactive Entertainment Wireless Controller.toml`._
+_Example: you run `evtest` and see that your Dualshock 4 controller is named `Sony Interactive Entertainment Wireless Controller`. All you have to do is rename your config file to `Sony Interactive Entertainment Wireless Controller.toml`._
 
 All config files will be parsed automatically when `makima` is launched.\
 Files that don't end with `.toml` and files that start with `.` (dotfiles) won't be parsed, so you can add a dot at the beginning of the filename to mask them from Makima.
