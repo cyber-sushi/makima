@@ -6,7 +6,6 @@ mod active_client;
 
 use std::env;
 use tokio;
-use home;
 use config::Config;
 use tokio::task::JoinHandle;
 use crate::udev_monitor::*;
@@ -14,25 +13,37 @@ use crate::udev_monitor::*;
 
 #[tokio::main]
 async fn main() {
-    let default_config_path = format!("{}/.config/makima", home::home_dir().unwrap().display());
-    let env_path: String = match env::var("MAKIMA_CONFIG") {
-        Ok(path) => {
-            println!("\nConfig directory set to {:?}.", path);
-            path
+    let user = match env::var("USER") {
+        Ok(user) if user == "root".to_string() => {
+            match env::var("SUDO_USER") {
+                Ok(sudo_user) => format!("/home/{}", sudo_user),
+                _ => format!("/{}", user),
+            }
         },
-        Err(_) => {
-            println!("\n\"MAKIMA_CONFIG\" environment variable is not set, defaulting to {:?}.", default_config_path);
-            default_config_path.clone()
-        },
+        Ok(user) => format!("/home/{}", user),
+        _ => "/root".to_string(),
     };
-    let config_path: std::fs::ReadDir = match std::fs::read_dir(&env_path) {
-        Ok(config_path) => {
-            println!("Scanning for config files...\n");
-            config_path
+    let default_config_path = format!("{}/.config/makima", user);
+    let config_path = match env::var("MAKIMA_CONFIG") {
+        Ok(path) => {
+            println!("\nMAKIMA_CONFIG set to {:?}.", path);
+            match std::fs::read_dir(path) {
+                Ok(dir) => dir,
+                _ => {
+                    println!("Directory not found, exiting Makima.");
+                    std::process::exit(0);
+                }
+            }
         },
         Err(_) => {
-            println!("Directory not found, falling back to {:?}.\n", default_config_path);
-            std::fs::read_dir(default_config_path).unwrap()
+            println!("\nMAKIMA_CONFIG environment variable is not set, defaulting to {:?}.", default_config_path);
+            match std::fs::read_dir(default_config_path) {
+                Ok(dir) => dir,
+                _ => {
+                    println!("Directory not found, exiting Makima.");
+                    std::process::exit(0);
+                }
+            }
         },
     };
     let mut config_files: Vec<Config> = Vec::new();
