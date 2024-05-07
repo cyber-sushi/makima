@@ -7,6 +7,12 @@ use crate::Config;
 use crate::event_reader::EventReader;
 
 
+#[derive(Clone)]
+pub struct Environment {
+    pub user: Result<String, env::VarError>,
+    pub sudo_user: Result<String, env::VarError>,
+}
+
 pub async fn start_monitoring_udev(config_files: Vec<Config>, mut tasks: Vec<JoinHandle<()>>) {
     launch_tasks(&config_files, &mut tasks);
     let mut monitor = tokio_udev::AsyncMonitorSocket::new (
@@ -29,27 +35,39 @@ pub async fn start_monitoring_udev(config_files: Vec<Config>, mut tasks: Vec<Joi
 pub fn launch_tasks(config_files: &Vec<Config>, tasks: &mut Vec<JoinHandle<()>>) {
     let modifiers: Arc<Mutex<Vec<Key>>> = Arc::new(Mutex::new(Default::default()));
     let modifier_was_activated: Arc<Mutex<bool>> = Arc::new(Mutex::new(true));
+    match env::var("DBUS_SESSION_BUS_ADDRESS") {
+        Ok(_) => true,
+        Err(_) => {
+            println!("Warning: unable to inherit user environment.\n\
+                    To launch Makima as root, use 'sudo -E makima', otherwise some shell commands won't work.\n");
+            false
+        },
+    };
+    let environment = Environment {
+        user: env::var("USER"),
+        sudo_user: env::var("SUDO_USER"),
+    };
     let current_desktop: Option<String> = match (env::var("XDG_SESSION_TYPE"), env::var("XDG_CURRENT_DESKTOP")) {
         (Ok(session), Ok(desktop)) if session == "wayland".to_string() && vec!["Hyprland".to_string(), "sway".to_string()].contains(&desktop)  => {
-            println!(">> Running on {}, active window detection enabled.\n", desktop);
+            println!("Running on {}, active window detection enabled.\n", desktop);
             Option::Some(desktop)
         },
         (Ok(session), Ok(desktop)) if session == "wayland".to_string() => {
-            println!(">> Unsupported compositor: {}, won't be able to change bindings according to active window.\n\
+            println!("Warning: unsupported compositor: {}, won't be able to change bindings according to active window.\n\
                     Currently supported desktops: Hyprland, Sway, X11.\n", desktop);
             Option::None
         },
         (Ok(session), _) if session == "x11".to_string() => {
-            println!(">> Running on X11, active window detection enabled.");
+            println!("Running on X11, active window detection enabled.");
             Option::Some("x11".to_string())
         },
         (Ok(session), Err(_)) if session == "wayland".to_string() => {
-            println!(">> Unable to retrieve the current desktop based on XDG_CURRENT_DESKTOP env var.\n\
+            println!("Warning: unable to retrieve the current desktop based on XDG_CURRENT_DESKTOP env var.\n\
                     Won't be able to change bindings according to the active window.\n");
             Option::None
         },
         (Err(_), _) => {
-            println!(">> Unable to retrieve the session type based on XDG_SESSION_TYPE env var.\n\
+            println!("Warning: unable to retrieve the session type based on XDG_SESSION_TYPE env var.\n\
                     Won't be able to change bindings according to the active window.\n");
             Option::None
         },
@@ -97,7 +115,7 @@ pub fn launch_tasks(config_files: &Vec<Config>, tasks: &mut Vec<JoinHandle<()>>)
         let event_device = device.0.as_path().to_str().unwrap().to_string();
         if !config_map.is_empty() {
             let stream = Arc::new(Mutex::new(get_event_stream(Path::new(&event_device), config_map.clone())));
-            let reader = EventReader::new(config_map.clone(), stream, modifiers.clone(), modifier_was_activated.clone(), current_desktop.clone());
+            let reader = EventReader::new(config_map.clone(), stream, modifiers.clone(), modifier_was_activated.clone(), environment.clone(), current_desktop.clone());
             tasks.push(tokio::spawn(start_reader(reader)));
             devices_found += 1
         }
@@ -118,10 +136,10 @@ pub fn get_event_stream(path: &Path, config: HashMap<String, Config>) -> EventSt
 	match config.get("default").unwrap().settings.get("GRAB_DEVICE") {
 		Some(value) => {
 			if value == &true.to_string() {
-				device.grab().unwrap()
+				device.grab().expect("Unable to grab device. Is another instance of Makima running?")
 			}
 		}
-		None => device.grab().unwrap()
+		None => device.grab().expect("Unable to grab device. Is another instance of Makima running?")
 	}
     let stream: EventStream = device.into_event_stream().unwrap();
     return stream

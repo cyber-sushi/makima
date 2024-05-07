@@ -5,7 +5,7 @@ use evdev::{EventStream, Key, RelativeAxisType, AbsoluteAxisType, EventType, Inp
 use crate::virtual_devices::VirtualDevices;
 use crate::Config;
 use crate::active_client::*;
-
+use crate::udev_monitor::Environment;
 
 struct Stick {
     function: String,
@@ -29,6 +29,7 @@ pub struct EventReader {
     modifier_was_activated: Arc<Mutex<bool>>,
     device_is_connected: Arc<Mutex<bool>>,
     current_desktop: Option<String>,
+    environment: Environment,
     settings: Settings,
 }
 
@@ -38,6 +39,7 @@ impl EventReader {
         stream: Arc<Mutex<EventStream>>,
         modifiers: Arc<Mutex<Vec<Key>>>,
         modifier_was_activated: Arc<Mutex<bool>>,
+        environment: Environment,
         current_desktop: Option<String>,
     ) -> Self {
         let mut position_vector: Vec<i32> = Vec::new();
@@ -88,6 +90,7 @@ impl EventReader {
             modifier_was_activated,
             device_is_connected,
             current_desktop,
+            environment,
             settings,
         }
     }
@@ -420,12 +423,31 @@ impl EventReader {
     async fn spawn_subprocess(&self, command_list: &Vec<String>) {
         let mut modifier_was_activated = self.modifier_was_activated.lock().await;
         *modifier_was_activated = true;
-        for command in command_list {
-            Command::new("sh")
-                .arg("-c")
-                .arg(command)
-                .spawn()
-                .expect("Failed to run command.");
+        match &self.environment.user {
+            Ok(user) if user == &"root".to_string() => {
+                match &self.environment.sudo_user {
+                    Ok(sudo_user) => {
+                        for command in command_list {
+                            Command::new("sh")
+                                .arg("-c")
+                                .arg(format!("env runuser {} -c {}", sudo_user.as_str(), command))
+                                .spawn()
+                                .expect("Failed to run command.");
+                        }
+                    },
+                    _ => {}
+                }
+            },
+            Ok(_) => {
+                for command in command_list {
+                    Command::new("sh")
+                        .arg("-c")
+                        .arg(command)
+                        .spawn()
+                        .expect("Failed to run command.");
+                }
+            }
+            Err(_) => {},
         }
     }
 
