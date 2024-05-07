@@ -454,15 +454,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
 
 [[package]]
-name = "home"
-version = "0.5.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5444c27eef6923071f7ebcc33e3444508466a76f7a2b93da00ed6e19f30c1ddb"
-dependencies = [
- "windows-sys 0.48.0",
-]
-
-[[package]]
 name = "hyprland"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -583,10 +574,9 @@ checksum = "b5e6163cb8c49088c2c36f57875e58ccd8c87c7427f7fbd50ea6710b2f3f2e8f"
 
 [[package]]
 name = "makima"
-version = "0.6.5"
+version = "0.6.6"
 dependencies = [
  "evdev",
- "home",
  "hyprland",
  "serde",
  "swayipc-async",

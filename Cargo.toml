@@ -1,6 +1,6 @@
 [package]
 name = "makima"
-version = "0.6.5"
+version = "0.6.6"
 edition = "2021"
 
 [dependencies]
@@ -13,4 +13,3 @@ hyprland = "<=0.3.9"
 swayipc-async = "2.0.2"
 x11rb = "0.13.0"
 toml = "0.7.3"
-home = "<=0.5.5"
