@@ -50,10 +50,11 @@ In order to work properly, Makima needs access to the `evdev` kernel module whic
 To do so, you can do **one of the following**:
 - **Use `sudo usermod -aG input username` and reboot.**\
 _Note: some users might not like this one because it makes all applications potentially able to read your inputs._
-- **Run Makima as root.**\
-_Note: if you use Makima to launch shell commands, some of them might not work when running as root, e.g. using `notify-send` will send notifications to your root user instead of your normal user. To work around this, you can launch your commands with `su - username -c 'command'`, which might or might not work. I'll address this at some point._
+- **Run Makima as root with `sudo -E makima`.**\
+_Note: the `-E` argument is necessary because it allows Makima to inherit your user environment instead of the root environment._
 #### Usage
-To run Makima, you can just `cd` to its directory and use `./makima` or you can double-click it in your file manager to make it start in the background.\
+To run Makima, you can `cd` to its directory and use `./makima` (or `sudo -E ./makima`) or add the executable to a directory that's in PATH and just call it from your terminal or app launcher with `makima` (or `sudo -E makima`).\
+You can also double-click it in your file manager to make it start in the background.\
 If you want to integrate it with your desktop experience, you can take a look at the [Desktop integration](https://github.com/cyber-sushi/makima/tree/main#desktop-integration) section.
 
 ## Configuration
