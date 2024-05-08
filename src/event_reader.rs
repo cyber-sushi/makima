@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc, option::Option, process::{Command, Stdio}};
 use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
-use fork::{fork, setsid, Fork};
+use fork::{fork, Fork};
 use evdev::{EventStream, Key, RelativeAxisType, AbsoluteAxisType, EventType, InputEvent};
 use crate::virtual_devices::VirtualDevices;
 use crate::Config;
@@ -429,11 +429,21 @@ impl EventReader {
                 match &self.environment.sudo_user {
                     Ok(sudo_user) => {
                         for command in command_list {
-                            Command::new("sh")
-                                .arg("-c")
-                                .arg(format!("env runuser {} -c {}", sudo_user.as_str(), command))
-                                .spawn()
-                                .expect("Failed to run command.");
+                            match fork() {
+                                Ok(Fork::Child) => {
+                                    Command::new("sh")
+                                        .arg("-c")
+                                        .arg(format!("env runuser {} -c {}", sudo_user.as_str(), command))
+                                        .stdin(Stdio::null())
+                                        .stdout(Stdio::null())
+                                        .stderr(Stdio::null())
+                                        .spawn()
+                                        .expect("Failed to run command.");
+                                    std::process::exit(0);
+                                },
+                                Ok(Fork::Parent(_)) => (),
+                                Err(_) => std::process::exit(1),
+                            }
                         }
                     },
                     _ => {}
@@ -443,7 +453,6 @@ impl EventReader {
                 for command in command_list {
                     match fork() {
                         Ok(Fork::Child) => {
-                            setsid().unwrap();
                             Command::new("sh")
                                 .arg("-c")
                                 .arg(command)
