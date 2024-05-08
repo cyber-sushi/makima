@@ -47,12 +47,16 @@ pub fn launch_tasks(config_files: &Vec<Config>, tasks: &mut Vec<JoinHandle<()>>)
         user: env::var("USER"),
         sudo_user: env::var("SUDO_USER"),
     };
-    let current_desktop: Option<String> = match (env::var("XDG_SESSION_TYPE"), env::var("XDG_CURRENT_DESKTOP")) {
-        (Ok(session), Ok(desktop)) if session == "wayland".to_string() && vec!["Hyprland".to_string(), "sway".to_string()].contains(&desktop)  => {
+    let mut session_var = "WAYLAND_DISPLAY";
+    if let Err(_) = env::var(session_var) {
+        session_var = "XDG_SESSION_TYPE";
+    }
+    let current_desktop: Option<String> = match (env::var(session_var), env::var("XDG_CURRENT_DESKTOP")) {
+        (Ok(session), Ok(desktop)) if session.contains("wayland") && vec!["Hyprland".to_string(), "sway".to_string()].contains(&desktop)  => {
             println!("Running on {}, active window detection enabled.\n", desktop);
             Option::Some(desktop)
         },
-        (Ok(session), Ok(desktop)) if session == "wayland".to_string() => {
+        (Ok(session), Ok(desktop)) if session.contains("wayland") => {
             println!("Warning: unsupported compositor: {}, won't be able to change bindings according to active window.\n\
                     Currently supported desktops: Hyprland, Sway, X11.\n", desktop);
             Option::None
@@ -61,13 +65,13 @@ pub fn launch_tasks(config_files: &Vec<Config>, tasks: &mut Vec<JoinHandle<()>>)
             println!("Running on X11, active window detection enabled.");
             Option::Some("x11".to_string())
         },
-        (Ok(session), Err(_)) if session == "wayland".to_string() => {
+        (Ok(session), Err(_)) if session.contains("wayland") => {
             println!("Warning: unable to retrieve the current desktop based on XDG_CURRENT_DESKTOP env var.\n\
                     Won't be able to change bindings according to the active window.\n");
             Option::None
         },
         (Err(_), _) => {
-            println!("Warning: unable to retrieve the session type based on XDG_SESSION_TYPE env var.\n\
+            println!("Warning: unable to retrieve the session type based on XDG_SESSION_TYPE or WAYLAND_DISPLAY env vars.\n\
                     Won't be able to change bindings according to the active window.\n");
             Option::None
         },
