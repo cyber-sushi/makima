@@ -13,17 +13,17 @@ use crate::udev_monitor::*;
 
 #[tokio::main]
 async fn main() {
-    let user = match env::var("USER") {
-        Ok(user) if user == "root".to_string() => {
+    let user_home = match env::var("HOME") {
+        Ok(user_home) if user_home == "/root".to_string() => {
             match env::var("SUDO_USER") {
                 Ok(sudo_user) => format!("/home/{}", sudo_user),
-                _ => format!("/{}", user),
+                _ => user_home,
             }
         },
-        Ok(user) => format!("/home/{}", user),
+        Ok(user_home) => format!("/home/{}", user_home),
         _ => "/root".to_string(),
     };
-    let default_config_path = format!("{}/.config/makima", user);
+    let default_config_path = format!("{}/.config/makima", user_home);
     let config_path = match env::var("MAKIMA_CONFIG") {
         Ok(path) => {
             println!("\nMAKIMA_CONFIG set to {:?}.", path);
