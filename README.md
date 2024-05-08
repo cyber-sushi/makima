@@ -48,14 +48,15 @@ Make sure that the executable has permissions to be executed as a program with `
 #### Evdev permissions
 In order to work properly, Makima needs access to the `evdev` kernel module which contains event devices.\
 To do so, you can do **one of the following**:
-- **Use `sudo usermod -aG input username` and reboot.**\
+- **Use `sudo usermod -aG input username` and reboot, then run Makima**\
 _Note: some users might not like this one because it makes all applications potentially able to read your inputs._
+
+    **OR**
 - **Run Makima as root with `sudo -E makima`.**\
 _Note: the `-E` argument is necessary because it allows Makima to inherit your user environment instead of the root environment._
 #### Usage
-To run Makima, you can `cd` to its directory and use `./makima` (or `sudo -E ./makima`) or add the executable to a directory that's in PATH and just call it from your terminal or app launcher with `makima` (or `sudo -E makima`).\
-You can also double-click it in your file manager to make it start in the background.\
-If you want to integrate it with your desktop experience, you can take a look at the [Desktop integration](https://github.com/cyber-sushi/makima/tree/main#desktop-integration) section.
+To run Makima, you can `cd` to its directory and use `./makima` (or `sudo -E ./makima`).\
+If you need a more comfortable way to run Makima, you can take a look at the [Desktop integration](https://github.com/cyber-sushi/makima/tree/main#desktop-integration) section.
 
 ## Configuration
 You can find a bunch of [example config files](https://github.com/cyber-sushi/makima/tree/main/examples) on this repo, either pick one of them or create your own from scratch.\
@@ -163,18 +164,20 @@ Refer to the [sample config files](https://github.com/cyber-sushi/makima/tree/ma
 
 ## Desktop integration
 There are multiple ways of running Makima and integrating it with your desktop experience, I'll give some examples.
-- Launch it from your file manager, add it to your desktop or create a link.\
-_This will generally just launch Makima in the background._
-- Launch it from terminal by `cd`ing to the directory of the executable, then using `./makima`.\
+- Launch it directly from your file manager or create a link on your desktop or somewhere else.\
+_This will generally just launch Makima in the background without root permissions._
+- Launch it from terminal by `cd`ing to the directory of the executable, then using `./makima` or `sudo -E ./makima`.\
 _Useful because you get a lot of diagnostics in case something doesn't work._
-- Move the executable to a directory that's in PATH, then launch it using `rofi`, `dmenu` or whatever launcher you use.\
+- Move the executable to a directory that's in PATH, then launch it using `rofi`, `dmenu`, `wofi` or whatever launcher you use.\
 _Most people add `~/.local/share/bin` to PATH and put all their executable files there._
 - Create a .desktop file for Makima and put it inside `~/.local/share/applications`.\
-_This will add Makima to your DE's app drawer or app menu, and will make it visible in `rofi`, `wofi` etc when used in `drun` mode._
+_This will add Makima to your DE's app drawer or app menu, and will make it visible in `rofi`, `dmenu`, `wofi` etc when used in `drun` mode._
 - Autostart it from your window manager's config file.\
 _Most window managers and Wayland compositors have a way to start applications from their config file, like `exec /path/to/makima` (Sway) or `exec-once = /path/to/makima` (Hyprland)._
-- Create a systemd service for Makima.\
-_This will let you start/stop Makima using `systemctl start/stop makima` and enable/disable on startup using `systemctl enable/disable makima`._
+- Create a systemd user service for Makima.\
+_This will let you start/stop Makima using `systemctl --user start/stop makima` and enable/disable on startup using `systemctl --user enable/disable makima`.\
+Note: if you use a systemd user service and you need to set a custom directory for Makima's config file, put the `MAKIMA_CONFIG` env variable directly into your unit file.\
+If you use a system service instead of a user service to grant Makima root permissions, it won't inherit your user environment so you'll have to set some additional variables yourself in the unit file, like `XDG_DESKTOP_SESSION`, `XDG_CURRENT_SESSION`, `SUDO_USER` and `DBUS_SESSION_BUS_ADDRESS` to have all of Makima's features available. The first two are for app specific keybindings and the last two are for running shell commands._
 
 ## Tested controllers
 - DualShock 2
