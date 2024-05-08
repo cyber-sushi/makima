@@ -446,7 +446,25 @@ impl EventReader {
                             }
                         }
                     },
-                    _ => {}
+                    Err(_) => {
+                        for command in command_list {
+                            match fork() {
+                                Ok(Fork::Child) => {
+                                    Command::new("sh")
+                                        .arg("-c")
+                                        .arg(command)
+                                        .stdin(Stdio::null())
+                                        .stdout(Stdio::null())
+                                        .stderr(Stdio::null())
+                                        .spawn()
+                                        .expect("Failed to run command.");
+                                    std::process::exit(0);
+                                },
+                                Ok(Fork::Parent(_)) => (),
+                                Err(_) => std::process::exit(1),
+                            }
+                        }
+                    }
                 }
             },
             Ok(_) => {
