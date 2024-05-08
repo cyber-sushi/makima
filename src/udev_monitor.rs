@@ -47,6 +47,10 @@ pub fn launch_tasks(config_files: &Vec<Config>, tasks: &mut Vec<JoinHandle<()>>)
         user: env::var("USER"),
         sudo_user: env::var("SUDO_USER"),
     };
+    if let Err(env::VarError::NotPresent) = env::var("DISPLAY") {
+        println!("Setting DISPLAY=:0");
+        env::set_var("DISPLAY", ":0");
+    }
     let mut session_var = "WAYLAND_DISPLAY";
     if let Err(_) = env::var(session_var) {
         session_var = "XDG_SESSION_TYPE";
