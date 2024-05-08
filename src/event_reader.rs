@@ -433,7 +433,7 @@ impl EventReader {
                                 Ok(Fork::Child) => {
                                     Command::new("sh")
                                         .arg("-c")
-                                        .arg(format!("env runuser {} -c {}", sudo_user.as_str(), command))
+                                        .arg(format!("runuser {} -c {}", sudo_user.as_str(), command))
                                         .stdin(Stdio::null())
                                         .stdout(Stdio::null())
                                         .stderr(Stdio::null())
