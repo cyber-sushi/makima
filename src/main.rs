@@ -32,7 +32,7 @@ async fn main() {
                         _ => user_home,
                     }
                 },
-                Ok(user_home) => format!("/home/{}", user_home),
+                Ok(user_home) => user_home,
                 _ => "/root".to_string(),
             };
             let default_config_path = format!("{}/.config/makima", user_home);
