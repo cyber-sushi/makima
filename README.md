@@ -176,7 +176,7 @@ _Most window managers and Wayland compositors have a way to start applications f
 - Create a systemd user service for Makima.\
 _This will let you start/stop Makima using `systemctl --user start/stop makima` and enable/disable on startup using `systemctl --user enable/disable makima`.\
 Note: if you use a systemd user service and you need to set a custom directory for Makima's config file, put the `MAKIMA_CONFIG` env variable directly into your unit file.\
-If you use a system service instead of a user service to grant Makima root permissions, it won't inherit your user environment so you'll have to set some additional variables yourself in the unit file, like `XDG_DESKTOP_SESSION`, `XDG_CURRENT_SESSION`, `SUDO_USER` and `DBUS_SESSION_BUS_ADDRESS` to have all of Makima's features available. The first two are for app specific keybindings and the last two are for running shell commands._
+If you use a system service instead of a user service to grant Makima root permissions, it won't inherit your user environment so you'll have to set some additional variables yourself in the unit file, like `SUDO_USER` and `DBUS_SESSION_BUS_ADDRESS` to be able to use shell commands. App specific bindings probably won't work when running as system service, but I'll think of a solution._
 
 ## Tested controllers
 - DualShock 2
