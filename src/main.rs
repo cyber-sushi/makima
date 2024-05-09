@@ -15,7 +15,7 @@ use crate::udev_monitor::*;
 async fn main() {
     let config_path = match env::var("MAKIMA_CONFIG") {
         Ok(path) => {
-            println!("\nMAKIMA_CONFIG set to {:?}.", path);
+            println!("\nMAKIMA_CONFIG set to {:?}.\n", path);
             match std::fs::read_dir(path) {
                 Ok(dir) => dir,
                 _ => {
@@ -36,7 +36,7 @@ async fn main() {
                 _ => "/root".to_string(),
             };
             let default_config_path = format!("{}/.config/makima", user_home);
-            println!("\nMAKIMA_CONFIG environment variable is not set, defaulting to {:?}.", default_config_path);
+            println!("\nMAKIMA_CONFIG environment variable is not set, defaulting to {:?}.\n", default_config_path);
             match std::fs::read_dir(default_config_path) {
                 Ok(dir) => dir,
                 _ => {
