@@ -11,6 +11,7 @@ use crate::event_reader::EventReader;
 pub struct Environment {
     pub user: Result<String, env::VarError>,
     pub sudo_user: Result<String, env::VarError>,
+    pub session_address: Result<String, env::VarError>,
 }
 
 pub async fn start_monitoring_udev(config_files: Vec<Config>, mut tasks: Vec<JoinHandle<()>>) {
@@ -36,28 +37,35 @@ pub fn launch_tasks(config_files: &Vec<Config>, tasks: &mut Vec<JoinHandle<()>>)
     let modifiers: Arc<Mutex<Vec<Key>>> = Arc::new(Mutex::new(Default::default()));
     let modifier_was_activated: Arc<Mutex<bool>> = Arc::new(Mutex::new(true));
     match env::var("DBUS_SESSION_BUS_ADDRESS") {
-        Ok(_) => true,
+        Ok(_) => {
+            let command = Command::new("sh").arg("-c").arg("systemctl --user show-environment").output().unwrap();
+            let vars = std::str::from_utf8(command.stdout.as_slice()).unwrap().split("\n").collect::<Vec<&str>>();
+            for var in vars {
+                if var != "" && !var.contains("DBUS_SESSION_BUS_ADDRESS") {
+                    let split_var = var.split("=").collect::<Vec<&str>>();
+                    env::set_var(split_var[0], split_var[1]);
+                }
+            }
+            true
+        },
         Err(_) => {
             println!("Warning: unable to inherit user environment.\n\
-                    To launch Makima as root, use 'sudo -E makima', otherwise some shell commands won't work.\n");
+                    Launch Makima with 'sudo -E makima' or add the DBUS_SESSION_BUS_ADDRESS env var to your systemd unit if you're running it through systemd.\n");
             false
         },
     };
     let environment = Environment {
         user: env::var("USER"),
         sudo_user: env::var("SUDO_USER"),
+        session_address: env::var("DBUS_SESSION_BUS_ADDRESS"),
     };
-    if let Err(env::VarError::NotPresent) = env::var("DISPLAY") {
-        println!("Setting DISPLAY=:0");
-        env::set_var("DISPLAY", ":0");
-    }
     let mut session_var = "WAYLAND_DISPLAY";
-    if let Err(_) = env::var(session_var) {
+    if let Err(env::VarError::NotPresent) = env::var(session_var) {
         session_var = "XDG_SESSION_TYPE";
     }
     let current_desktop: Option<String> = match (env::var(session_var), env::var("XDG_CURRENT_DESKTOP")) {
         (Ok(session), Ok(desktop)) if session.contains("wayland") && vec!["Hyprland".to_string(), "sway".to_string()].contains(&desktop)  => {
-            println!("Running on {}, active window detection enabled.\n", desktop);
+            println!("Running on {}, active window tracking enabled.", desktop);
             Option::Some(desktop)
         },
         (Ok(session), Ok(desktop)) if session.contains("wayland") => {
@@ -66,7 +74,7 @@ pub fn launch_tasks(config_files: &Vec<Config>, tasks: &mut Vec<JoinHandle<()>>)
             Option::None
         },
         (Ok(session), _) if session == "x11".to_string() => {
-            println!("Running on X11, active window detection enabled.");
+            println!("Running on X11, active window tracking enabled.");
             Option::Some("x11".to_string())
         },
         (Ok(session), Err(_)) if session.contains("wayland") => {
@@ -83,17 +91,16 @@ pub fn launch_tasks(config_files: &Vec<Config>, tasks: &mut Vec<JoinHandle<()>>)
     };
     let user_has_access = match Command::new("groups").output() {
         Ok(groups) if std::str::from_utf8(&groups.stdout.as_slice()).unwrap().contains("input") => {
-            println!("Running with evdev permissions.\nScanning for event devices with a matching config file...\n");
+            println!("Evdev permissions available.\nScanning for event devices with a matching config file...\n");
             true
         },
         Ok(groups) if std::str::from_utf8(&groups.stdout.as_slice()).unwrap().contains("root") => {
-            println!("Running as root.\nScanning for event devices with a matching config file...\n");
+            println!("Root permissions available.\nScanning for event devices with a matching config file...\n");
             true
         }
-        Ok(groups) => {
+        Ok(_) => {
             println!("Warning: user has no access to event devices, Makima might not be able to detect all connected devices.\n\
                 Note: use `sudo usermod -aG input <username>` and reboot. Alternatively, run Makima as root. Continuing...\n");
-            println!("{:?}", &std::str::from_utf8(&groups.stdout.as_slice()).unwrap());
             false
         },
         Err(_) => {

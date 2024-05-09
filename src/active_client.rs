@@ -17,7 +17,6 @@ pub async fn get_active_window(current_desktop: &Option<String>, config: &HashMa
                     String::from("default")
                 }
             } else {
-                println!("Unable to connect to the compositor. Running without user environment?");
                 String::from("default")
             }
         },
