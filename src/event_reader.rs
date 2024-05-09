@@ -424,32 +424,27 @@ impl EventReader {
     async fn spawn_subprocess(&self, command_list: &Vec<String>) {
         let mut modifier_was_activated = self.modifier_was_activated.lock().await;
         *modifier_was_activated = true;
-        match &self.environment.user {
-            Ok(user) if user == &"root".to_string() => {
-                match &self.environment.sudo_user {
-                    Ok(sudo_user) => {
-                        for command in command_list {
-                            match fork() {
-                                Ok(Fork::Child) => {
-                                    Command::new("sh")
-                                        .arg("-c")
-                                        .arg(format!("runuser {} -c {}", sudo_user.as_str(), command))
-                                        .stdin(Stdio::null())
-                                        .stdout(Stdio::null())
-                                        .stderr(Stdio::null())
-                                        .spawn()
-                                        .expect("Failed to run command.");
-                                    std::process::exit(0);
-                                },
-                                Ok(Fork::Parent(_)) => (),
-                                Err(_) => std::process::exit(1),
-                            }
-                        }
-                    },
-                    _ => {}
+        match (&self.environment.user, &self.environment.sudo_user) {
+            (_, Ok(sudo_user)) => {
+                for command in command_list {
+                    match fork() {
+                        Ok(Fork::Child) => {
+                            Command::new("sh")
+                                .arg("-c")
+                                .arg(format!("runuser {} -c '{}'", sudo_user.as_str(), command))
+                                .stdin(Stdio::null())
+                                .stdout(Stdio::null())
+                                .stderr(Stdio::null())
+                                .spawn()
+                                .expect("Failed to run command.");
+                            std::process::exit(0);
+                        },
+                        Ok(Fork::Parent(_)) => (),
+                        Err(_) => std::process::exit(1),
+                    }
                 }
             },
-            Ok(_) => {
+            (Ok(_), Err(_)) => {
                 for command in command_list {
                     match fork() {
                         Ok(Fork::Child) => {
@@ -467,8 +462,8 @@ impl EventReader {
                         Err(_) => std::process::exit(1),
                     }
                 }
-            }
-            Err(_) => {},
+            },
+            (_, _) => {}
         }
     }
 
