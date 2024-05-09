@@ -1,15 +1,15 @@
 [package]
 name = "makima"
-version = "0.6.9"
+version = "0.6.10"
 edition = "2021"
 
 [dependencies]
 evdev = { version = "0.12.1", features = ["tokio", "serde"] }
 tokio = { version = "1.28.1", features = ["full"] }
 serde = { version = "1.0.163", features = ["derive"] }
+serde_json = "1.0.117"
 tokio-stream = "0.1.14"
 tokio-udev = "0.9.1"
-hyprland = "<=0.3.9"
 swayipc-async = "2.0.2"
 x11rb = "0.13.0"
 toml = "0.7.3"
