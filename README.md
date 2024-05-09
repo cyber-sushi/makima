@@ -1,12 +1,11 @@
 # makima
 
 Makima is a daemon for Linux to remap keyboards, mice, controllers and tablets.\
-It works on Wayland, X11 and even tty, as it relies on the `evdev` kernel interface.\
-Previously only a controller daemon, its scope has now been expanded because I had nothing better to do.
+It works on Wayland, X11 and tty, as it relies on the `evdev` kernel interface.\
 
 ## Features
-- Remap keys, buttons or entire combinations to other keys, sequences or shell commands using simple TOML config files, one for each different device.
-- Works with keyboards, mice, controllers and any other device that uses `KEY` input events present inside `/usr/include/linux/input-event-codes.h`, and also supports common `ABS` and `REL` events.
+- Remap keys, buttons or combinations to other keys, sequences or shell commands using simple TOML config files, one for each different device.
+- Works with keyboards, mice, controllers, tablets and any other device that uses `KEY` input events present inside `/usr/include/linux/input-event-codes.h`, and also supports common `ABS` and `REL` events.
 - Hotplug to connect and disconnect your devices whenever you want.
 - Supports wired and Bluetooth connections.
 - If you connect a [supported game controller](https://github.com/cyber-sushi/makima/tree/main#tested-controllers), you can move your cursor or scroll through pages using analog sticks, with adjustable sensitivity and deadzone.
@@ -48,19 +47,19 @@ Make sure that the executable has permissions to be executed as a program with `
 #### Evdev permissions
 In order to work properly, Makima needs access to the `evdev` kernel module which contains event devices.\
 To do so, you can do **one of the following**:
-- **Use `sudo usermod -aG input username` and reboot, then run Makima**\
+- **Use `sudo usermod -aG input username` and reboot, then run Makima.**\
 _Note: some users might not like this one because it makes all applications potentially able to read your inputs._
 
     **OR**
 - **Run Makima as root with `sudo -E makima`.**\
 _Note: the `-E` argument is necessary because it allows Makima to inherit your user environment instead of the root environment._
 #### Usage
-To run Makima, you can `cd` to its directory and use `./makima` (or `sudo -E ./makima`).\
+To run Makima, `cd` to its directory and use `./makima` (or `sudo -E ./makima`).\
 If you need a more comfortable way to run Makima, you can take a look at the [Desktop integration](https://github.com/cyber-sushi/makima/tree/main#desktop-integration) section.
 
 ## Configuration
 You can find a bunch of [example config files](https://github.com/cyber-sushi/makima/tree/main/examples) on this repo, either pick one of them or create your own from scratch.\
-Makima's config directory defaults to `~/.config/makima` but can be changed through the `MAKIMA_CONFIG` environment variable.
+Makima's config directory defaults to `$HOME/.config/makima` but can be changed through the `MAKIMA_CONFIG` environment variable.
 
 ### Config file naming
 To associate a config file to an input device, the file name should be identical to that of the device. If your device's name includes a `/`, just omit it.\
@@ -76,7 +75,7 @@ _Example: you want your DS4 controller to have a specific set of keybindings for
 
 To retrieve the window class of a specific application, refer to your compositor's documentation, e.g. on Hyprland type `hyprctl clients` in your terminal while that application is open.
 
-**Note: on Sway, make sure that the `XDG_DESKTOP_SESSION=sway` environment variable is set, or Makima won't be able to use application-specific bindings.**
+**Note: on Wayland, make sure that the `XDG_CURRENT_DESKTOP` environment variable is set, or Makima won't be able to use application-specific bindings.**
 
 ## Bindings and settings
 The config file is divided into multiple sections:
@@ -203,4 +202,4 @@ To add other controllers, please open an issue.
 **A**: If someone requests it, I might look into it.
 
 **Q**: Makima gives me a "Permission Denied" error when launching, what do I do?\
-**A**: If you're certain that you've correctly added your user to the `input` group through `sudo usermod -aG input yourusername` and rebooted (you can verify it by running `groups` and see if it returns `input`), then maybe the `uinput` kernel module isn't loaded. You can load it with `sudo modprobe uinput`. To make it permanent, create `/etc/modules-load.d/uinput.conf` and write `uinput` inside.
+**A**: If you're certain that you've correctly added your user to the `input` group through `sudo usermod -aG input yourusername` and rebooted (you can verify it by running `groups` and see if it returns `input`, not necessary when running Makima as root), then maybe the `uinput` kernel module isn't loaded. You can load it with `sudo modprobe uinput`. To make it permanent, create `/etc/modules-load.d/uinput.conf` and write `uinput` inside.
