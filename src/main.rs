@@ -13,17 +13,6 @@ use crate::udev_monitor::*;
 
 #[tokio::main]
 async fn main() {
-    let user_home = match env::var("HOME") {
-        Ok(user_home) if user_home == "/root".to_string() => {
-            match env::var("SUDO_USER") {
-                Ok(sudo_user) => format!("/home/{}", sudo_user),
-                _ => user_home,
-            }
-        },
-        Ok(user_home) => format!("/home/{}", user_home),
-        _ => "/root".to_string(),
-    };
-    let default_config_path = format!("{}/.config/makima", user_home);
     let config_path = match env::var("MAKIMA_CONFIG") {
         Ok(path) => {
             println!("\nMAKIMA_CONFIG set to {:?}.", path);
@@ -36,6 +25,17 @@ async fn main() {
             }
         },
         Err(_) => {
+            let user_home = match env::var("HOME") {
+                Ok(user_home) if user_home == "/root".to_string() => {
+                    match env::var("SUDO_USER") {
+                        Ok(sudo_user) => format!("/home/{}", sudo_user),
+                        _ => user_home,
+                    }
+                },
+                Ok(user_home) => format!("/home/{}", user_home),
+                _ => "/root".to_string(),
+            };
+            let default_config_path = format!("{}/.config/makima", user_home);
             println!("\nMAKIMA_CONFIG environment variable is not set, defaulting to {:?}.", default_config_path);
             match std::fs::read_dir(default_config_path) {
                 Ok(dir) => dir,
