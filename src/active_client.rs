@@ -1,20 +1,23 @@
 use crate::Config;
-use hyprland::{data::Client, prelude::*};
+use serde_json;
 use swayipc_async::Connection;
-use std::collections::HashMap;
+use std::{collections::HashMap, process::Command};
 use x11rb::protocol::xproto::{get_property, get_input_focus, Atom, AtomEnum};
 
 pub async fn get_active_window(current_desktop: &Option<String>, config: &HashMap<String, Config>) -> String {
     let active_client = current_desktop.clone().unwrap_or(String::from("default"));
     match active_client.as_str() {
         "Hyprland" => {
-            let active_window: String = match Client::get_active_async().await.unwrap() {
-                Some(window) => window.class,
-                None => String::from("default")
-            };
-            if config.contains_key(&active_window) {
-                active_window
+            let query = Command::new("hyprctl").args(["activewindow", "-j"]).output().unwrap();
+            if let Ok(reply) = serde_json::from_str::<serde_json::Value>(std::str::from_utf8(query.stdout.as_slice()).unwrap()) {
+                let active_window = reply["class"].to_string().replace("\"", "");
+                if config.contains_key(&active_window) {
+                    active_window
+                } else {
+                    String::from("default")
+                }
             } else {
+                println!("Unable to connect to the compositor. Running without user environment?");
                 String::from("default")
             }
         },
@@ -61,3 +64,4 @@ pub async fn get_active_window(current_desktop: &Option<String>, config: &HashMa
         _ => String::from("default")
     }
 }
+
