@@ -23,7 +23,6 @@ It works on Wayland, X11 and tty, as it relies on the `evdev` kernel interface.\
         - [Remap](https://github.com/cyber-sushi/makima/tree/main#remap)
         - [Commands](https://github.com/cyber-sushi/makima/tree/main#commands)
         - [Settings](https://github.com/cyber-sushi/makima/tree/main#settings)
-- [Desktop integration](https://github.com/cyber-sushi/makima/tree/main#desktop-integration)
 - [Tested controllers](https://github.com/cyber-sushi/makima/tree/main#tested-controllers)
 - [Troubleshooting and FAQ](https://github.com/cyber-sushi/makima/tree/main#troubleshooting-and-faq)
 
@@ -42,14 +41,19 @@ Once Cargo is done compiling, you should find Makima's executable inside `~/maki
 After taking the executable, you can delete Makima's folder.
 
 ## Running Makima
-First, make sure that the executable has permissions to run as a program with `chmod +x makima` or with Right Click > Properties > "allow executing as program" or something like that, depending on your file manager.\
+Make sure that the executable has permissions to run as a program with `chmod +x makima` or with Right Click > Properties > "allow executing as program" or something like that, depending on your file manager.
+
 There are two recommended ways to execute Makima:
 - **Run Makima as root with `sudo -E makima`.**\
-_Either `cd` into the directory of the executable and use `sudo -E ./makima`, or add Makima to a directory that's in `PATH`, possibly `/usr/bin` or `~/.local/bin` and simply use `sudo -E makima` from anywhere.\
-Note: the `-E` argument is necessary because it allows Makima to inherit your user environment instead of the root environment when running with `sudo`._
+Navigate into the directory of the executable and use `sudo -E ./makima`.\
+Alternatively, add Makima to a directory that's in `PATH`, possibly `/usr/bin` or `~/.local/bin` and simply use `sudo -E makima` from anywhere.\
+_Note: the `-E` argument is necessary because it allows Makima to inherit your user environment instead of the root environment when running with `sudo`._
+
 - **Run Makima as a systemd service.**\
-_Move the executable into `/usr/bin`. Then, grab `makima.service` from this repo, edit the `User=` line with your username, make sure that the `DBUS_SESSION_BUS_ADDRESS` variable is the same as your user's, and move the file into `/etc/systemd/system`, then run `systemctl daemon-reload`.\
-After this, you can start and stop Makima with `systemctl start/stop makima` or you can enable/disable it on startup with `systemctl enable/disable makima`. If you change the config files and you want the changes to take place, restart makima with `systemctl restart makima`._
+Move the executable into `/usr/bin`.\
+Grab `makima.service` from this repo, edit the `User=` line with your username and make sure that the `DBUS_SESSION_BUS_ADDRESS` variable is the same as your user's.\
+Move the file into `/etc/systemd/system`, then run `systemctl daemon-reload`.\
+After this, you can start and stop Makima with `systemctl start/stop makima` or you can enable/disable it on startup with `systemctl enable/disable makima`. If you change the config files and you want the changes to take place, restart makima with `systemctl restart makima`.
 
 ## Configuration
 You can find a bunch of [example config files](https://github.com/cyber-sushi/makima/tree/main/examples) on this repo, either pick one of them or create your own from scratch.\
