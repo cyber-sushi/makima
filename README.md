@@ -42,24 +42,18 @@ Once Cargo is done compiling, you should find Makima's executable inside `~/maki
 After taking the executable, you can delete Makima's folder.
 
 ## Running Makima
-#### Executable permissions
-Make sure that the executable has permissions to be executed as a program with `chmod +x makima` or with Right Click > Properties > "allow executing as program" or something like that, depending on your file manager.
-#### Evdev permissions
-In order to work properly, Makima needs access to the `evdev` kernel module which contains event devices.\
-To do so, you can do **one of the following**:
-- **Use `sudo usermod -aG input username` and reboot, then run Makima.**\
-_Note: some users might not like this one because it makes all applications potentially able to read your inputs._
-
-    **OR**
+First, make sure that the executable has permissions to be executed as a program with `chmod +x makima` or with Right Click > Properties > "allow executing as program" or something like that, depending on your file manager.\
+There are two recommended ways to run Makima:
 - **Run Makima as root with `sudo -E makima`.**\
-_Note: the `-E` argument is necessary because it allows Makima to inherit your user environment instead of the root environment._
-#### Usage
-To run Makima, `cd` to its directory and use `./makima` (or `sudo -E ./makima`).\
-If you need a more comfortable way to run Makima, you can take a look at the [Desktop integration](https://github.com/cyber-sushi/makima/tree/main#desktop-integration) section.
+_Either `cd` into the directory of the executable and use `sudo -E ./makima`, or add Makima to a directory that's in `PATH`, possibly `/usr/bin` or `~/.local/bin` and simply use `sudo -E makima` from anywhere.\
+Note: the `-E` argument is necessary because it allows Makima to inherit your user environment instead of the root environment when running with `sudo`._
+- **Run Makima as a systemd service.**\
+_Move the executable into `/usr/bin`. Then, grab `makima.service` from this repo, edit the `User=` line with your username, make sure that the `DBUS_SESSION_BUS_ADDRESS` variable is the same as your user's, and move the file into `/etc/systemd/system`, then run `systemctl daemon-reload`.\
+After this, you can start and stop Makima with `systemctl start/stop makima`, or you can enable/disable it on startup with `systemctl enable/disable makima`. If you change the config files and you want the changes to take place, restart makima with `systemctl restart makima`._
 
 ## Configuration
 You can find a bunch of [example config files](https://github.com/cyber-sushi/makima/tree/main/examples) on this repo, either pick one of them or create your own from scratch.\
-Makima's config directory defaults to `$HOME/.config/makima` but can be changed through the `MAKIMA_CONFIG` environment variable.
+Makima's config directory defaults to `$HOME/.config/makima` but can be changed through the `MAKIMA_CONFIG` environment variable (if you run Makima as a system service, add it directly to the systemd unit).
 
 ### Config file naming
 To associate a config file to an input device, the file name should be identical to that of the device. If your device's name includes a `/`, just omit it.\
@@ -161,23 +155,6 @@ You can list multiple keys to treat as modifiers with the following syntax:\
 
 Refer to the [sample config files](https://github.com/cyber-sushi/makima/tree/main/examples) for more information.
 
-## Desktop integration
-There are multiple ways of running Makima and integrating it with your desktop experience, I'll give some examples.
-- Launch it directly from your file manager or create a link on your desktop or somewhere else.\
-_This will generally just launch Makima in the background without root permissions._
-- Launch it from terminal by `cd`ing to the directory of the executable, then using `./makima` or `sudo -E ./makima`.\
-_Useful because you get a lot of diagnostics in case something doesn't work._
-- Move the executable to a directory that's in PATH, then launch it using `rofi`, `dmenu`, `wofi` or whatever launcher you use.\
-_Most people add `~/.local/share/bin` to PATH and put all their executable files there._
-- Create a .desktop file for Makima and put it inside `~/.local/share/applications`.\
-_This will add Makima to your DE's app drawer or app menu, and will make it visible in `rofi`, `dmenu`, `wofi` etc when used in `drun` mode._
-- Autostart it from your window manager's config file.\
-_Most window managers and Wayland compositors have a way to start applications from their config file, like `exec /path/to/makima` (Sway) or `exec-once = /path/to/makima` (Hyprland)._
-- Create a systemd user service for Makima.\
-_This will let you start/stop Makima using `systemctl --user start/stop makima` and enable/disable on startup using `systemctl --user enable/disable makima`.\
-Note: if you use a systemd user service and you need to set a custom directory for Makima's config file, put the `MAKIMA_CONFIG` env variable directly into your unit file.\
-If you use a system service instead of a user service to grant Makima root permissions, it won't inherit your user environment so you'll have to set some additional variables yourself in the unit file, like `SUDO_USER` and `DBUS_SESSION_BUS_ADDRESS` to be able to use shell commands. App specific bindings probably won't work when running as system service, but I'll think of a solution._
-
 ## Tested controllers
 - DualShock 2
 - DualShock 3
@@ -202,4 +179,4 @@ To add other controllers, please open an issue.
 **A**: If someone requests it, I might look into it.
 
 **Q**: Makima gives me a "Permission Denied" error when launching, what do I do?\
-**A**: If you're certain that you've correctly added your user to the `input` group through `sudo usermod -aG input yourusername` and rebooted (you can verify it by running `groups` and see if it returns `input`, not necessary when running Makima as root), then maybe the `uinput` kernel module isn't loaded. You can load it with `sudo modprobe uinput`. To make it permanent, create `/etc/modules-load.d/uinput.conf` and write `uinput` inside.
+**A**: Make sure that the `uinput` kernel module is loaded. You can load it with `sudo modprobe uinput`. To make it permanent, create `/etc/modules-load.d/uinput.conf` and write `uinput` inside.
