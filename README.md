@@ -1,15 +1,17 @@
 # makima
 
 Makima is a daemon for Linux to remap keyboards, mice, controllers and tablets.\
-It works on Wayland, X11 and tty, as it relies on the `evdev` kernel interface.\
+It works on Wayland, X11 and tty, as it relies on the `evdev` kernel interface.
 
 ## Features
-- Remap keys, buttons or combinations to other keys, sequences or shell commands using simple TOML config files, one for each different device.
-- Works with keyboards, mice, controllers, tablets and any other device that uses `KEY` input events present inside `/usr/include/linux/input-event-codes.h`, and also supports common `ABS` and `REL` events.
-- Hotplug to connect and disconnect your devices whenever you want.
-- Supports wired and Bluetooth connections.
-- If you connect a [supported game controller](https://github.com/cyber-sushi/makima/tree/main#tested-controllers), you can move your cursor or scroll through pages using analog sticks, with adjustable sensitivity and deadzone.
-- You can have multiple sets of key bindings that automatically switch based on the active window (only on Hyprland, Sway and X11 currently).
+- Translates keys, buttons or combinations to other keys, sequences or shell commands.
+- Devices are remapped individually using simple TOML config files.
+- Automatically switch layouts based on the active window (only on Hyprland, Sway and X11 currently).
+- Works with keyboards, mice, controllers, tablets and any other device that uses `KEY` input events present inside `/usr/include/linux/input-event-codes.h`.
+- Also supports some common `ABS` and `REL` events, like analog stick movements and mouse scroll wheels.
+- Supports hot plugging to connect and disconnect devices on the fly.
+- Works with wired and Bluetooth devices.
+- If you connect a [supported game controller](https://github.com/cyber-sushi/makima/tree/main#tested-controllers), you can scroll or move your cursor using analog sticks, with adjustable sensitivity and deadzone.
 
 # Index
 - [Installation](https://github.com/cyber-sushi/makima/tree/main#installation)
