@@ -100,7 +100,7 @@ pub fn launch_tasks(config_files: &Vec<Config>, tasks: &mut Vec<JoinHandle<()>>)
         }
         Ok(_) => {
             println!("Warning: user has no access to event devices, Makima might not be able to detect all connected devices.\n\
-                Note: use `sudo usermod -aG input <username>` and reboot. Alternatively, run Makima as root. Continuing...\n");
+                    Note: Run Makima with 'sudo -E makima' or as a system service. Refer to the docs for more info. Continuing...\n");
             false
         },
         Err(_) => {
