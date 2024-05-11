@@ -186,3 +186,10 @@ To add other controllers, please open an issue.
 
 **Q**: Makima gives me a "Permission Denied" error when launching, what do I do?\
 **A**: Make sure that the `uinput` kernel module is loaded. You can load it with `sudo modprobe uinput`. To make it permanent, create `/etc/modules-load.d/uinput.conf` and write `uinput` inside.
+
+**Q**: SELinux prevents Makima's system service from running, what do I do?\
+**A**: Put `makima.service` inside `/usr/lib/systemd/system` instead of `/etc/systemd/system`, then run the following commands:
+- `sudo semanage fcontext -a -t bin_t "/usr/lib/systemd/system/makima.service"`
+- `sudo restorecon -v /usr/lib/systemd/system/makima.service`
+- `sudo semanage fcontext -a -t bin_t "/usr/bin/makima"`
+- `sudo restorecon -v /usr/bin/makima`
