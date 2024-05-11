@@ -241,23 +241,25 @@ impl EventReader {
                     }
                 },
                 (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_Z) => {
-                    let clamped_value = if event.value() > 0 { 1 } else { 0 };
-                    if clamped_value == 1 && ltrigger_value == 0 {
+                    if event.value() > 0 && ltrigger_value == 0 {
                         ltrigger_value = 1;
-                        let clamped_event = InputEvent::new_now(event.event_type(), event.code(), clamped_value);
+                        let clamped_event = InputEvent::new_now(event.event_type(), event.code(), 1);
                         self.convert_axis_events(clamped_event, &"BTN_TL2".to_string(), false).await;
-                    } else if clamped_value == 0 {
+                    } else if event.value() == 0 && ltrigger_value == 1 {
                         ltrigger_value = 0;
+                        let clamped_event = InputEvent::new_now(event.event_type(), event.code(), 0);
+                        self.convert_axis_events(clamped_event, &"BTN_TL2".to_string(), false).await;
                     }
                 },
                 (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_RZ) => {
-                    let clamped_value = if event.value() > 0 { 1 } else { 0 };
-                    if clamped_value == 1 && rtrigger_value == 0 {
+                    if event.value() > 1 && rtrigger_value == 0 {
                         rtrigger_value = 1;
-                        let clamped_event = InputEvent::new_now(event.event_type(), event.code(), clamped_value);
+                        let clamped_event = InputEvent::new_now(event.event_type(), event.code(), 1);
                         self.convert_axis_events(clamped_event, &"BTN_TR2".to_string(), false).await;
-                    } else if clamped_value == 0 {
+                    } else if event.value() == 0 && rtrigger_value == 1 {
                         rtrigger_value = 0;
+                        let clamped_event = InputEvent::new_now(event.event_type(), event.code(), 0);
+                        self.convert_axis_events(clamped_event, &"BTN_TR2".to_string(), false).await;
                     }
                 },
                 _ => {self.emit_default_event(event).await;}
