@@ -149,6 +149,14 @@ Lower value is higher sensitivity, minimum `"1"`, suggested `"6"`. If this is se
 #### `LSTICK_DEADZONE` and `RSTICK_DEADZONE`
 Set how much your analog sticks should be tilted before their inputs are detected.\
 Particularly useful for older devices that suffer from drifting. Use a value between `"0"` and `"128"`.
+#### `LSTICK_ACTIVATION_MODIFIERS` and `RSTICK_ACTIVATION_MODIFIERS`
+When using analog sticks in `cursor` or `scroll` mode, normally, they're always active. However, if you specify a list of keys or modifiers in `LSTICK_ACTIVATION_MODIFIERS` or `RSTICK_ACTIVATION_MODIFIERS`, they'll only be active when the modifiers are pressed.\
+Example:
+```
+#only move the cursor when select and start are pressed
+LSTICK = "cursor"
+LSTICK_ACTIVATION_MODIFIERS = "BTN_SELECT-BTN_START"
+```
 #### `16_BIT_AXIS`
 This is needed if you're using Xbox controllers and Switch Joy-Cons to properly calibrate the analog stick's sensitivity.\
 Set to `"true"` if you're using those controllers.
