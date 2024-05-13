@@ -3,6 +3,7 @@ use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
 use fork::{fork, Fork};
 use evdev::{EventStream, Key, RelativeAxisType, AbsoluteAxisType, EventType, InputEvent};
+use std::str::FromStr;
 use crate::virtual_devices::VirtualDevices;
 use crate::Config;
 use crate::active_client::*;
@@ -12,6 +13,7 @@ struct Stick {
     function: String,
     sensitivity: u64,
     deadzone: i32,
+    activation_modifiers: Vec<Key>,
 }
 
 struct Settings {
@@ -55,10 +57,21 @@ impl EventReader {
             .settings.get("LSTICK_SENSITIVITY").unwrap_or(&"0".to_string()).parse::<u64>().expect("Invalid value for LSTICK_SENSITIVITY, please use an integer value >= 0");
         let lstick_deadzone: i32 = config.get(&"default".to_string()).unwrap()
             .settings.get("LSTICK_DEADZONE").unwrap_or(&"5".to_string()).parse::<i32>().expect("Invalid value for LSTICK_DEADZONE, please use an integer between 0 and 128.");
+        let lstick_activation_modifiers: Vec<Key> = match config.get(&"default".to_string()).unwrap().settings.get(&"LSTICK_ACTIVATION_MODIFIERS".to_string()) {
+            Some(modifiers) => {
+                let mut parsed_modifiers: Vec<Key> = modifiers.split("-").collect::<Vec<&str>>().iter()
+                .map(|key_str| Key::from_str(key_str).expect("Invalid KEY value used as modifier in LSTICK_ACTIVATION_MODIFIERS.")).collect();
+                parsed_modifiers.sort();
+                parsed_modifiers.dedup();
+                parsed_modifiers
+            },
+            None => Vec::new(),
+        };
         let lstick = Stick {
             function: lstick_function,
             sensitivity: lstick_sensitivity,
             deadzone: lstick_deadzone,
+            activation_modifiers: lstick_activation_modifiers,
         };
 
         let rstick_function: String = config.get(&"default".to_string()).unwrap()
@@ -67,10 +80,21 @@ impl EventReader {
             .settings.get("RSTICK_SENSITIVITY").unwrap_or(&"0".to_string()).parse::<u64>().expect("Invalid value for RSTICK_SENSITIVITY, please use an integer value >= 0");
         let rstick_deadzone: i32 = config.get(&"default".to_string()).unwrap()
             .settings.get("RSTICK_DEADZONE").unwrap_or(&"5".to_string()).parse::<i32>().expect("Invalid value for RSTICK_DEADZONE, please use an integer between 0 and 128.");
+        let rstick_activation_modifiers: Vec<Key> = match config.get(&"default".to_string()).unwrap().settings.get(&"RSTICK_ACTIVATION_MODIFIERS".to_string()) {
+            Some(modifiers) => {
+                let mut parsed_modifiers: Vec<Key> = modifiers.split("-").collect::<Vec<&str>>().iter()
+                .map(|key_str| Key::from_str(key_str).expect("Invalid KEY value used as modifier in RSTICK_ACTIVATION_MODIFIERS.")).collect();
+                parsed_modifiers.sort();
+                parsed_modifiers.dedup();
+                parsed_modifiers
+            },
+            None => Vec::new(),
+        };
         let rstick = Stick {
             function: rstick_function,
             sensitivity: rstick_sensitivity,
             deadzone: rstick_deadzone,
+            activation_modifiers: rstick_activation_modifiers,
         };
 
         let axis_16_bit: bool = config.get(&"default".to_string()).unwrap()
@@ -514,12 +538,12 @@ impl EventReader {
     }
 
     pub async fn cursor_loop(&self) {
-        let (cursor, sensitivity) = if self.settings.lstick.function.as_str() == "cursor" {
-            ("left", self.settings.lstick.sensitivity)
+        let (cursor, sensitivity, activation_modifiers) = if self.settings.lstick.function.as_str() == "cursor" {
+            ("left", self.settings.lstick.sensitivity, self.settings.lstick.activation_modifiers.clone())
         } else if self.settings.rstick.function.as_str() == "cursor" {
-            ("right", self.settings.rstick.sensitivity)
+            ("right", self.settings.rstick.sensitivity, self.settings.rstick.activation_modifiers.clone())
         } else {
-            ("disabled", 0)
+            ("disabled", 0, vec![])
         };
         if sensitivity != 0 {
             while *self.device_is_connected.lock().await {
@@ -532,11 +556,14 @@ impl EventReader {
                         break
                     };
                     if stick_position[0] != 0 || stick_position[1] != 0 {
-                        let virtual_event_x: InputEvent = InputEvent::new_now(EventType::RELATIVE, 0, stick_position[0]);
-                        let virtual_event_y: InputEvent = InputEvent::new_now(EventType::RELATIVE, 1, stick_position[1]);
-                        let mut virt_dev = self.virt_dev.lock().await;
-                        virt_dev.axis.emit(&[virtual_event_x]).unwrap();
-                        virt_dev.axis.emit(&[virtual_event_y]).unwrap();
+                        let modifiers = self.modifiers.lock().await;
+                        if activation_modifiers.len() == 0 || activation_modifiers == *modifiers {
+                            let virtual_event_x: InputEvent = InputEvent::new_now(EventType::RELATIVE, 0, stick_position[0]);
+                            let virtual_event_y: InputEvent = InputEvent::new_now(EventType::RELATIVE, 1, stick_position[1]);
+                            let mut virt_dev = self.virt_dev.lock().await;
+                            virt_dev.axis.emit(&[virtual_event_x]).unwrap();
+                            virt_dev.axis.emit(&[virtual_event_y]).unwrap();
+                        }
                     }
                 }
                 tokio::time::sleep(std::time::Duration::from_millis(sensitivity)).await;
@@ -547,12 +574,12 @@ impl EventReader {
     }
 
     pub async fn scroll_loop(&self) {
-        let (scroll, sensitivity) = if self.settings.lstick.function.as_str() == "scroll" {
-            ("left", self.settings.lstick.sensitivity)
+        let (scroll, sensitivity, activation_modifiers) = if self.settings.lstick.function.as_str() == "scroll" {
+            ("left", self.settings.lstick.sensitivity, self.settings.lstick.activation_modifiers.clone())
         } else if self.settings.rstick.function.as_str() == "scroll" {
-            ("right", self.settings.rstick.sensitivity)
+            ("right", self.settings.rstick.sensitivity, self.settings.rstick.activation_modifiers.clone())
         } else {
-            ("disabled", 0)
+            ("disabled", 0, vec![])
         };
         if sensitivity != 0 {
             while *self.device_is_connected.lock().await {
@@ -565,11 +592,14 @@ impl EventReader {
                         break
                     };
                     if stick_position[0] != 0 || stick_position[1] != 0 {
-                        let virtual_event_x: InputEvent = InputEvent::new_now(EventType::RELATIVE, 12, stick_position[0]);
-                        let virtual_event_y: InputEvent = InputEvent::new_now(EventType::RELATIVE, 11, stick_position[1]);
-                        let mut virt_dev = self.virt_dev.lock().await;
-                        virt_dev.axis.emit(&[virtual_event_x]).unwrap();
-                        virt_dev.axis.emit(&[virtual_event_y]).unwrap();
+                        let modifiers = self.modifiers.lock().await;
+                        if activation_modifiers.len() == 0 || activation_modifiers == *modifiers {
+                            let virtual_event_x: InputEvent = InputEvent::new_now(EventType::RELATIVE, 12, stick_position[0]);
+                            let virtual_event_y: InputEvent = InputEvent::new_now(EventType::RELATIVE, 11, stick_position[1]);
+                            let mut virt_dev = self.virt_dev.lock().await;
+                            virt_dev.axis.emit(&[virtual_event_x]).unwrap();
+                            virt_dev.axis.emit(&[virtual_event_y]).unwrap();
+                        }
                     }
                 }
                 tokio::time::sleep(std::time::Duration::from_millis(sensitivity)).await;

@@ -116,7 +116,23 @@ fn parse_raw_config(raw_config: RawConfig) -> (Bindings, Combinations, HashMap<S
         },
         None => Vec::new(),
     };
+    let lstick_activation_modifiers: Vec<Key> = match settings.get(&"LSTICK_ACTIVATION_MODIFIERS".to_string()) {
+        Some(modifiers) => {
+            modifiers.split("-").collect::<Vec<&str>>().iter()
+            .map(|key_str| Key::from_str(key_str).expect("Invalid KEY value used as modifier in LSTICK_ACTIVATION_MODIFIERS.")).collect()
+        },
+        None => Vec::new(),
+    };
+    let rstick_activation_modifiers: Vec<Key> = match settings.get(&"RSTICK_ACTIVATION_MODIFIERS".to_string()) {
+        Some(modifiers) => {
+            modifiers.split("-").collect::<Vec<&str>>().iter()
+            .map(|key_str| Key::from_str(key_str).expect("Invalid KEY value used as modifier in RSTICK_ACTIVATION_MODIFIERS.")).collect()
+        },
+        None => Vec::new(),
+    };
     mapped_modifiers.custom.extend(custom_modifiers);
+    mapped_modifiers.custom.extend(lstick_activation_modifiers);
+    mapped_modifiers.custom.extend(rstick_activation_modifiers);
 
     let abs = [
         "BTN_DPAD_UP",
