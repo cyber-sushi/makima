@@ -1,7 +1,7 @@
 # makima
 
 Makima is a daemon for Linux to remap keyboards, mice, controllers and tablets.\
-It works on Wayland, X11 and tty, as it relies on the `evdev` kernel interface.
+It works on both Wayland and X11 as it relies on the `evdev` kernel interface.
 
 ## Features
 - Translates keys, buttons or combinations to other keys, sequences or shell commands.
@@ -51,7 +51,7 @@ Navigate into the directory of the executable and use `sudo -E ./makima`.\
 Alternatively, add Makima to a directory that's in `PATH`, possibly `/usr/bin` or `~/.local/bin` and simply use `sudo -E makima` from anywhere.\
 _Note: the `-E` argument is necessary because it allows Makima to inherit your user environment instead of the root environment when running with `sudo`._
 
-- **Run Makima as a systemd service.**\
+- **Run Makima as a Systemd service.**\
 Move the executable into `/usr/bin`.\
 Grab `makima.service` from this repo, edit the `User=` line with your username and make sure that the `DBUS_SESSION_BUS_ADDRESS` variable is the same as your user's.\
 Move the file into `/etc/systemd/system`, then run `systemctl daemon-reload`.\
@@ -59,7 +59,7 @@ After this, you can start and stop Makima with `systemctl start/stop makima` or 
 
 ## Configuration
 You can find a bunch of [example config files](https://github.com/cyber-sushi/makima/tree/main/examples) on this repo, either pick one of them or create your own from scratch.\
-Makima's config directory defaults to `$HOME/.config/makima` but can be changed through the `MAKIMA_CONFIG` environment variable (if you run Makima as a system service, add it directly to the systemd unit).
+Makima's config directory defaults to `$HOME/.config/makima` but can be changed through the `MAKIMA_CONFIG` environment variable (if you run Makima as a system service, add it directly to the Systemd unit).
 
 ### Config file naming
 To associate a config file to an input device, the file name should be identical to that of the device. If your device's name includes a `/`, just omit it.\
@@ -190,10 +190,13 @@ To add other controllers, please open an issue.
 **A**: Some devices have a different evdev name when connected through Bluetooth, for example a `Sony Interactive Entertainment Wireless Controller` is just seen as `Wireless Controller` when connected via Bluetooth. You'll need to create a copy of the config file with that name.
 
 **Q**: Will application-specific bindings be implemented for desktops other than Hyprland, Sway and X11?\
-**A**: If someone requests it, I might look into it.
+**A**: Gnome on Wayland requires an extension to retrieve the active window through D-Bus (???) and KDE on Wayland requires to use JavaScript plug-ins to make any request to KWin (also ???), which is why I haven't implemented active window tracking for them. If anyone finds a better solution, I'm all for it. Regarding other compositors, feel free to open an issue and I'll look into it.
 
 **Q**: Makima gives me a "Permission Denied" error when launching, what do I do?\
 **A**: Make sure that the `uinput` kernel module is loaded. You can load it with `sudo modprobe uinput`. To make it permanent, create `/etc/modules-load.d/uinput.conf` and write `uinput` inside.
+
+**Q**: Flatpak applications don't start when launched through Makima.\
+**A**: When running as a Systemd service, Makima doesn't communicate with desktop portals so it's unable to launch Flatpaks. Currently looking for a solution.
 
 **Q**: SELinux prevents Makima's system service from running, what do I do?\
 **A**: Put `makima.service` inside `/usr/lib/systemd/system` instead of `/etc/systemd/system`, then run the following commands:
