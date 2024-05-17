@@ -1,23 +1,71 @@
-use std::collections::HashMap;
-use std::str::FromStr;
+use std::{collections::HashMap, str::FromStr};
 use evdev::Key;
 use serde;
 
 
-#[derive(Default, Debug, Clone)]
-pub struct Bindings {
-    pub keys: HashMap<Key, Vec<Key>>,
-    pub axis: HashMap<String, Vec<Key>>,
-    pub keys_sh: HashMap<Key, Vec<String>>,
-    pub axis_sh: HashMap<String, Vec<String>>,
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Clone, Copy)]
+pub enum Event {
+    Axis(Axis),
+    Key(Key),
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Clone, Copy)]
+pub enum Axis {
+    BTN_DPAD_UP,
+    BTN_DPAD_DOWN,
+    BTN_DPAD_LEFT,
+    BTN_DPAD_RIGHT,
+    LSTICK_UP,
+    LSTICK_DOWN,
+    LSTICK_LEFT,
+    LSTICK_RIGHT,
+    RSTICK_UP,
+    RSTICK_DOWN,
+    RSTICK_LEFT,
+    RSTICK_RIGHT,
+    SCROLL_WHEEL_UP,
+    SCROLL_WHEEL_DOWN,
+    BTN_TL2,
+    BTN_TR2,
+}
+
+impl FromStr for Axis {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Axis, Self::Err> {
+        match s {
+            "BTN_DPAD_UP" => Ok(Axis::BTN_DPAD_UP),
+            "BTN_DPAD_DOWN" => Ok(Axis::BTN_DPAD_DOWN),
+            "BTN_DPAD_LEFT" => Ok(Axis::BTN_DPAD_LEFT),
+            "BTN_DPAD_RIGHT" => Ok(Axis::BTN_DPAD_RIGHT),
+            "LSTICK_UP" => Ok(Axis::LSTICK_UP),
+            "LSTICK_DOWN" => Ok(Axis::LSTICK_DOWN),
+            "LSTICK_LEFT" => Ok(Axis::LSTICK_LEFT),
+            "LSTICK_RIGHT" => Ok(Axis::LSTICK_RIGHT),
+            "RSTICK_UP" => Ok(Axis::RSTICK_UP),
+            "RSTICK_DOWN" => Ok(Axis::RSTICK_DOWN),
+            "RSTICK_LEFT" => Ok(Axis::RSTICK_LEFT),
+            "RSTICK_RIGHT" => Ok(Axis::RSTICK_RIGHT),
+            "SCROLL_WHEEL_UP" => Ok(Axis::SCROLL_WHEEL_UP),
+            "SCROLL_WHEEL_DOWN" => Ok(Axis::SCROLL_WHEEL_DOWN),
+            "BTN_TL2" => Ok(Axis::BTN_TL2),
+            "BTN_TR2" => Ok(Axis::BTN_TR2),
+            _ => Err(s.to_string()),
+        }
+    }
 }
 
 #[derive(Default, Debug, Clone)]
-pub struct Combinations {
-    pub keys: HashMap<Key, HashMap<Vec<Key>, Vec<Key>>>,
-    pub axis: HashMap<String, HashMap<Vec<Key>, Vec<Key>>>,
-    pub keys_sh: HashMap<Key, HashMap<Vec<Key>, Vec<String>>>,
-    pub axis_sh: HashMap<String, HashMap<Vec<Key>, Vec<String>>>,
+pub struct Bindings {
+    pub remap: HashMap<Event, HashMap<Vec<Event>, Vec<Key>>>,
+    pub commands: HashMap<Event, HashMap<Vec<Event>, Vec<String>>>,
+}
+
+#[derive(Default, Debug, Clone)]
+pub struct MappedModifiers {
+    pub default: Vec<Event>,
+    pub custom: Vec<Event>,
+    pub all: Vec<Event>,
 }
 
 #[derive(serde::Deserialize, Debug, Clone)]
@@ -28,13 +76,6 @@ pub struct RawConfig {
     pub commands: HashMap<String, Vec<String>>,
     #[serde(default)]
     pub settings: HashMap<String, String>,
-}
-
-#[derive(Default, Debug, Clone)]
-pub struct MappedModifiers {
-    pub default: Vec<Key>,
-    pub custom: Vec<Key>,
-    pub all: Vec<Key>,
 }
 
 impl RawConfig {
@@ -58,7 +99,6 @@ impl RawConfig {
 pub struct Config {
     pub name: String,
     pub bindings: Bindings,
-    pub combinations: Combinations,
     pub settings: HashMap<String, String>,
     pub mapped_modifiers: MappedModifiers,
 }
@@ -66,13 +106,11 @@ pub struct Config {
 impl Config {
     pub fn new_from_file(file: &str, file_name: String) -> Self {
         let raw_config = RawConfig::new_from_file(file);
-        let (bindings, combinations, settings, mapped_modifiers) = parse_raw_config(raw_config);
-        let bindings: Bindings = merge_axis_bindings(bindings);
+        let (bindings, settings, mapped_modifiers) = parse_raw_config(raw_config);
 
         Self {
             name: file_name,
             bindings,
-            combinations,
             settings,
             mapped_modifiers,
         }
@@ -82,81 +120,50 @@ impl Config {
         Self {
             name: file_name,
             bindings: Default::default(),
-            combinations: Default::default(),
             settings: Default::default(),
             mapped_modifiers: Default::default(),
         }
     }
 }
 
-fn parse_raw_config(raw_config: RawConfig) -> (Bindings, Combinations, HashMap<String, String>, MappedModifiers) {
+fn parse_raw_config(raw_config: RawConfig) -> (Bindings, HashMap<String, String>, MappedModifiers) {
     let remap: HashMap<String, Vec<Key>> = raw_config.remap;
     let commands: HashMap<String, Vec<String>> = raw_config.commands;
     let settings: HashMap<String, String> = raw_config.settings;
     let mut bindings: Bindings = Default::default();
-    let mut combinations: Combinations = Default::default();
     let default_modifiers = vec![
-        Key::KEY_LEFTSHIFT,
-        Key::KEY_LEFTCTRL,
-        Key::KEY_LEFTALT,
-        Key::KEY_RIGHTSHIFT,
-        Key::KEY_RIGHTCTRL,
-        Key::KEY_RIGHTALT,
-        Key::KEY_LEFTMETA,
+        Event::Key(Key::KEY_LEFTSHIFT),
+        Event::Key(Key::KEY_LEFTCTRL),
+        Event::Key(Key::KEY_LEFTALT),
+        Event::Key(Key::KEY_RIGHTSHIFT),
+        Event::Key(Key::KEY_RIGHTCTRL),
+        Event::Key(Key::KEY_RIGHTALT),
+        Event::Key(Key::KEY_LEFTMETA),
     ];
     let mut mapped_modifiers = MappedModifiers {
-        default: default_modifiers.clone(),
+        default: default_modifiers,
         custom: Vec::new(),
         all: Vec::new(),
     };
-    let custom_modifiers: Vec<Key> = match settings.get(&"CUSTOM_MODIFIERS".to_string()) {
-        Some(modifiers) => {
-            modifiers.split("-").collect::<Vec<&str>>().iter()
-            .map(|key_str| Key::from_str(key_str).expect("Invalid KEY value used as modifier in CUSTOM_MODIFIERS.")).collect()
-        },
-        None => Vec::new(),
-    };
-    let lstick_activation_modifiers: Vec<Key> = match settings.get(&"LSTICK_ACTIVATION_MODIFIERS".to_string()) {
-        Some(modifiers) => {
-            modifiers.split("-").collect::<Vec<&str>>().iter()
-            .map(|key_str| Key::from_str(key_str).expect("Invalid KEY value used as modifier in LSTICK_ACTIVATION_MODIFIERS.")).collect()
-        },
-        None => Vec::new(),
-    };
-    let rstick_activation_modifiers: Vec<Key> = match settings.get(&"RSTICK_ACTIVATION_MODIFIERS".to_string()) {
-        Some(modifiers) => {
-            modifiers.split("-").collect::<Vec<&str>>().iter()
-            .map(|key_str| Key::from_str(key_str).expect("Invalid KEY value used as modifier in RSTICK_ACTIVATION_MODIFIERS.")).collect()
-        },
-        None => Vec::new(),
-    };
+    let custom_modifiers: Vec<Event> = parse_modifiers(&settings, "CUSTOM_MODIFIERS");
+    let lstick_activation_modifiers: Vec<Event> = parse_modifiers(&settings, "LSTICK_ACTIVATION_MODIFIERS");
+    let rstick_activation_modifiers: Vec<Event> = parse_modifiers(&settings, "RSTICK_ACTIVATION_MODIFIERS");
+
     mapped_modifiers.custom.extend(custom_modifiers);
     mapped_modifiers.custom.extend(lstick_activation_modifiers);
     mapped_modifiers.custom.extend(rstick_activation_modifiers);
 
-    let abs = [
-        "BTN_DPAD_UP",
-        "BTN_DPAD_DOWN",
-        "BTN_DPAD_LEFT",
-        "BTN_DPAD_RIGHT",
-        "LSTICK_UP",
-        "LSTICK_DOWN",
-        "LSTICK_LEFT",
-        "LSTICK_RIGHT",
-        "RSTICK_UP",
-        "RSTICK_DOWN",
-        "RSTICK_LEFT",
-        "RSTICK_RIGHT",
-        "SCROLL_WHEEL_UP",
-        "SCROLL_WHEEL_DOWN",
-        "BTN_TL2",
-        "BTN_TR2",
-    ];
-
-    for (input, output) in remap.clone().into_iter() {
-        if input.contains("-") {
-            let (mods, key) = input.rsplit_once("-").unwrap();
-            let mut modifiers: Vec<Key> = mods.split("-").collect::<Vec<&str>>().iter().map(|key_str| Key::from_str(key_str).expect("Invalid KEY value used as modifier.")).collect();
+    for (input, output) in remap.clone() {
+        if let Some((mods, event)) = input.rsplit_once("-") {
+            let str_modifiers = mods.split("-").collect::<Vec<&str>>();
+            let mut modifiers: Vec<Event> = Vec::new();
+            for event in str_modifiers {
+                if let Ok(axis) = Axis::from_str(event) {
+                    modifiers.push(Event::Axis(axis));
+                } else if let Ok(key) = Key::from_str(event) {
+                    modifiers.push(Event::Key(key));
+                }
+            }
             modifiers.sort();
             modifiers.dedup();
             for modifier in &modifiers {
@@ -164,32 +171,48 @@ fn parse_raw_config(raw_config: RawConfig) -> (Bindings, Combinations, HashMap<S
                     mapped_modifiers.custom.push(modifier.clone());
                 }
             }
-            if abs.contains(&key) {
-                if !combinations.axis.contains_key(&key.to_string()) {
-                    combinations.axis.insert(key.to_string(), HashMap::from([(modifiers , output)]));
+            if let Ok(event) = Axis::from_str(event) {
+                if !bindings.remap.contains_key(&Event::Axis(event)) {
+                    bindings.remap.insert(Event::Axis(event), HashMap::from([(modifiers, output)]));
                 } else {
-                    combinations.axis.get_mut(key).unwrap().insert(modifiers, output);
+                    bindings.remap.get_mut(&Event::Axis(event)).unwrap().insert(modifiers, output);
                 }
-            } else {
-                if !combinations.keys.contains_key(&Key::from_str(key).unwrap()) {
-                    combinations.keys.insert(Key::from_str(key).unwrap(), HashMap::from([(modifiers, output)]));
+            } else if let Ok(event) = Key::from_str(event) {
+                if !bindings.remap.contains_key(&Event::Key(event)) {
+                    bindings.remap.insert(Event::Key(event), HashMap::from([(modifiers, output)]));
                 } else {
-                    combinations.keys.get_mut(&Key::from_str(key).unwrap()).unwrap().insert(modifiers, output);
+                    bindings.remap.get_mut(&Event::Key(event)).unwrap().insert(modifiers, output);
                 }
             }
         } else {
-            if abs.contains(&input.as_str()) {
-                bindings.axis.insert(input, output);
-            } else {
-                bindings.keys.insert(Key::from_str(input.as_str()).expect("Invalid KEY value used for rebinding."), output);
+            let modifiers: Vec<Event> = Vec::new();
+            if let Ok(event) = Axis::from_str(input.as_str()) {
+                if !bindings.remap.contains_key(&Event::Axis(event)) {
+                    bindings.remap.insert(Event::Axis(event), HashMap::from([(modifiers, output)]));
+                } else {
+                    bindings.remap.get_mut(&Event::Axis(event)).unwrap().insert(modifiers, output);
+                }
+            } else if let Ok(event) = Key::from_str(input.as_str()) {
+                if !bindings.remap.contains_key(&Event::Key(event)) {
+                    bindings.remap.insert(Event::Key(event), HashMap::from([(modifiers, output)]));
+                } else {
+                    bindings.remap.get_mut(&Event::Key(event)).unwrap().insert(modifiers, output);
+                }
             }
         }
     }
 
-    for (input, output) in commands.clone().into_iter() {
-        if input.contains("-") {
-            let (mods, key) = input.rsplit_once("-").unwrap();
-            let mut modifiers: Vec<Key> = mods.split("-").collect::<Vec<&str>>().iter().map(|key_str| Key::from_str(key_str).expect("Invalid KEY value used as modifier.")).collect();
+    for (input, output) in commands.clone() {
+        if let Some((mods, event)) = input.rsplit_once("-") {
+            let str_modifiers = mods.split("-").collect::<Vec<&str>>();
+            let mut modifiers: Vec<Event> = Vec::new();
+            for event in str_modifiers {
+                if let Ok(axis) = Axis::from_str(event) {
+                    modifiers.push(Event::Axis(axis));
+                } else if let Ok(key) = Key::from_str(event) {
+                    modifiers.push(Event::Key(key));
+                }
+            }
             modifiers.sort();
             modifiers.dedup();
             for modifier in &modifiers {
@@ -197,27 +220,37 @@ fn parse_raw_config(raw_config: RawConfig) -> (Bindings, Combinations, HashMap<S
                     mapped_modifiers.custom.push(modifier.clone());
                 }
             }
-            if abs.contains(&key) {
-                if !combinations.axis_sh.contains_key(&key.to_string()) {
-                    combinations.axis_sh.insert(key.to_string(), HashMap::from([(modifiers, output)]));
+            if let Ok(event) = Axis::from_str(event) {
+                if !bindings.commands.contains_key(&Event::Axis(event)) {
+                    bindings.commands.insert(Event::Axis(event), HashMap::from([(modifiers, output)]));
                 } else {
-                    combinations.axis_sh.get_mut(key).unwrap().insert(modifiers, output);
+                    bindings.commands.get_mut(&Event::Axis(event)).unwrap().insert(modifiers, output);
                 }
-            } else {
-                if !combinations.keys_sh.contains_key(&Key::from_str(key).unwrap()) {
-                    combinations.keys_sh.insert(Key::from_str(key).unwrap(), HashMap::from([(modifiers, output)]));
+            } else if let Ok(event) = Key::from_str(event) {
+                if !bindings.commands.contains_key(&Event::Key(event)) {
+                    bindings.commands.insert(Event::Key(event), HashMap::from([(modifiers, output)]));
                 } else {
-                    combinations.keys_sh.get_mut(&Key::from_str(key).unwrap()).unwrap().insert(modifiers, output);
+                    bindings.commands.get_mut(&Event::Key(event)).unwrap().insert(modifiers, output);
                 }
             }
         } else {
-            if abs.contains(&input.as_str()) {
-                bindings.axis_sh.insert(input, output);
-            } else {
-                bindings.keys_sh.insert(Key::from_str(input.as_str()).expect("Invalid KEY value used for rebinding."), output);
+            let modifiers: Vec<Event> = Vec::new();
+            if let Ok(event) = Axis::from_str(input.as_str()) {
+                if !bindings.commands.contains_key(&Event::Axis(event)) {
+                    bindings.commands.insert(Event::Axis(event), HashMap::from([(modifiers, output)]));
+                } else {
+                    bindings.commands.get_mut(&Event::Axis(event)).unwrap().insert(modifiers, output);
+                }
+            } else if let Ok(event) = Key::from_str(input.as_str()) {
+                if !bindings.commands.contains_key(&Event::Key(event)) {
+                    bindings.commands.insert(Event::Key(event), HashMap::from([(modifiers, output)]));
+                } else {
+                    bindings.commands.get_mut(&Event::Key(event)).unwrap().insert(modifiers, output);
+                }
             }
         }
     }
+
 
     mapped_modifiers.custom.sort();
     mapped_modifiers.custom.dedup();
@@ -226,43 +259,25 @@ fn parse_raw_config(raw_config: RawConfig) -> (Bindings, Combinations, HashMap<S
     mapped_modifiers.all.sort();
     mapped_modifiers.all.dedup();
 
-    (bindings, combinations, settings, mapped_modifiers)
+    (bindings, settings, mapped_modifiers)
 }
 
-fn merge_axis_bindings(mut bindings: Bindings) -> Bindings {
-        let mut pad_x: Vec<Key> = bindings.axis.get("BTN_DPAD_LEFT")
-            .unwrap_or(&Vec::new()).clone();
-        pad_x.extend(bindings.axis.get("BTN_DPAD_RIGHT")
-            .unwrap_or(&Vec::new()));
-        let mut pad_y: Vec<Key> = bindings.axis.get("BTN_DPAD_UP")
-            .unwrap_or(&Vec::new()).clone();
-        pad_y.extend(bindings.axis.get("BTN_DPAD_DOWN")
-            .unwrap_or(&Vec::new()));
-        bindings.axis.insert("BTN_DPAD_X".to_string(), pad_x);
-        bindings.axis.insert("BTN_DPAD_Y".to_string(), pad_y);
-
-        let mut lstick_x: Vec<Key> = bindings.axis.get("LSTICK_LEFT")
-            .unwrap_or(&Vec::new()).clone();
-        lstick_x.extend(bindings.axis.get("LSTICK_RIGHT")
-            .unwrap_or(&Vec::new()));
-        let mut lstick_y: Vec<Key> = bindings.axis.get("LSTICK_UP")
-            .unwrap_or(&Vec::new()).clone();
-        lstick_y.extend(bindings.axis.get("LSTICK_DOWN")
-            .unwrap_or(&Vec::new()));
-        bindings.axis.insert("LSTICK_X".to_string(), lstick_x);
-        bindings.axis.insert("LSTICK_Y".to_string(), lstick_y);
-
-        let mut rstick_x: Vec<Key> = bindings.axis.get("RSTICK_LEFT")
-            .unwrap_or(&Vec::new()).clone();
-        rstick_x.extend(bindings.axis.get("RSTICK_RIGHT")
-            .unwrap_or(&Vec::new()));
-        let mut rstick_y: Vec<Key> = bindings.axis.get("RSTICK_UP")
-            .unwrap_or(&Vec::new()).clone();
-        rstick_y.extend(bindings.axis.get("RSTICK_DOWN")
-            .unwrap_or(&Vec::new()));
-        bindings.axis.insert("RSTICK_X".to_string(), rstick_x);
-        bindings.axis.insert("RSTICK_Y".to_string(), rstick_y);
-        bindings
+pub fn parse_modifiers(settings: &HashMap<String, String>, parameter: &str) -> Vec<Event> {
+    match settings.get(&parameter.to_string()) {
+        Some(modifiers) => {
+            let mut custom_modifiers = Vec::new();
+            let split_modifiers = modifiers.split("-").collect::<Vec<&str>>();
+            for modifier in split_modifiers {
+                if let Ok(key) = Key::from_str(modifier) {
+                    custom_modifiers.push(Event::Key(key));
+                } else if let Ok(axis) = Axis::from_str(modifier) {
+                    custom_modifiers.push(Event::Axis(axis));
+                } else {
+                    println!("Invalid value used as modifier in {}, ignoring.", parameter);
+                }
+            }
+            custom_modifiers
+        },
+        None => Vec::new(),
+    }
 }
-
-
