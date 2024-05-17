@@ -1,19 +1,19 @@
 use std::{collections::HashMap, sync::Arc, option::Option, process::{Command, Stdio}};
 use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
-use fork::{fork, Fork};
+use fork::{fork, Fork, setsid};
 use evdev::{EventStream, Key, RelativeAxisType, AbsoluteAxisType, EventType, InputEvent};
-use std::str::FromStr;
 use crate::virtual_devices::VirtualDevices;
 use crate::Config;
+use crate::config::{Event, Axis, parse_modifiers};
 use crate::active_client::*;
-use crate::udev_monitor::Environment;
+use crate::udev_monitor::{Environment, Client};
 
 struct Stick {
     function: String,
     sensitivity: u64,
     deadzone: i32,
-    activation_modifiers: Vec<Key>,
+    activation_modifiers: Vec<Event>,
 }
 
 struct Settings {
@@ -23,27 +23,25 @@ struct Settings {
 }
 
 pub struct EventReader {
-    config: HashMap<String, Config>,
+    config: HashMap<Client, Config>,
     stream: Arc<Mutex<EventStream>>,
     virt_dev: Arc<Mutex<VirtualDevices>>,
     lstick_position: Arc<Mutex<Vec<i32>>>,
     rstick_position: Arc<Mutex<Vec<i32>>>,
-    modifiers: Arc<Mutex<Vec<Key>>>,
+    modifiers: Arc<Mutex<Vec<Event>>>,
     modifier_was_activated: Arc<Mutex<bool>>,
     device_is_connected: Arc<Mutex<bool>>,
-    current_desktop: Option<String>,
     environment: Environment,
     settings: Settings,
 }
 
 impl EventReader {
-    pub fn new(
-        config: HashMap<String, Config>,
+    pub fn new (
+        config: HashMap<Client, Config>,
         stream: Arc<Mutex<EventStream>>,
-        modifiers: Arc<Mutex<Vec<Key>>>,
+        modifiers: Arc<Mutex<Vec<Event>>>,
         modifier_was_activated: Arc<Mutex<bool>>,
         environment: Environment,
-        current_desktop: Option<String>,
     ) -> Self {
         let mut position_vector: Vec<i32> = Vec::new();
         for i in [0, 0] {position_vector.push(i)};
@@ -51,22 +49,13 @@ impl EventReader {
         let rstick_position = Arc::new(Mutex::new(position_vector.clone()));
         let device_is_connected: Arc<Mutex<bool>> = Arc::new(Mutex::new(true));
         let virt_dev = Arc::new(Mutex::new(VirtualDevices::new()));
-        let lstick_function = config.get(&"default".to_string()).unwrap()
+        let lstick_function = config.get(&Client::Default).unwrap()
             .settings.get("LSTICK").unwrap_or(&"cursor".to_string()).to_string();
-        let lstick_sensitivity: u64 = config.get(&"default".to_string()).unwrap()
+        let lstick_sensitivity: u64 = config.get(&Client::Default).unwrap()
             .settings.get("LSTICK_SENSITIVITY").unwrap_or(&"0".to_string()).parse::<u64>().expect("Invalid value for LSTICK_SENSITIVITY, please use an integer value >= 0");
-        let lstick_deadzone: i32 = config.get(&"default".to_string()).unwrap()
+        let lstick_deadzone: i32 = config.get(&Client::Default).unwrap()
             .settings.get("LSTICK_DEADZONE").unwrap_or(&"5".to_string()).parse::<i32>().expect("Invalid value for LSTICK_DEADZONE, please use an integer between 0 and 128.");
-        let lstick_activation_modifiers: Vec<Key> = match config.get(&"default".to_string()).unwrap().settings.get(&"LSTICK_ACTIVATION_MODIFIERS".to_string()) {
-            Some(modifiers) => {
-                let mut parsed_modifiers: Vec<Key> = modifiers.split("-").collect::<Vec<&str>>().iter()
-                .map(|key_str| Key::from_str(key_str).expect("Invalid KEY value used as modifier in LSTICK_ACTIVATION_MODIFIERS.")).collect();
-                parsed_modifiers.sort();
-                parsed_modifiers.dedup();
-                parsed_modifiers
-            },
-            None => Vec::new(),
-        };
+        let lstick_activation_modifiers: Vec<Event> = parse_modifiers(&config.get(&Client::Default).unwrap().settings, "LSTICK_ACTIVATION_MODIFIERS");
         let lstick = Stick {
             function: lstick_function,
             sensitivity: lstick_sensitivity,
@@ -74,22 +63,13 @@ impl EventReader {
             activation_modifiers: lstick_activation_modifiers,
         };
 
-        let rstick_function: String = config.get(&"default".to_string()).unwrap()
+        let rstick_function: String = config.get(&Client::Default).unwrap()
             .settings.get("RSTICK").unwrap_or(&"scroll".to_string()).to_string();
-        let rstick_sensitivity: u64 = config.get(&"default".to_string()).unwrap()
+        let rstick_sensitivity: u64 = config.get(&Client::Default).unwrap()
             .settings.get("RSTICK_SENSITIVITY").unwrap_or(&"0".to_string()).parse::<u64>().expect("Invalid value for RSTICK_SENSITIVITY, please use an integer value >= 0");
-        let rstick_deadzone: i32 = config.get(&"default".to_string()).unwrap()
+        let rstick_deadzone: i32 = config.get(&Client::Default).unwrap()
             .settings.get("RSTICK_DEADZONE").unwrap_or(&"5".to_string()).parse::<i32>().expect("Invalid value for RSTICK_DEADZONE, please use an integer between 0 and 128.");
-        let rstick_activation_modifiers: Vec<Key> = match config.get(&"default".to_string()).unwrap().settings.get(&"RSTICK_ACTIVATION_MODIFIERS".to_string()) {
-            Some(modifiers) => {
-                let mut parsed_modifiers: Vec<Key> = modifiers.split("-").collect::<Vec<&str>>().iter()
-                .map(|key_str| Key::from_str(key_str).expect("Invalid KEY value used as modifier in RSTICK_ACTIVATION_MODIFIERS.")).collect();
-                parsed_modifiers.sort();
-                parsed_modifiers.dedup();
-                parsed_modifiers
-            },
-            None => Vec::new(),
-        };
+        let rstick_activation_modifiers: Vec<Event> = parse_modifiers(&config.get(&Client::Default).unwrap().settings, "RSTICK_ACTIVATION_MODIFIERS");
         let rstick = Stick {
             function: rstick_function,
             sensitivity: rstick_sensitivity,
@@ -97,7 +77,7 @@ impl EventReader {
             activation_modifiers: rstick_activation_modifiers,
         };
 
-        let axis_16_bit: bool = config.get(&"default".to_string()).unwrap()
+        let axis_16_bit: bool = config.get(&Client::Default).unwrap()
             .settings.get("16_BIT_AXIS").unwrap_or(&"false".to_string()).parse().expect("16_BIT_AXIS can only be true or false.");
 
         let settings = Settings {
@@ -114,14 +94,13 @@ impl EventReader {
             modifiers,
             modifier_was_activated,
             device_is_connected,
-            current_desktop,
             environment,
             settings,
         }
     }
 
     pub async fn start(&self) {
-        println!("{:?} detected, reading events.\n", self.config.get(&get_active_window(&self.current_desktop, &self.config).await).unwrap().name);
+        println!("{:?} detected, reading events.\n", self.config.get(&get_active_window(&self.environment.server, &self.config).await).unwrap().name);
         tokio::join!(
             self.event_loop(),
             self.cursor_loop(),
@@ -130,366 +109,378 @@ impl EventReader {
     }
 
     pub async fn event_loop(&self) {
-        let mut lstick_values = HashMap::from([("x", 0), ("y", 0)]);
-        let mut rstick_values = HashMap::from([("x", 0), ("y", 0)]);
-        let mut ltrigger_value = 0;
-        let mut rtrigger_value = 0;
+        let (mut dpad_values, mut lstick_values, mut rstick_values, mut triggers_values) = ((0, 0), (0, 0), (0, 0), (0, 0));
         let mut stream = self.stream.lock().await;
         while let Some(Ok(event)) = stream.next().await {
             match (event.event_type(), RelativeAxisType(event.code()), AbsoluteAxisType(event.code())) {
                 (EventType::KEY, _, _) => {
-                    self.convert_key_events(event).await;
+                    self.convert_event(event, Event::Key(Key(event.code())), event.value()).await;
                 },
                 (_, RelativeAxisType::REL_WHEEL | RelativeAxisType::REL_WHEEL_HI_RES, _) => {
-                    let event_string_option: Option<String> = match event.value() {
-                        -1 => Option::Some("SCROLL_WHEEL_DOWN".to_string()),
-                        1 => Option::Some("SCROLL_WHEEL_UP".to_string()),
-                        _ => Option::None,
-                    };
-                    if let Some(event_string) = event_string_option {
-                        self.convert_axis_events(event, &event_string, true).await;
+                    match event.value() {
+                        -1 => {
+                            self.convert_event(event, Event::Axis(Axis::SCROLL_WHEEL_DOWN), 1).await;
+                            self.convert_event(event, Event::Axis(Axis::SCROLL_WHEEL_DOWN), 0).await;
+                        },
+                        1 => {
+                            self.convert_event(event, Event::Axis(Axis::SCROLL_WHEEL_UP), 1).await;
+                            self.convert_event(event, Event::Axis(Axis::SCROLL_WHEEL_UP), 0).await;
+                        },
+                        _ => {}
                     }
                 },
                 (_, _, AbsoluteAxisType::ABS_HAT0X) => {
-                    let event_string: String = match event.value() {
-                        -1 => "BTN_DPAD_LEFT".to_string(),
-                        0 => "BTN_DPAD_X".to_string(),
-                        1 => "BTN_DPAD_RIGHT".to_string(),
-                        _ => "BTN_DPAD_X".to_string(),
+                    match event.value() {
+                        -1 => {
+                                self.convert_event(event, Event::Axis(Axis::BTN_DPAD_LEFT), 1).await;
+                                dpad_values.0 = -1;
+                        },
+                        1 => {
+                                self.convert_event(event, Event::Axis(Axis::BTN_DPAD_RIGHT), 1).await;
+                                dpad_values.0 = 1;
+                        },
+                        0 => {
+                            match dpad_values.0 {
+                                -1 => self.convert_event(event, Event::Axis(Axis::BTN_DPAD_LEFT), 0).await,
+                                1 => self.convert_event(event, Event::Axis(Axis::BTN_DPAD_RIGHT), 0).await,
+                                _ => {},
+                            }
+                            dpad_values.0 = 0;
+                        },
+                        _ => {}
                     };
-                    self.convert_axis_events(event, &event_string, false).await;
                 },
                 (_, _, AbsoluteAxisType::ABS_HAT0Y) => {
-                    let event_string: String = match event.value() {
-                        -1 => "BTN_DPAD_UP".to_string(),
-                        0 => "BTN_DPAD_Y".to_string(),
-                        1 => "BTN_DPAD_DOWN".to_string(),
-                        _ => "BTN_DPAD_Y".to_string(),
+                    match event.value() {
+                        -1 => {
+                                self.convert_event(event, Event::Axis(Axis::BTN_DPAD_UP), 1).await;
+                                dpad_values.1 = -1;
+                        },
+                        1 => {
+                                self.convert_event(event, Event::Axis(Axis::BTN_DPAD_DOWN), 1).await;
+                                dpad_values.1 = 1;
+                        },
+                        0 => {
+                            match dpad_values.1 {
+                                -1 => self.convert_event(event, Event::Axis(Axis::BTN_DPAD_UP), 0).await,
+                                1 => self.convert_event(event, Event::Axis(Axis::BTN_DPAD_DOWN), 0).await,
+                                _ => {},
+                            }
+                            dpad_values.1 = 0;
+                        },
+                        _ => {}
                     };
-                    self.convert_axis_events(event, &event_string, false).await;
                 },
                 (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_X | AbsoluteAxisType::ABS_Y) => {
-                    if ["cursor", "scroll"].contains(&self.settings.lstick.function.as_str()) {
-                        let axis_value = self.get_axis_value(&event, &self.settings.lstick.deadzone).await;
-                        let mut lstick_position = self.lstick_position.lock().await;
-                        lstick_position[event.code() as usize] = axis_value;
-                    } else if self.settings.lstick.function.as_str() == "bind" {
-                        let axis_value = self.get_axis_value(&event, &self.settings.lstick.deadzone).await;
-                        let clamped_value = if axis_value < 0 { -1 }
-                            else if axis_value > 0 { 1 }
-                            else { 0 };
-                        let axis = if AbsoluteAxisType(event.code()) == AbsoluteAxisType::ABS_X { "x" }
-                            else if AbsoluteAxisType(event.code()) == AbsoluteAxisType::ABS_Y { "y" }
-                            else { "none" };
-                        let event_string_option: Option<String> = match clamped_value {
-                            -1 if axis == "x" && lstick_values.get("x").unwrap() != &-1 => {
-                                lstick_values.insert("x", -1);
-                                Option::Some("LSTICK_LEFT".to_string())
-                            },
-                            -1 if axis == "y" && lstick_values.get("y").unwrap() != &-1 => {
-                                lstick_values.insert("y", -1);
-                                Option::Some("LSTICK_UP".to_string())
-                            },
-                            0 if axis == "x" && lstick_values.get("x").unwrap() != &0 => {
-                                lstick_values.insert("x", 0);
-                                Option::Some("LSTICK_X".to_string())
-                            },
-                            0 if axis == "y" && lstick_values.get("y").unwrap() != &0 => {
-                                lstick_values.insert("y", 0);
-                                Option::Some("LSTICK_Y".to_string())
-                            },
-                            1 if axis == "x" && lstick_values.get("x").unwrap() != &1 => {
-                                lstick_values.insert("x", 1);
-                                Option::Some("LSTICK_RIGHT".to_string())
-                            },
-                            1 if axis == "y" && lstick_values.get("y").unwrap() != &1 => {
-                                lstick_values.insert("y", 1);
-                                Option::Some("LSTICK_DOWN".to_string())
-                            },
-                            _ => Option::None,
-                        };
-                        if let Some(event_string) = event_string_option {
-                            let clamped_event = InputEvent::new_now(event.event_type(), event.code(), clamped_value);
-                            self.convert_axis_events(clamped_event, &event_string, false).await;
-                        }
-                    } else {
-                        self.emit_default_event(event).await;
+                    match self.settings.lstick.function.as_str() {
+                        "cursor" | "scroll" => {
+                            let axis_value = self.get_axis_value(&event, &self.settings.lstick.deadzone).await;
+                            let mut lstick_position = self.lstick_position.lock().await;
+                            lstick_position[event.code() as usize] = axis_value;
+                        },
+                        "bind" => {
+                            let axis_value = self.get_axis_value(&event, &self.settings.lstick.deadzone).await;
+                            let clamped_value =
+                                if axis_value < 0 { -1 }
+                                else if axis_value > 0 { 1 }
+                                else { 0 };
+                            match AbsoluteAxisType(event.code()) {
+                                AbsoluteAxisType::ABS_X => {
+                                    match clamped_value {
+                                        -1 if lstick_values.0 != -1 => {
+                                            self.convert_event(event, Event::Axis(Axis::LSTICK_UP), 1).await;
+                                            lstick_values.0 = -1
+                                        },
+                                        1 if lstick_values.0 != 1 => {
+                                            self.convert_event(event, Event::Axis(Axis::LSTICK_DOWN), 1).await;
+                                            lstick_values.0 = 1
+                                        },
+                                        0 => if lstick_values.0 != 0 {
+                                            match lstick_values.0 {
+                                                -1 => self.convert_event(event, Event::Axis(Axis::LSTICK_UP), 0).await,
+                                                1 => self.convert_event(event, Event::Axis(Axis::LSTICK_DOWN), 0).await,
+                                                _ => {},
+                                            }
+                                            lstick_values.0 = 0;
+                                        },
+                                        _ => {},
+                                    }
+                                },
+                                AbsoluteAxisType::ABS_Y => {
+                                    match clamped_value {
+                                        -1 if lstick_values.1 != -1 => {
+                                            self.convert_event(event, Event::Axis(Axis::LSTICK_LEFT), 1).await;
+                                            lstick_values.0 = -1
+                                        },
+                                        1 => if lstick_values.1 != 1 {
+                                            self.convert_event(event, Event::Axis(Axis::LSTICK_RIGHT), 1).await;
+                                            lstick_values.0 = 1
+                                        },
+                                        0 => if lstick_values.1 != 0 {
+                                            match lstick_values.1 {
+                                                -1 => self.convert_event(event, Event::Axis(Axis::LSTICK_LEFT), 0).await,
+                                                1 => self.convert_event(event, Event::Axis(Axis::LSTICK_RIGHT), 0).await,
+                                                _ => {},
+                                            }
+                                            lstick_values.1 = 0;
+                                        },
+                                        _ => {},
+                                    }
+                                },
+                                _ => {},
+                            }
+                        },
+                        _ => {},
                     }
                 },
                 (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_RX | AbsoluteAxisType::ABS_RY) => {
-                    if ["cursor", "scroll"].contains(&self.settings.rstick.function.as_str()) {
-                        let axis_value = self.get_axis_value(&event, &self.settings.rstick.deadzone).await;
-                        let mut rstick_position = self.rstick_position.lock().await;
-                        rstick_position[event.code() as usize -3] = axis_value;
-                    } else if self.settings.rstick.function.as_str() == "bind" {
-                        let axis_value = self.get_axis_value(&event, &self.settings.rstick.deadzone).await;
-                        let clamped_value = if axis_value < 0 { -1 }
-                            else if axis_value > 0 { 1 }
-                            else { 0 };
-                        let axis = if AbsoluteAxisType(event.code()) == AbsoluteAxisType::ABS_RX { "x" }
-                            else if AbsoluteAxisType(event.code()) == AbsoluteAxisType::ABS_RY { "y" }
-                            else { "none" };
-                        let event_string_option: Option<String> = match clamped_value {
-                            -1 if axis == "x" && rstick_values.get("x").unwrap() != &-1 => {
-                                rstick_values.insert("x", -1);
-                                Option::Some("RSTICK_LEFT".to_string())
-                            },
-                            -1 if axis == "y" && rstick_values.get("y").unwrap() != &-1 => {
-                                rstick_values.insert("y", -1);
-                                Option::Some("RSTICK_UP".to_string())
-                            },
-                            0 if axis == "x" && rstick_values.get("x").unwrap() != &0 => {
-                                rstick_values.insert("x", 0);
-                                Option::Some("RSTICK_X".to_string())
-                            },
-                            0 if axis == "y" && rstick_values.get("y").unwrap() != &0 => {
-                                rstick_values.insert("y", 0);
-                                Option::Some("RSTICK_Y".to_string())
-                            },
-                            1 if axis == "x" && rstick_values.get("x").unwrap() != &1 => {
-                                rstick_values.insert("x", 1);
-                                Option::Some("RSTICK_RIGHT".to_string())
-                            },
-                            1 if axis == "y" && rstick_values.get("y").unwrap() != &1 => {
-                                rstick_values.insert("y", 1);
-                                Option::Some("RSTICK_DOWN".to_string())
-                            },
-                            _ => Option::None,
-                        };
-                        if let Some(event_string) = event_string_option {
-                            let clamped_event = InputEvent::new_now(event.event_type(), event.code(), clamped_value);
-                            self.convert_axis_events(clamped_event, &event_string, false).await;
-                        }
-                    } else {
-                        self.emit_default_event(event).await;
+                    match self.settings.rstick.function.as_str() {
+                        "cursor" | "scroll" => {
+                            let axis_value = self.get_axis_value(&event, &self.settings.rstick.deadzone).await;
+                            let mut rstick_position = self.rstick_position.lock().await;
+                            rstick_position[event.code() as usize -3] = axis_value;
+                        },
+                        "bind" => {
+                            let axis_value = self.get_axis_value(&event, &self.settings.rstick.deadzone).await;
+                            let clamped_value = if axis_value < 0 { -1 }
+                                else if axis_value > 0 { 1 }
+                                else { 0 };
+                            match AbsoluteAxisType(event.code()) {
+                                AbsoluteAxisType::ABS_X => {
+                                    match clamped_value {
+                                        -1 => if rstick_values.0 != -1 {
+                                            self.convert_event(event, Event::Axis(Axis::RSTICK_UP), 1).await;
+                                            rstick_values.0 = -1
+                                        },
+                                        1 => if rstick_values.0 != 1 {
+                                            self.convert_event(event, Event::Axis(Axis::RSTICK_DOWN), 1).await;
+                                            rstick_values.0 = 1
+                                        },
+                                        0 => if rstick_values.0 != 0 {
+                                            match rstick_values.0 {
+                                                -1 => self.convert_event(event, Event::Axis(Axis::RSTICK_UP), 0).await,
+                                                1 => self.convert_event(event, Event::Axis(Axis::RSTICK_DOWN), 0).await,
+                                                _ => {},
+                                            }
+                                            rstick_values.0 = 0;
+                                        },
+                                        _ => {},
+                                    }
+                                },
+                                AbsoluteAxisType::ABS_Y => {
+                                    match clamped_value {
+                                        -1 if rstick_values.1 != -1 => {
+                                            self.convert_event(event, Event::Axis(Axis::RSTICK_LEFT), 1).await;
+                                            rstick_values.0 = -1
+                                        },
+                                        1 => if rstick_values.1 != 1 {
+                                            self.convert_event(event, Event::Axis(Axis::RSTICK_RIGHT), 1).await;
+                                            rstick_values.0 = 1
+                                        },
+                                        0 => if rstick_values.1 != 0 {
+                                            match rstick_values.1 {
+                                                -1 => self.convert_event(event, Event::Axis(Axis::RSTICK_LEFT), 0).await,
+                                                1 => self.convert_event(event, Event::Axis(Axis::RSTICK_RIGHT), 0).await,
+                                                _ => {},
+                                            }
+                                            rstick_values.1 = 0;
+                                        },
+                                        _ => {},
+                                    }
+                                },
+                                _ => {},
+                            }
+                        },
+                        _ => {},
                     }
                 },
                 (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_Z) => {
-                    if event.value() > 0 && ltrigger_value == 0 {
-                        ltrigger_value = 1;
-                        let clamped_event = InputEvent::new_now(event.event_type(), event.code(), 1);
-                        self.convert_axis_events(clamped_event, &"BTN_TL2".to_string(), false).await;
-                    } else if event.value() == 0 && ltrigger_value == 1 {
-                        ltrigger_value = 0;
-                        let clamped_event = InputEvent::new_now(event.event_type(), event.code(), 0);
-                        self.convert_axis_events(clamped_event, &"BTN_TL2".to_string(), false).await;
+                    match (event.value(), triggers_values.0) {
+                        (0, 1) => {
+                            self.convert_event(event, Event::Axis(Axis::BTN_TL2), 0).await;
+                            triggers_values.0 = 0;
+                        },
+                        (_, 0) => {
+                            self.convert_event(event, Event::Axis(Axis::BTN_TL2), 1).await;
+                            triggers_values.0 = 1;
+                        },
+                        _ => {},
                     }
                 },
                 (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_RZ) => {
-                    if event.value() > 1 && rtrigger_value == 0 {
-                        rtrigger_value = 1;
-                        let clamped_event = InputEvent::new_now(event.event_type(), event.code(), 1);
-                        self.convert_axis_events(clamped_event, &"BTN_TR2".to_string(), false).await;
-                    } else if event.value() == 0 && rtrigger_value == 1 {
-                        rtrigger_value = 0;
-                        let clamped_event = InputEvent::new_now(event.event_type(), event.code(), 0);
-                        self.convert_axis_events(clamped_event, &"BTN_TR2".to_string(), false).await;
+                    match (event.value(), triggers_values.1) {
+                        (0, 1) => {
+                            self.convert_event(event, Event::Axis(Axis::BTN_TR2), 0).await;
+                            triggers_values.1 = 0;
+                        },
+                        (_, 0) => {
+                            self.convert_event(event, Event::Axis(Axis::BTN_TR2), 1).await;
+                            triggers_values.1 = 1;
+                        },
+                        _ => {},
                     }
                 },
-                _ => {self.emit_default_event(event).await;}
+                _ => self.emit_default_event(event).await,
             }
         }
         let mut device_is_connected = self.device_is_connected.lock().await;
         *device_is_connected = false;
-        println!("Disconnected device \"{}\".\n", self.config.get(&get_active_window(&self.current_desktop, &self.config).await).unwrap().name);
+        println!("Disconnected device \"{}\".\n", self.config.get(&get_active_window(&self.environment.server, &self.config).await).unwrap().name);
     }
 
-    async fn convert_key_events(&self, event: InputEvent) {
-        let path = self.config.get(&get_active_window(&self.current_desktop, &self.config).await).unwrap();
+    async fn convert_event(&self, default_event: InputEvent, event: Event, value: i32) {
+        let path = self.config.get(&get_active_window(&self.environment.server, &self.config).await).unwrap();
         let modifiers = self.modifiers.lock().await.clone();
-        if let Some(event_hashmap) = path.combinations.keys.get(&Key(event.code())) {
-            if let Some(event_list) = event_hashmap.get(&modifiers) {
-                self.emit_event_without_modifiers(event_list, &modifiers, event.value()).await;
+        if let Some(map) = path.bindings.remap.get(&event) {
+            if let Some(event_list) = map.get(&modifiers) {
+                self.emit_event(event_list, value, &modifiers).await;
                 return
             }
         }
-        if let Some(command_hashmap) = path.combinations.keys_sh.get(&Key(event.code())) {
-            if let Some(command_list) = command_hashmap.get(&modifiers) {
-                if event.value() == 1 {self.spawn_subprocess(command_list).await};
+        if let Some(map) = path.bindings.commands.get(&event) {
+            if let Some(command_list) = map.get(&modifiers) {
+                if value == 1 {self.spawn_subprocess(command_list).await};
                 return
             }
         }
-        if let Some(event_list) = path.bindings.keys.get(&Key(event.code())) {
-            self.emit_event(event_list, event.value()).await;
-            return
-        }
-        if let Some(command_list) = path.bindings.keys_sh.get(&Key(event.code())) {
-            if event.value() == 1 {self.spawn_subprocess(command_list).await};
-            return
-        }
-        self.emit_default_event(event).await;
-    }
-    
-    async fn convert_axis_events(&self, event: InputEvent, event_string: &String, send_zero: bool) {
-        let path = self.config.get(&get_active_window(&self.current_desktop, &self.config).await).unwrap();
-        let modifiers = self.modifiers.lock().await.clone();
-        if let Some(event_hashmap) = path.combinations.axis.get(event_string) {
-            if let Some(event_list) = event_hashmap.get(&modifiers) {
-                self.emit_event_without_modifiers(event_list, &modifiers, event.value().abs()).await;
-                if send_zero {
-                    self.emit_event_without_modifiers(event_list, &modifiers, 0).await;
-                }
-                return
-            }
-        }
-        if let Some(command_hashmap) = path.combinations.axis_sh.get(event_string) {
-            if let Some(command_list) = command_hashmap.get(&modifiers) {
-                if event.value().abs() == 1 {self.spawn_subprocess(command_list).await};
-                return
-            }
-        }
-        if let Some(event_list) = path.bindings.axis.get(event_string) {
-            self.emit_event(event_list, event.value().abs()).await;
-            if send_zero {
-                self.emit_event_without_modifiers(event_list, &modifiers, 0).await;
-            }
-            return
-        }
-        if let Some(command_list) = path.bindings.axis_sh.get(event_string) {
-            if event.value().abs() == 1 {self.spawn_subprocess(command_list).await};
-            return
-        }
-        self.emit_default_event(event).await;
+        self.emit_nonmapped_event(default_event, event, value, &modifiers).await;
     }
 
-    async fn emit_event(&self, event_list: &Vec<Key>, value: i32) {
-        let path = self.config.get(&get_active_window(&self.current_desktop, &self.config).await).unwrap();
+    async fn emit_event(&self, event_list: &Vec<Key>, value: i32, modifiers: &Vec<Event>) {
+        let path = self.config.get(&get_active_window(&self.environment.server, &self.config).await).unwrap();
         let mut virt_dev = self.virt_dev.lock().await;
-        let modifiers = self.modifiers.lock().await.clone();
+        let mut modifier_was_activated = self.modifier_was_activated.lock().await;
+        if modifiers.is_empty() {
+            let released_keys: Vec<Key> = self.released_keys(&modifiers).await;
+            for key in released_keys {
+                self.toggle_modifiers(Event::Key(key), 0).await;
+                let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), 0);
+                virt_dev.keys.emit(&[virtual_event]).unwrap();
+            }
+        } else {
+            for key in modifiers.iter() {
+                if let Event::Key(key) = key {
+                    let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), 0);
+                    virt_dev.keys.emit(&[virtual_event]).unwrap();
+                }
+            }
+        }
+        for key in event_list {
+            if modifiers.is_empty() {
+                self.toggle_modifiers(Event::Key(*key), value).await;
+            }
+            if path.mapped_modifiers.custom.contains(&Event::Key(*key)) {
+                if value == 0 && !*modifier_was_activated {
+                    let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), 1);
+                    virt_dev.keys.emit(&[virtual_event]).unwrap();
+                    let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), 0);
+                    virt_dev.keys.emit(&[virtual_event]).unwrap();
+                    *modifier_was_activated = true;
+                } else if value == 1 {
+                    *modifier_was_activated = false;
+                }
+            } else {
+                let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), value);
+                virt_dev.keys.emit(&[virtual_event]).unwrap();
+                *modifier_was_activated = true;
+            }
+        }
+    }
+
+    async fn emit_nonmapped_event(&self, default_event: InputEvent, event: Event, value: i32, modifiers: &Vec<Event>) {
+        let path = self.config.get(&get_active_window(&self.environment.server, &self.config).await).unwrap();
+        let mut virt_dev = self.virt_dev.lock().await;
         let mut modifier_was_activated = self.modifier_was_activated.lock().await;
         let released_keys: Vec<Key> = self.released_keys(&modifiers).await;
         for key in released_keys {
-            self.toggle_modifiers(key, 0).await;
+            self.toggle_modifiers(Event::Key(key), 0).await;
             let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), 0);
-            virt_dev.keys.emit(&[virtual_event]).unwrap();
+            virt_dev.keys.emit(&[virtual_event]).unwrap()
         }
-        for key in event_list {
-            self.toggle_modifiers(*key, value).await;
-            if path.mapped_modifiers.custom.contains(&key) {
-                if value == 0 && !*modifier_was_activated {
-                    let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), 1);
-                    virt_dev.keys.emit(&[virtual_event]).unwrap();
-                    let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), 0);
-                    virt_dev.keys.emit(&[virtual_event]).unwrap();
-                    *modifier_was_activated = true;
-                } else if value == 1 {
-                    *modifier_was_activated = false;
-                }
-            } else {
-                let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), value);
+        self.toggle_modifiers(event, value).await;
+        if path.mapped_modifiers.custom.contains(&event) {
+            if value == 0 && !*modifier_was_activated {
+                let virtual_event: InputEvent = InputEvent::new_now(default_event.event_type(), default_event.code(), 1);
+                virt_dev.keys.emit(&[virtual_event]).unwrap();
+                let virtual_event: InputEvent = InputEvent::new_now(default_event.event_type(), default_event.code(), 0);
                 virt_dev.keys.emit(&[virtual_event]).unwrap();
                 *modifier_was_activated = true;
+            } else if value == 1 {
+                *modifier_was_activated = false;
+            }
+        } else {
+            *modifier_was_activated = true;
+            match default_event.event_type() {
+                EventType::KEY => {
+                    virt_dev.keys.emit(&[default_event]).unwrap();
+                },
+                EventType::RELATIVE => {
+                    virt_dev.axis.emit(&[default_event]).unwrap();
+                },
+                _ => {},
             }
         }
     }
-    
+
     async fn emit_default_event(&self, event: InputEvent) {
-        let path = self.config.get(&get_active_window(&self.current_desktop, &self.config).await).unwrap();
-        let mut virt_dev = self.virt_dev.lock().await;
-        let mut modifier_was_activated = self.modifier_was_activated.lock().await;
         match event.event_type() {
             EventType::KEY => {
-                let modifiers = self.modifiers.lock().await.clone();
-                let released_keys: Vec<Key> = self.released_keys(&modifiers).await;
-                for key in released_keys {
-                    self.toggle_modifiers(key, 0).await;
-                    let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), 0);
-                    virt_dev.keys.emit(&[virtual_event]).unwrap()
-                }
-                self.toggle_modifiers(Key(event.code()), event.value()).await;
-                if path.mapped_modifiers.custom.contains(&Key(event.code())) {
-                    if event.value() == 0 && !*modifier_was_activated {
-                        let virtual_event: InputEvent = InputEvent::new_now(event.event_type(), event.code(), 1);
-                        virt_dev.keys.emit(&[virtual_event]).unwrap();
-                        let virtual_event: InputEvent = InputEvent::new_now(event.event_type(), event.code(), 0);
-                        virt_dev.keys.emit(&[virtual_event]).unwrap();
-                        *modifier_was_activated = true;
-                    } else if event.value() == 1 {
-                        *modifier_was_activated = false;
-                    }
-                } else {
-                    virt_dev.keys.emit(&[event]).unwrap();
-                    *modifier_was_activated = true;
-                }
+                let mut virt_dev = self.virt_dev.lock().await;
+                virt_dev.keys.emit(&[event]).unwrap();
             },
             EventType::RELATIVE => {
+                let mut virt_dev = self.virt_dev.lock().await;
                 virt_dev.axis.emit(&[event]).unwrap();
-                *modifier_was_activated = true;
             },
-            _ => {}
-        }
-    }
-    
-    async fn emit_event_without_modifiers(&self, event_list: &Vec<Key>, modifiers: &Vec<Key>, value: i32) {
-        let path = self.config.get(&get_active_window(&self.current_desktop, &self.config).await).unwrap();
-        let mut virt_dev = self.virt_dev.lock().await;
-        let mut modifier_was_activated = self.modifier_was_activated.lock().await;
-        for key in modifiers {
-            let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), 0);
-            virt_dev.keys.emit(&[virtual_event]).unwrap();
-        }
-        for key in event_list {
-            if path.mapped_modifiers.custom.contains(&key) {
-                if value == 0 && !*modifier_was_activated {
-                    let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), 1);
-                    virt_dev.keys.emit(&[virtual_event]).unwrap();
-                    let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), 0);
-                    virt_dev.keys.emit(&[virtual_event]).unwrap();
-                    *modifier_was_activated = true;
-                } else if value == 1 {
-                    *modifier_was_activated = false;
-                }
-            } else {
-                let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), value);
-                virt_dev.keys.emit(&[virtual_event]).unwrap();
-                *modifier_was_activated = true;
-            }
+            _ => {},
         }
     }
 
     async fn spawn_subprocess(&self, command_list: &Vec<String>) {
         let mut modifier_was_activated = self.modifier_was_activated.lock().await;
         *modifier_was_activated = true;
-        match (&self.environment.user, &self.environment.sudo_user) {
-            (_, Ok(sudo_user)) => {
-                for command in command_list {
-                    match fork() {
-                        Ok(Fork::Child) => {
-                            Command::new("sh")
-                                .arg("-c")
-                                .arg(format!("runuser {} -c '{}'", sudo_user.as_str(), command))
-                                .stdin(Stdio::null())
-                                .stdout(Stdio::null())
-                                .stderr(Stdio::null())
-                                .spawn()
-                                .expect("Failed to run command.");
-                            std::process::exit(0);
-                        },
-                        Ok(Fork::Parent(_)) => (),
-                        Err(_) => std::process::exit(1),
-                    }
+        let (user, running_as_root) =
+            if let Ok(sudo_user) = &self.environment.sudo_user {
+                (Option::Some(sudo_user), true)
+            }
+            else if let Ok(user) = &self.environment.user {
+                (Option::Some(user), false)
+            }
+            else {
+                (Option::None, false)
+            };
+        if let Some(user) = user {
+            for command in command_list {
+                let cmd = if running_as_root {
+                    let cmd = format!("runuser {} -c '{}'", user, command);
+                    cmd
                 }
-            },
-            (Ok(_), Err(_)) => {
-                for command in command_list {
-                    match fork() {
-                        Ok(Fork::Child) => {
-                            Command::new("sh")
-                                .arg("-c")
-                                .arg(command)
-                                .stdin(Stdio::null())
-                                .stdout(Stdio::null())
-                                .stderr(Stdio::null())
-                                .spawn()
-                                .expect("Failed to run command.");
-                            std::process::exit(0);
-                        },
-                        Ok(Fork::Parent(_)) => (),
-                        Err(_) => std::process::exit(1),
+                else {
+                    command.clone()
+                };
+                match fork() {
+                    Ok(Fork::Child) => {
+                        match fork() {
+                            Ok(Fork::Child) => {
+                                setsid().unwrap();
+                                Command::new("sh")
+                                    .arg("-c")
+                                    .arg(cmd)
+                                    .stdin(Stdio::null())
+                                    .stdout(Stdio::null())
+                                    .stderr(Stdio::null())
+                                    .spawn()
+                                    .unwrap();
+                                std::process::exit(0);
+                            }
+                            Ok(Fork::Parent(_)) => std::process::exit(0),
+                            Err(_) => std::process::exit(1),
+                        }
                     }
+                    Ok(Fork::Parent(_)) => (),
+                    Err(_) => std::process::exit(1),
                 }
-            },
-            (_, _) => {}
+            }
         }
     }
 
@@ -505,31 +496,26 @@ impl EventReader {
         }
     }
     
-    async fn toggle_modifiers(&self, key: Key, value: i32) {
-        let path = self.config.get(&get_active_window(&self.current_desktop, &self.config).await).unwrap();
+    async fn toggle_modifiers(&self, modifier: Event, value: i32) {
+        let path = self.config.get(&get_active_window(&self.environment.server, &self.config).await).unwrap();
         let mut modifiers = self.modifiers.lock().await;
-        if path.mapped_modifiers.all.contains(&key) {
+        if path.mapped_modifiers.all.contains(&modifier) {
             match value {
                 1 => {
-                    modifiers.push(key);
+                    modifiers.push(modifier);
                     modifiers.sort();
                     modifiers.dedup();
                 },
-                0 => modifiers.retain(|&x| x != key),
+                0 => modifiers.retain(|&x| x != modifier),
                 _ => {},
             }
         }
     }
 
-    async fn released_keys(&self, modifiers: &Vec<Key>) -> Vec<Key> {
-        let path = self.config.get(&get_active_window(&self.current_desktop, &self.config).await).unwrap();
+    async fn released_keys(&self, modifiers: &Vec<Event>) -> Vec<Key> {
+        let path = self.config.get(&get_active_window(&self.environment.server, &self.config).await).unwrap();
         let mut released_keys: Vec<Key> = Vec::new();
-        for (_key, hashmap) in path.combinations.keys.iter() {
-            if let Some(event_list) = hashmap.get(modifiers) {
-                released_keys.extend(event_list);
-            }
-        }
-        for (_key, hashmap) in path.combinations.axis.iter() {
+        for (_key, hashmap) in path.bindings.remap.iter() {
             if let Some(event_list) = hashmap.get(modifiers) {
                 released_keys.extend(event_list);
             }
