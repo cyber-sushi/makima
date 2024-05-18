@@ -185,44 +185,44 @@ impl EventReader {
                                 else if axis_value > 0 { 1 }
                                 else { 0 };
                             match AbsoluteAxisType(event.code()) {
-                                AbsoluteAxisType::ABS_X => {
+                                AbsoluteAxisType::ABS_Y => {
                                     match clamped_value {
-                                        -1 if lstick_values.0 != -1 => {
+                                        -1 if lstick_values.1 != -1 => {
                                             self.convert_event(event, Event::Axis(Axis::LSTICK_UP), 1).await;
-                                            lstick_values.0 = -1
+                                            lstick_values.1 = -1
                                         },
-                                        1 if lstick_values.0 != 1 => {
+                                        1 if lstick_values.1 != 1 => {
                                             self.convert_event(event, Event::Axis(Axis::LSTICK_DOWN), 1).await;
-                                            lstick_values.0 = 1
+                                            lstick_values.1 = 1
                                         },
-                                        0 => if lstick_values.0 != 0 {
-                                            match lstick_values.0 {
+                                        0 => if lstick_values.1 != 0 {
+                                            match lstick_values.1 {
                                                 -1 => self.convert_event(event, Event::Axis(Axis::LSTICK_UP), 0).await,
                                                 1 => self.convert_event(event, Event::Axis(Axis::LSTICK_DOWN), 0).await,
                                                 _ => {},
                                             }
-                                            lstick_values.0 = 0;
+                                            lstick_values.1 = 0;
                                         },
                                         _ => {},
                                     }
                                 },
-                                AbsoluteAxisType::ABS_Y => {
+                                AbsoluteAxisType::ABS_X => {
                                     match clamped_value {
-                                        -1 if lstick_values.1 != -1 => {
+                                        -1 if lstick_values.0 != -1 => {
                                             self.convert_event(event, Event::Axis(Axis::LSTICK_LEFT), 1).await;
                                             lstick_values.0 = -1
                                         },
-                                        1 => if lstick_values.1 != 1 {
+                                        1 => if lstick_values.0 != 1 {
                                             self.convert_event(event, Event::Axis(Axis::LSTICK_RIGHT), 1).await;
                                             lstick_values.0 = 1
                                         },
-                                        0 => if lstick_values.1 != 0 {
-                                            match lstick_values.1 {
+                                        0 => if lstick_values.0 != 0 {
+                                            match lstick_values.0 {
                                                 -1 => self.convert_event(event, Event::Axis(Axis::LSTICK_LEFT), 0).await,
                                                 1 => self.convert_event(event, Event::Axis(Axis::LSTICK_RIGHT), 0).await,
                                                 _ => {},
                                             }
-                                            lstick_values.1 = 0;
+                                            lstick_values.0 = 0;
                                         },
                                         _ => {},
                                     }
@@ -246,44 +246,44 @@ impl EventReader {
                                 else if axis_value > 0 { 1 }
                                 else { 0 };
                             match AbsoluteAxisType(event.code()) {
-                                AbsoluteAxisType::ABS_X => {
+                                AbsoluteAxisType::ABS_RY => {
                                     match clamped_value {
-                                        -1 => if rstick_values.0 != -1 {
+                                        -1 => if rstick_values.1 != -1 {
                                             self.convert_event(event, Event::Axis(Axis::RSTICK_UP), 1).await;
-                                            rstick_values.0 = -1
+                                            rstick_values.1 = -1
                                         },
-                                        1 => if rstick_values.0 != 1 {
+                                        1 => if rstick_values.1 != 1 {
                                             self.convert_event(event, Event::Axis(Axis::RSTICK_DOWN), 1).await;
-                                            rstick_values.0 = 1
+                                            rstick_values.1 = 1
                                         },
-                                        0 => if rstick_values.0 != 0 {
-                                            match rstick_values.0 {
+                                        0 => if rstick_values.1 != 0 {
+                                            match rstick_values.1 {
                                                 -1 => self.convert_event(event, Event::Axis(Axis::RSTICK_UP), 0).await,
                                                 1 => self.convert_event(event, Event::Axis(Axis::RSTICK_DOWN), 0).await,
                                                 _ => {},
                                             }
-                                            rstick_values.0 = 0;
+                                            rstick_values.1 = 0;
                                         },
                                         _ => {},
                                     }
                                 },
-                                AbsoluteAxisType::ABS_Y => {
+                                AbsoluteAxisType::ABS_RX => {
                                     match clamped_value {
-                                        -1 if rstick_values.1 != -1 => {
+                                        -1 if rstick_values.0 != -1 => {
                                             self.convert_event(event, Event::Axis(Axis::RSTICK_LEFT), 1).await;
                                             rstick_values.0 = -1
                                         },
-                                        1 => if rstick_values.1 != 1 {
+                                        1 => if rstick_values.0 != 1 {
                                             self.convert_event(event, Event::Axis(Axis::RSTICK_RIGHT), 1).await;
                                             rstick_values.0 = 1
                                         },
-                                        0 => if rstick_values.1 != 0 {
-                                            match rstick_values.1 {
+                                        0 => if rstick_values.0 != 0 {
+                                            match rstick_values.0 {
                                                 -1 => self.convert_event(event, Event::Axis(Axis::RSTICK_LEFT), 0).await,
                                                 1 => self.convert_event(event, Event::Axis(Axis::RSTICK_RIGHT), 0).await,
                                                 _ => {},
                                             }
-                                            rstick_values.1 = 0;
+                                            rstick_values.0 = 0;
                                         },
                                         _ => {},
                                     }
@@ -415,7 +415,9 @@ impl EventReader {
                     virt_dev.keys.emit(&[default_event]).unwrap();
                 },
                 EventType::RELATIVE => {
-                    virt_dev.axis.emit(&[default_event]).unwrap();
+                    if value == 1 {
+                        virt_dev.axis.emit(&[default_event]).unwrap();
+                    }
                 },
                 _ => {},
             }
