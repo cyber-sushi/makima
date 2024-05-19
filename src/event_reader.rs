@@ -343,14 +343,17 @@ impl EventReader {
             if let Some(event_list) = map.get(&modifiers) {
                 self.emit_event(event_list, value, &modifiers, modifiers.is_empty(), !modifiers.is_empty()).await;
                 return
-            } else if let Some(event_list) = map.get(&Vec::new()) {
-                self.emit_event(event_list, value, &modifiers, true, false).await;
-                return
             } else if let Some(event_list) = map.get(&vec![Event::Hold]) {
                 if !modifiers.is_empty() || self.settings.chain_only == false {
                     self.emit_event(event_list, value, &modifiers, false, false).await;
                     return
+                } else if let Some(event_list) = map.get(&Vec::new()) {
+                    self.emit_event(event_list, value, &modifiers, true, false).await;
+                    return
                 }
+            } else if let Some(event_list) = map.get(&Vec::new()) {
+                self.emit_event(event_list, value, &modifiers, true, false).await;
+                return
             }
         }
         if let Some(map) = path.bindings.commands.get(&event) {
