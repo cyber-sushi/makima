@@ -131,7 +131,7 @@ When declaring a binding, you can put a dash in front of the key on the left sid
 
 This means that, for example, you can bind `BTN_SELECT-BTN_TL2 = ["KEY_LEFTALT"]` and `-BTN_TR2 = ["KEY_TAB"]` to simulate the Alt-Tab sequence: press the buttons in the first binding, and then tap `TR2` to advance in the Alt-Tab menu.
 
-If pressed alone, it will just emit designated event.
+If the key with the dash in front is pressed alone, its behavior will depend on the `CHAIN_ONLY` settings: if set to `"true"` (default) it will ignore the command, if set to `"false"`, it will still fire the designated event.
 
 #### Axis events:
 Axis events such as scroll wheels and analog stick movements are hardcoded, currently you can use the following:
@@ -173,6 +173,10 @@ While pressed, they will act as modifiers without emitting their respective `KEY
 This is useful if you want to have a key that behaves like a modifier but can still emit its own event if pressed alone.\
 You can list multiple keys to treat as modifiers with the following syntax:\
 `CUSTOM_MODIFIERS = "KEY_A-KEY_BACKSLASH-KEY_GRAVE"`
+
+#### `CHAIN_ONLY`
+When using a [mixed binding](https://github.com/cyber-sushi/makima/tree/main#bindings-and-settings), you can choose the behavior of the key when pressed alone.\
+Set to `"true"` (default) to make it fire the event only if other modifiers are active. Set to `"false"` to make it fire its designated event regardless.
 
 Refer to the [sample config files](https://github.com/cyber-sushi/makima/tree/main/examples) for more information.
 
