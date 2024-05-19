@@ -174,7 +174,6 @@ fn parse_raw_config(raw_config: RawConfig) -> (Bindings, HashMap<String, String>
             }
             if str_modifiers[0] == "" {
                 modifiers.push(Event::Hold);
-                modifiers.sort();
             }
             if let Ok(event) = Axis::from_str(event) {
                 if !bindings.remap.contains_key(&Event::Axis(event)) {
