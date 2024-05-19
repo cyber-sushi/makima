@@ -114,7 +114,10 @@ impl EventReader {
         while let Some(Ok(event)) = stream.next().await {
             match (event.event_type(), RelativeAxisType(event.code()), AbsoluteAxisType(event.code())) {
                 (EventType::KEY, _, _) => {
-                    self.convert_event(event, Event::Key(Key(event.code())), event.value()).await;
+                    match event.code() {
+                        312 | 313 => {},
+                        _ => self.convert_event(event, Event::Key(Key(event.code())), event.value()).await,
+                    }
                 },
                 (_, RelativeAxisType::REL_WHEEL | RelativeAxisType::REL_WHEEL_HI_RES, _) => {
                     match event.value() {
@@ -333,10 +336,13 @@ impl EventReader {
         let modifiers = self.modifiers.lock().await.clone();
         if let Some(map) = path.bindings.remap.get(&event) {
             if let Some(event_list) = map.get(&modifiers) {
-                self.emit_event(event_list, value, &modifiers, modifiers.is_empty()).await;
+                self.emit_event(event_list, value, &modifiers, modifiers.is_empty(), !modifiers.is_empty()).await;
                 return
             } else if let Some(event_list) = map.get(&Vec::new()) {
-                self.emit_event(event_list, value, &modifiers, true).await;
+                self.emit_event(event_list, value, &modifiers, true, false).await;
+                return
+            } else if let Some(event_list) = map.get(&vec![Event::Hold]) {
+                self.emit_event(event_list, value, &modifiers, false, false).await;
                 return
             }
         }
@@ -349,18 +355,18 @@ impl EventReader {
         self.emit_nonmapped_event(default_event, event, value, &modifiers).await;
     }
 
-    async fn emit_event(&self, event_list: &Vec<Key>, value: i32, modifiers: &Vec<Event>, ignore_modifiers: bool) {
+    async fn emit_event(&self, event_list: &Vec<Key>, value: i32, modifiers: &Vec<Event>, release_keys: bool, ignore_modifiers: bool) {
         let path = self.config.get(&get_active_window(&self.environment.server, &self.config).await).unwrap();
         let mut virt_dev = self.virt_dev.lock().await;
         let mut modifier_was_activated = self.modifier_was_activated.lock().await;
-        if ignore_modifiers {
+        if release_keys {
             let released_keys: Vec<Key> = self.released_keys(&modifiers).await;
             for key in released_keys {
                 self.toggle_modifiers(Event::Key(key), 0).await;
                 let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), 0);
                 virt_dev.keys.emit(&[virtual_event]).unwrap();
             }
-        } else {
+        } else if ignore_modifiers {
             for key in modifiers.iter() {
                 if let Event::Key(key) = key {
                     let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), 0);
@@ -369,7 +375,7 @@ impl EventReader {
             }
         }
         for key in event_list {
-            if modifiers.is_empty() {
+            if release_keys {
                 self.toggle_modifiers(Event::Key(*key), value).await;
             }
             if path.mapped_modifiers.custom.contains(&Event::Key(*key)) {
