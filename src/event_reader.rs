@@ -20,6 +20,7 @@ struct Settings {
     lstick: Stick,
     rstick: Stick,
     axis_16_bit: bool,
+    chain_only: bool,
 }
 
 pub struct EventReader {
@@ -80,10 +81,14 @@ impl EventReader {
         let axis_16_bit: bool = config.get(&Client::Default).unwrap()
             .settings.get("16_BIT_AXIS").unwrap_or(&"false".to_string()).parse().expect("16_BIT_AXIS can only be true or false.");
 
+        let chain_only: bool = config.get(&Client::Default).unwrap()
+            .settings.get("CHAIN_ONLY").unwrap_or(&"true".to_string()).parse().expect("CHAIN_ONLY can only be true or false.");
+
         let settings = Settings {
             lstick,
             rstick,
             axis_16_bit,
+            chain_only,
         };
         Self {
             config,
@@ -342,8 +347,10 @@ impl EventReader {
                 self.emit_event(event_list, value, &modifiers, true, false).await;
                 return
             } else if let Some(event_list) = map.get(&vec![Event::Hold]) {
-                self.emit_event(event_list, value, &modifiers, false, false).await;
-                return
+                if !modifiers.is_empty() || self.settings.chain_only == false {
+                    self.emit_event(event_list, value, &modifiers, false, false).await;
+                    return
+                }
             }
         }
         if let Some(map) = path.bindings.commands.get(&event) {
