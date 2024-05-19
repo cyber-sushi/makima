@@ -7,6 +7,7 @@ use serde;
 pub enum Event {
     Axis(Axis),
     Key(Key),
+    Hold,
 }
 
 #[allow(non_camel_case_types)]
@@ -157,7 +158,7 @@ fn parse_raw_config(raw_config: RawConfig) -> (Bindings, HashMap<String, String>
         if let Some((mods, event)) = input.rsplit_once("-") {
             let str_modifiers = mods.split("-").collect::<Vec<&str>>();
             let mut modifiers: Vec<Event> = Vec::new();
-            for event in str_modifiers {
+            for event in str_modifiers.clone() {
                 if let Ok(axis) = Axis::from_str(event) {
                     modifiers.push(Event::Axis(axis));
                 } else if let Ok(key) = Key::from_str(event) {
@@ -170,6 +171,10 @@ fn parse_raw_config(raw_config: RawConfig) -> (Bindings, HashMap<String, String>
                 if !mapped_modifiers.default.contains(&modifier) {
                     mapped_modifiers.custom.push(modifier.clone());
                 }
+            }
+            if str_modifiers[0] == "" {
+                modifiers.push(Event::Hold);
+                modifiers.sort();
             }
             if let Ok(event) = Axis::from_str(event) {
                 if !bindings.remap.contains_key(&Event::Axis(event)) {
@@ -281,3 +286,4 @@ pub fn parse_modifiers(settings: &HashMap<String, String>, parameter: &str) -> V
         None => Vec::new(),
     }
 }
+
