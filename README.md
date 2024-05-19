@@ -126,12 +126,12 @@ If you want a non-modifier key to act as a modifier without remapping it for tha
 #### Modifiers across multiple devices:
 Keep in mind that if you want to use modifiers across multiple devices (e.g. `KEY_LEFTCTRL` on your keyboard and `BTN_RIGHT` on your mouse), both devices will have to be read by Makima and thus both will need a config file, even if empty. Having a config file is just a way to tell Makima "Hey, read this device!".
 
-#### Mixed bindings:
-When declaring a binding, you can put a dash (`-`) in front of the key on the left side (e.g. `-KEY_A`) to tell Makima that when you press that key, it should mix the output events with whatever other modifier is pressed.
+#### Chained bindings:
+When declaring a binding, you can put a dash (`-`) in front of it (e.g. `-KEY_A = ["KEY_B"]`) to tell Makima that it's not a standalone binding and it should instead be chained at the end of another sequence.
 
 This means that, for example, you can bind `BTN_SELECT-BTN_TL2 = ["KEY_LEFTALT"]` and `-BTN_TR2 = ["KEY_TAB"]` to simulate the Alt-Tab sequence: press the buttons in the first binding, and then tap `TR2` to advance in the Alt-Tab menu.
 
-If the key with the dash in front is pressed alone, its behavior will depend on the `CHAIN_ONLY` settings: if set to `"true"` (default) it will ignore the keypress, if set to `"false"`, it will still fire the designated event.\
+If the key with the dash is pressed alone, its behavior will depend on the `CHAIN_ONLY` settings: if set to `"true"` (default) it will ignore the keypress and only fire if pressed together with a combination, if set to `"false"`, it will fire the designated event regardless.\
 You can declare both a `-BTN_TR2` and a `BTN_TR2` binding: in this case, the first will fire when chained and the second will fire when used alone (assuming `CHAIN_ONLY` is set to`"true"`).
 
 #### Axis events:
@@ -176,8 +176,9 @@ You can list multiple keys to treat as modifiers with the following syntax:\
 `CUSTOM_MODIFIERS = "KEY_A-KEY_BACKSLASH-KEY_GRAVE"`
 
 #### `CHAIN_ONLY`
-When using a [mixed binding](https://github.com/cyber-sushi/makima/tree/main#bindings-and-settings), you can choose the behavior of the key when pressed alone.\
+When using a [chained binding](https://github.com/cyber-sushi/makima/tree/main#chained-bindings), you can choose the behavior of the key when pressed alone.\
 Set to `"true"` (default) to make it fire the event only if other modifiers are active. Set to `"false"` to make it fire its designated event regardless.
+
 
 Refer to the [sample config files](https://github.com/cyber-sushi/makima/tree/main/examples) for more information.
 
