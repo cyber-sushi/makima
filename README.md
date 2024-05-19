@@ -126,6 +126,13 @@ If you want a non-modifier key to act as a modifier without remapping it for tha
 #### Modifiers across multiple devices:
 Keep in mind that if you want to use modifiers across multiple devices (e.g. `KEY_LEFTCTRL` on your keyboard and `BTN_RIGHT` on your mouse), both devices will have to be read by Makima and thus both will need a config file, even if empty. Having a config file is just a way to tell Makima "Hey, read this device!".
 
+#### Mixed bindings:
+When declaring a binding, you can put a dash in front of the key on the left side to tell Makima that when you press that key, it should mix the output command with whatever other modifier is pressed.
+
+This means that, for example, you can bind `BTN_SELECT-BTN_TL2 = ["KEY_LEFTALT"]` and `-BTN_TR2 = ["KEY_TAB"]` to simulate the Alt-Tab sequence: press the buttons in the first binding, and then tap `TR2` to advance in the Alt-Tab menu.
+
+If pressed alone, it will just emit designated event.
+
 #### Axis events:
 Axis events such as scroll wheels and analog stick movements are hardcoded, currently you can use the following:
 - `SCROLL_WHEEL_UP`, `SCROLL_WHEEL_DOWN` - for a mouse's scroll wheel
