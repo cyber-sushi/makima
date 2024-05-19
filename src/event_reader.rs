@@ -333,7 +333,10 @@ impl EventReader {
         let modifiers = self.modifiers.lock().await.clone();
         if let Some(map) = path.bindings.remap.get(&event) {
             if let Some(event_list) = map.get(&modifiers) {
-                self.emit_event(event_list, value, &modifiers).await;
+                self.emit_event(event_list, value, &modifiers, modifiers.is_empty()).await;
+                return
+            } else if let Some(event_list) = map.get(&Vec::new()) {
+                self.emit_event(event_list, value, &modifiers, true).await;
                 return
             }
         }
@@ -346,11 +349,11 @@ impl EventReader {
         self.emit_nonmapped_event(default_event, event, value, &modifiers).await;
     }
 
-    async fn emit_event(&self, event_list: &Vec<Key>, value: i32, modifiers: &Vec<Event>) {
+    async fn emit_event(&self, event_list: &Vec<Key>, value: i32, modifiers: &Vec<Event>, ignore_modifiers: bool) {
         let path = self.config.get(&get_active_window(&self.environment.server, &self.config).await).unwrap();
         let mut virt_dev = self.virt_dev.lock().await;
         let mut modifier_was_activated = self.modifier_was_activated.lock().await;
-        if modifiers.is_empty() {
+        if ignore_modifiers {
             let released_keys: Vec<Key> = self.released_keys(&modifiers).await;
             for key in released_keys {
                 self.toggle_modifiers(Event::Key(key), 0).await;
@@ -597,3 +600,4 @@ impl EventReader {
         }
     }
 }
+
