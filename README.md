@@ -7,7 +7,7 @@ It works on both Wayland and X11 as it relies on the `evdev` kernel interface.
 - Translates keys, buttons or combinations to other keys, sequences or shell commands.
 - Devices are remapped individually using simple TOML config files.
 - Automatically switch layouts based on the active window (only on Hyprland, Sway and X11 currently).
-- Works with keyboards, mice, controllers, tablets and any other device that uses `KEY` input events present inside `/usr/include/linux/input-event-codes.h`.
+- Works with keyboards, mice, controllers, tablets and any other device that uses `KEY`/`BTN` input events present inside `/usr/include/linux/input-event-codes.h`.
 - Also supports some common `ABS` and `REL` events, like analog stick movements and mouse scroll wheels.
 - Supports hot plugging to connect and disconnect devices on the fly.
 - Works with wired and Bluetooth devices.
@@ -62,7 +62,8 @@ You can find a bunch of [example config files](https://github.com/cyber-sushi/ma
 Makima's config directory defaults to `$HOME/.config/makima` but can be changed through the `MAKIMA_CONFIG` environment variable (if you run Makima as a system service, add it directly to the Systemd unit).
 
 ### Config file naming
-To associate a config file to an input device, the file name should be identical to that of the device. If your device's name includes a `/`, just omit it.\
+To associate a config file to an input device, the file name should be identical to that of the device. If your device's name includes a `/`, just omit it.
+
 _Example: you run `evtest` and see that your Dualshock 4 controller is named `Sony Interactive Entertainment Wireless Controller`. All you have to do is rename your config file to `Sony Interactive Entertainment Wireless Controller.toml`._
 
 All config files will be parsed automatically when `makima` is launched.\
@@ -70,7 +71,8 @@ Files that don't end with `.toml` and files that start with `.` (dotfiles) won't
 
 ### Application-specific bindings
 **Hyprland, Sway and X11 only.**\
-To apply a config file only to a specific application, just put `::<window_class>` at the end of their filename, before `.toml`.\
+To apply a config file only to a specific application, just put `::<window_class>` at the end of their filename, before `.toml`.
+
 _Example: you want your DS4 controller to have a specific set of keybindings for Firefox, name that file `Sony Interactive Entertainment Wireless Controller::firefox.toml`. Note that Flatpaks will have names like `org.mozilla.firefox`._
 
 To retrieve the window class of a specific application, refer to your compositor's documentation, e.g. on Hyprland type `hyprctl clients` in your terminal while that application is open.
@@ -85,36 +87,45 @@ The config file is divided into multiple sections:
 
 ### **[remap]**
 ```
-#Remap a key to another key
+# Remap a key to another key
 KEY1 = ["KEY2"]
 
-#Remap a key to a key sequence
+# Remap a key to a key sequence
 KEY1 = ["KEY2", "KEY3", "KEY4"]
 
-#Remap a key sequence to a single key
+# Remap a key sequence to a single key
 MODIFIER1-MODIFIER2-MODIFIER3-KEY1 = ["KEY1"]
 
-#Remap a key sequence to another key sequence
+# Remap a key sequence to another key sequence
 MODIFIER1-MODIFIER2-MODIFIER3-KEY1 = ["KEY1", "KEY2", "KEY3"]
 ```
 
 ### **[commands]**
 ```
-#Use a key to invoke a shell command
+# Use a key to invoke a shell command
 KEY1 = ["command1"]
 
-#Use a key to invoke a list of shell commands
+# Use a key to invoke a list of shell commands
 KEY1 = ["command1", "command2", "command3"]
 
-#Use a key sequence to invoke a shell command
+# Use a key sequence to invoke a shell command
 MODIFIER1-MODIFIER2-MODIFIER3-KEY1 = ["command1"]
 
-#Use a key sequence to invoke a list of shell commands
+# Use a key sequence to invoke a list of shell commands
 MODIFIER1-MODIFIER2-MODIFIER3-KEY1 = ["command1", "command2", "command3"]
 ```
 #### Key names:
 You can find the `KEY` names inside `/usr/include/linux/input-event-codes.h`, or launch `evtest` to see the events emitted by your devices.\
 Remember that keys like Ctrl and Alt have names like `KEY_LEFTCTRL`, `KEY_LEFTALT` etc. Just using `KEY_CTRL` and `KEY_ALT` will throw a parsing error because the key code does not exist.
+
+#### Axis events:
+Axis events such as scroll wheels and analog stick movements are hardcoded, currently you can use the following:
+- `SCROLL_WHEEL_UP`, `SCROLL_WHEEL_DOWN` - for a mouse's scroll wheel
+- `BTN_DPAD_UP`, `BTN_DPAD_DOWN`, `BTN_DPAD_LEFT`, `BTN_DPAD_RIGHT` - for a game controller's D-Pad
+- `BTN_TL2`, `BTN_TR2` - for a game controller's triggers
+- `LSTICK_UP`, `LSTICK_DOWN`, `LSTICK_LEFT`, `LSTICK_RIGHT`, `RSTICK_UP`, `RSTICK_DOWN`, `RSTICK_LEFT`, `RSTICK_RIGHT` - for a game controller's analog sticks
+
+Refer to the [sample config files](https://github.com/cyber-sushi/makima/tree/main/examples) for more information.
 
 #### Modifiers and custom modifiers:
 You can use as many modifiers as you want when declaring a binding, but the last key _has_ to be a non-modifier key.
@@ -127,21 +138,16 @@ If you want a non-modifier key to act as a modifier without remapping it for tha
 Keep in mind that if you want to use modifiers across multiple devices (e.g. `KEY_LEFTCTRL` on your keyboard and `BTN_RIGHT` on your mouse), both devices will have to be read by Makima and thus both will need a config file, even if empty. Having a config file is just a way to tell Makima "Hey, read this device!".
 
 #### Chained bindings:
-When declaring a binding, you can put a dash (`-`) in front of it (e.g. `-KEY_A = ["KEY_B"]`) to tell Makima that it's not a standalone binding and it should instead be chained at the end of another sequence.
+When declaring a binding, you can put a dash (`-`) in front of it (e.g. `-KEY_A = ["KEY_B"]`) to tell Makima that it's not a standalone binding and it should instead be chained at the end of another sequence.\
+Example:
+```
+# Simulate Alt-Tab: press the buttons in the first binding, then tap the right trigger to advance in the Alt-Tab menu.
+BTN_SELECT-BTN_TL2 = ["KEY_LEFTALT"]
+-BTN_TR2 = ["KEY_TAB"]
+```
 
-This means that, for example, you can bind `BTN_SELECT-BTN_TL2 = ["KEY_LEFTALT"]` and `-BTN_TR2 = ["KEY_TAB"]` to simulate the Alt-Tab sequence: press the buttons in the first binding, and then tap `TR2` to advance in the Alt-Tab menu.
-
-If the key with the dash is pressed alone, its behavior will depend on the `CHAIN_ONLY` settings: if set to `"true"` (default) it will ignore the keypress and only fire if pressed together with a combination, if set to `"false"`, it will fire the designated event regardless.\
+If the key with the dash is pressed alone, its behavior will depend on the `CHAIN_ONLY` setting: if set to `"true"` (default) it will ignore the keypress and only fire if pressed together with a combination, if set to `"false"`, it will fire the designated event regardless.\
 You can declare both a `-BTN_TR2` and a `BTN_TR2` binding: in this case, the first will fire when chained and the second will fire when used alone (assuming `CHAIN_ONLY` is set to`"true"`).
-
-#### Axis events:
-Axis events such as scroll wheels and analog stick movements are hardcoded, currently you can use the following:
-- `SCROLL_WHEEL_UP`, `SCROLL_WHEEL_DOWN` - for a mouse's scroll wheel
-- `BTN_DPAD_UP`, `BTN_DPAD_DOWN`, `BTN_DPAD_LEFT`, `BTN_DPAD_RIGHT` - for a game controller's D-Pad
-- `BTN_TL2`, `BTN_TR2` - for a game controller's triggers
-- `LSTICK_UP`, `LSTICK_DOWN`, `LSTICK_LEFT`, `LSTICK_RIGHT`, `RSTICK_UP`, `RSTICK_DOWN`, `RSTICK_LEFT`, `RSTICK_RIGHT` - for a game controller's analog sticks
-
-Refer to the [sample config files](https://github.com/cyber-sushi/makima/tree/main/examples) for more information.
 
 
 ### \[settings]
@@ -161,7 +167,7 @@ Particularly useful for older devices that suffer from drifting. Use a value bet
 When using analog sticks in `cursor` or `scroll` mode, normally, they're always active. However, if you specify a list of keys or modifiers in `LSTICK_ACTIVATION_MODIFIERS` or `RSTICK_ACTIVATION_MODIFIERS`, they'll only be active when the modifiers are pressed.\
 Example:
 ```
-#only move the cursor when select and start are pressed
+# Only move the cursor when Select and Start are pressed
 LSTICK = "cursor"
 LSTICK_ACTIVATION_MODIFIERS = "BTN_SELECT-BTN_START"
 ```
@@ -178,9 +184,6 @@ You can list multiple keys to treat as modifiers with the following syntax:\
 #### `CHAIN_ONLY`
 When using a [chained binding](https://github.com/cyber-sushi/makima/tree/main#chained-bindings), you can choose the behavior of the key when pressed alone.\
 Set to `"true"` (default) to make it fire the event only if other modifiers are active. Set to `"false"` to make it fire its designated event regardless.
-
-
-Refer to the [sample config files](https://github.com/cyber-sushi/makima/tree/main/examples) for more information.
 
 ## Tested controllers
 - DualShock 2
