@@ -115,7 +115,9 @@ fn set_environment() -> Environment {
             let vars = std::str::from_utf8(command.stdout.as_slice()).unwrap().split("\n").collect::<Vec<&str>>();
             for var in vars {
                 if let Some((variable, value)) = var.split_once("=") {
-                    env::set_var(variable, value);
+                	if let Err(env::VarError::NotPresent) = env::var(variable) {
+                    	env::set_var(variable, value);
+                    }
                 }
             }
             true
