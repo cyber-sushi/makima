@@ -53,7 +53,7 @@ _Note: the `-E` argument is necessary because it allows Makima to inherit your u
 
 - **Run Makima as a Systemd service.**\
 Move the executable into `/usr/bin`.\
-Grab `makima.service` from this repo, edit the `User=` line with your username and make sure that the `DBUS_SESSION_BUS_ADDRESS` variable is the same as your user's.\
+Grab `makima.service` from this repo and edit the `User=` line with your username.\
 Move the file into `/etc/systemd/system`, then run `systemctl daemon-reload`.\
 After this, you can start and stop Makima with `systemctl start/stop makima` or you can enable/disable it on startup with `systemctl enable/disable makima`. If you change the config files and you want the changes to take place, restart makima with `systemctl restart makima`.
 
@@ -210,9 +210,6 @@ To add other controllers, please open an issue.
 
 **Q**: Makima gives me a "Permission Denied" error when launching, what do I do?\
 **A**: Make sure that the `uinput` kernel module is loaded. You can load it with `sudo modprobe uinput`. To make it permanent, create `/etc/modules-load.d/uinput.conf` and write `uinput` inside.
-
-**Q**: Flatpak applications don't start when launched through Makima.\
-**A**: When running as a Systemd service, Makima doesn't communicate with desktop portals so it's unable to launch Flatpaks. Currently looking for a solution.
 
 **Q**: SELinux prevents Makima's system service from running, what do I do?\
 **A**: Put `makima.service` inside `/usr/lib/systemd/system` instead of `/etc/systemd/system`, then run the following commands:
