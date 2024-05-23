@@ -49,7 +49,7 @@ There are two recommended ways to execute Makima:
 - **Run Makima as root with `sudo -E makima`.**\
 Navigate into the directory of the executable and use `sudo -E ./makima`.\
 Alternatively, add Makima to a directory that's in `PATH`, possibly `/usr/bin` or `~/.local/bin` and simply use `sudo -E makima` from anywhere.\
-_Note: the `-E` argument is necessary because it allows Makima to inherit your user environment instead of the root environment when running with `sudo`._
+_Note: the `-E` argument is necessary because it allows Makima to inherit your user environment instead of the root environment when running with `sudo`. You can also add the `-b` argument (`sudo -Eb makima`) to detach if from the terminal and make it run in the background._
 
 - **Run Makima as a Systemd service.**\
 Move the executable into `/usr/bin`.\
