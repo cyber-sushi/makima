@@ -477,36 +477,39 @@ impl EventReader {
             };
         if let Some(user) = user {
             for command in command_list {
-                let cmd = if running_as_root {
-                    let cmd = format!("runuser {} -c '{}'", user, command);
-                    cmd
-                }
-                else {
-                	let cmd = format!("systemd-run --user -M {}@ {}", user, command);
-                	cmd
-                };
-                match fork() {
-                    Ok(Fork::Child) => {
-                        match fork() {
-                            Ok(Fork::Child) => {
-                                setsid().unwrap();
-                                Command::new("sh")
-                                    .arg("-c")
-                                    .arg(cmd)
-                                    .stdin(Stdio::null())
-                                    .stdout(Stdio::null())
-                                    .stderr(Stdio::null())
-                                    .spawn()
-                                    .unwrap();
-                                std::process::exit(0);
-                            }
-                            Ok(Fork::Parent(_)) => std::process::exit(0),
-                            Err(_) => std::process::exit(1),
-                        }
-                    }
-                    Ok(Fork::Parent(_)) => (),
-                    Err(_) => std::process::exit(1),
-                }
+                if running_as_root {
+                    match fork() {
+		                Ok(Fork::Child) => {
+		                    match fork() {
+		                        Ok(Fork::Child) => {
+		                            setsid().unwrap();
+		                            Command::new("sh")
+		                                .arg("-c")
+		                                .arg(format!("runuser {} -c '{}'", user, command))
+		                                .stdin(Stdio::null())
+		                                .stdout(Stdio::null())
+		                                .stderr(Stdio::null())
+		                                .spawn()
+		                                .unwrap();
+		                            std::process::exit(0);
+		                        }
+		                        Ok(Fork::Parent(_)) => std::process::exit(0),
+		                        Err(_) => std::process::exit(1),
+		                    }
+		                }
+		                Ok(Fork::Parent(_)) => (),
+		                Err(_) => std::process::exit(1),
+		            }
+                } else {
+                	Command::new("sh")
+		                .arg("-c")
+		                .arg(format!("systemd-run --user -M {}@ {}", user, command))
+		                .stdin(Stdio::null())
+		                .stdout(Stdio::null())
+		                .stderr(Stdio::null())
+		                .spawn()
+		                .unwrap();
+				}
             }
         }
     }
