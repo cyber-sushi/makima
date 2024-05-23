@@ -55,7 +55,7 @@ _Note: the `-E` argument is necessary because it allows Makima to inherit your u
 Move the executable into `/usr/bin`.\
 Grab `makima.service` from this repo and edit the `User=` line with your username.\
 Move the file into `/etc/systemd/system`, then run `systemctl daemon-reload`.\
-After this, you can start and stop Makima with `systemctl start/stop makima` or you can enable/disable it on startup with `systemctl enable/disable makima`. If you change the config files and you want the changes to take place, restart makima with `systemctl restart makima`.
+After this, you can start and stop Makima with `systemctl start/stop makima` or you can enable/disable it on startup with `systemctl enable/disable makima`. If you change the config files and you want the changes to take place, restart Makima with `systemctl restart makima`.
 
 ## Configuration
 You can find a bunch of [example config files](https://github.com/cyber-sushi/makima/tree/main/examples) on this repo, either pick one of them or create your own from scratch.\
@@ -163,6 +163,9 @@ Lower value is higher sensitivity, minimum `"1"`, suggested `"6"`. If this is se
 #### `LSTICK_DEADZONE` and `RSTICK_DEADZONE`
 Set how much your analog sticks should be tilted before their inputs are detected.\
 Particularly useful for older devices that suffer from drifting. Use a value between `"0"` and `"128"`.
+#### `INVERT_CURSOR_AXIS` and `INVERT_SCROLL_AXIS`
+Invert up/down and left/right on the analog sticks when used for cursor movement or 2D scroll.\
+Both default to `"false"`.
 #### `LSTICK_ACTIVATION_MODIFIERS` and `RSTICK_ACTIVATION_MODIFIERS`
 When using analog sticks in `cursor` or `scroll` mode, normally, they're always active. However, if you specify a list of keys or modifiers in `LSTICK_ACTIVATION_MODIFIERS` or `RSTICK_ACTIVATION_MODIFIERS`, they'll only be active when the modifiers are pressed.\
 Example:
