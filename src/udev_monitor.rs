@@ -120,12 +120,26 @@ fn set_environment() -> Environment {
                     }
                 }
             }
-            true
         },
         Err(_) => {
-            println!("Warning: unable to inherit user environment.\n\
-                    Launch Makima with 'sudo -E makima' or add the DBUS_SESSION_BUS_ADDRESS env var to your systemd unit if you're running it through systemd.\n");
-            false
+        	let uid = Command::new("sh").arg("-c").arg("id -u").output().unwrap();
+        	let uid_number = std::str::from_utf8(uid.stdout.as_slice()).unwrap().trim();
+        	if uid_number != "0" {
+			    let bus_address = format!("unix:path=/run/user/{}/bus", uid_number);
+			    env::set_var("DBUS_SESSION_BUS_ADDRESS", bus_address);
+		        let command = Command::new("sh").arg("-c").arg("systemctl --user show-environment").output().unwrap();
+		        let vars = std::str::from_utf8(command.stdout.as_slice()).unwrap().split("\n").collect::<Vec<&str>>();
+		        for var in vars {
+		            if let Some((variable, value)) = var.split_once("=") {
+		            	if let Err(env::VarError::NotPresent) = env::var(variable) {
+		                	env::set_var(variable, value);
+		                }
+		            }
+		        }
+	        } else {
+		        println!("Warning: unable to inherit user environment.\n\
+		                Launch Makima with 'sudo -E makima' or make sure that your systemd unit is running with the 'User=<username>' parameter.\n");
+            }
         },
     };
     if let (Err(env::VarError::NotPresent), Ok(_)) = (env::var("XDG_SESSION_TYPE"), env::var("WAYLAND_DISPLAY")) {
