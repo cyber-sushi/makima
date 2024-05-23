@@ -482,7 +482,8 @@ impl EventReader {
                     cmd
                 }
                 else {
-                    command.clone()
+                	let cmd = format!("systemd-run --user -M {}@ {}", user, command);
+                	cmd
                 };
                 match fork() {
                     Ok(Fork::Child) => {
