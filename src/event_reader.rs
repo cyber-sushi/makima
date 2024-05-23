@@ -19,6 +19,8 @@ struct Stick {
 struct Settings {
     lstick: Stick,
     rstick: Stick,
+    invert_cursor_axis: bool,
+    invert_scroll_axis: bool,
     axis_16_bit: bool,
     chain_only: bool,
 }
@@ -84,9 +86,17 @@ impl EventReader {
         let chain_only: bool = config.get(&Client::Default).unwrap()
             .settings.get("CHAIN_ONLY").unwrap_or(&"true".to_string()).parse().expect("CHAIN_ONLY can only be true or false.");
 
+        let invert_cursor_axis: bool = config.get(&Client::Default).unwrap()
+            .settings.get("INVERT_CURSOR_AXIS").unwrap_or(&"false".to_string()).parse().expect("INVERT_CURSOR_AXIS can only be true or false.");
+
+        let invert_scroll_axis: bool = config.get(&Client::Default).unwrap()
+            .settings.get("INVERT_SCROLL_AXIS").unwrap_or(&"false".to_string()).parse().expect("INVERT_SCROLL_AXIS can only be true or false.");
+
         let settings = Settings {
             lstick,
             rstick,
+            invert_cursor_axis,
+            invert_scroll_axis,
             axis_16_bit,
             chain_only,
         };
@@ -574,8 +584,11 @@ impl EventReader {
                     if stick_position[0] != 0 || stick_position[1] != 0 {
                         let modifiers = self.modifiers.lock().await;
                         if activation_modifiers.len() == 0 || activation_modifiers == *modifiers {
-                            let virtual_event_x: InputEvent = InputEvent::new_now(EventType::RELATIVE, 0, stick_position[0]);
-                            let virtual_event_y: InputEvent = InputEvent::new_now(EventType::RELATIVE, 1, stick_position[1]);
+                        	let (x_coord, y_coord) =
+                        		if self.settings.invert_cursor_axis { (-stick_position[0], -stick_position[1]) }
+                        		else { (stick_position[0], stick_position[1]) };
+                            let virtual_event_x: InputEvent = InputEvent::new_now(EventType::RELATIVE, 0, x_coord);
+                            let virtual_event_y: InputEvent = InputEvent::new_now(EventType::RELATIVE, 1, y_coord);
                             let mut virt_dev = self.virt_dev.lock().await;
                             virt_dev.axis.emit(&[virtual_event_x]).unwrap();
                             virt_dev.axis.emit(&[virtual_event_y]).unwrap();
@@ -610,8 +623,11 @@ impl EventReader {
                     if stick_position[0] != 0 || stick_position[1] != 0 {
                         let modifiers = self.modifiers.lock().await;
                         if activation_modifiers.len() == 0 || activation_modifiers == *modifiers {
-                            let virtual_event_x: InputEvent = InputEvent::new_now(EventType::RELATIVE, 12, stick_position[0]);
-                            let virtual_event_y: InputEvent = InputEvent::new_now(EventType::RELATIVE, 11, stick_position[1]);
+                        	let (x_coord, y_coord) =
+                        		if self.settings.invert_scroll_axis { (-stick_position[0], -stick_position[1]) }
+                        		else { (stick_position[0], stick_position[1]) };
+                            let virtual_event_x: InputEvent = InputEvent::new_now(EventType::RELATIVE, 12, x_coord);
+                            let virtual_event_y: InputEvent = InputEvent::new_now(EventType::RELATIVE, 11, y_coord);
                             let mut virt_dev = self.virt_dev.lock().await;
                             virt_dev.axis.emit(&[virtual_event_x]).unwrap();
                             virt_dev.axis.emit(&[virtual_event_y]).unwrap();
