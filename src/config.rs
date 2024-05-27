@@ -29,6 +29,8 @@ pub enum Axis {
     SCROLL_WHEEL_DOWN,
     BTN_TL2,
     BTN_TR2,
+    ABS_WHEEL_CW,
+    ABS_WHEEL_CCW
 }
 
 impl FromStr for Axis {
@@ -51,6 +53,8 @@ impl FromStr for Axis {
             "SCROLL_WHEEL_DOWN" => Ok(Axis::SCROLL_WHEEL_DOWN),
             "BTN_TL2" => Ok(Axis::BTN_TL2),
             "BTN_TR2" => Ok(Axis::BTN_TR2),
+            "ABS_WHEEL_CW" => Ok(Axis::ABS_WHEEL_CW),
+            "ABS_WHEEL_CCW" => Ok(Axis::ABS_WHEEL_CCW),
             _ => Err(s.to_string()),
         }
     }
