@@ -146,16 +146,26 @@ fn set_environment() -> Environment {
         env::set_var("XDG_SESSION_TYPE", "wayland")
     }
 
-    let supported_compositors = vec!["Hyprland", "sway"].into_iter().map(|str| String::from(str)).collect::<Vec<String>>();
+    let supported_compositors = vec!["Hyprland", "sway", "KDE"].into_iter().map(|str| String::from(str)).collect::<Vec<String>>();
     let (x11, wayland) = (String::from("x11"), String::from("wayland"));
     let server: Server = match (env::var("XDG_SESSION_TYPE"), env::var("XDG_CURRENT_DESKTOP")) {
         (Ok(session), Ok(desktop)) if session == wayland && supported_compositors.contains(&desktop)  => {
-            println!("Running on {}, per application bindings enabled.", desktop);
-            Server::Connected(desktop)
+        	let server = 'a: {
+		    	if desktop == String::from("KDE") {
+		    		if let Err(_) = Command::new("kdotool").output() {
+						println!("Running on KDE but kdotool doesn't seem to be installed.\n\
+								Won't be able to change bindings according to the active window.\n");
+						break 'a Server::Unsupported;
+					}
+		    	}
+			    println!("Running on {}, per application bindings enabled.", desktop);
+			    Server::Connected(desktop)
+			};
+			server
         },
         (Ok(session), Ok(desktop)) if session == wayland => {
             println!("Warning: unsupported compositor: {}, won't be able to change bindings according to the active window.\n\
-                    Currently supported desktops: Hyprland, Sway, X11.\n", desktop);
+                    Currently supported desktops: Hyprland, Sway, Plasma/KWin, X11.\n", desktop);
             Server::Unsupported
         },
         (Ok(session), _) if session == x11 => {

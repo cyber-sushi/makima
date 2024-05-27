@@ -40,6 +40,18 @@ pub async fn get_active_window(server: &Server, config: &HashMap<Client, Config>
                         Client::Default
                     }
                 },
+                "KDE" => {
+                	if let Ok(query) = Command::new("sh").arg("c").arg("kdotool getactivewindow getwindowclassname").output() {
+                		let active_window = Client::Class(std::str::from_utf8(query.stdout.as_slice()).unwrap().trim().to_string());
+                		if config.contains_key(&active_window) {
+                			active_window
+                		} else {
+                			Client::Default
+                		}
+                	} else {
+                		Client::Default
+                	}
+                }
                 "x11" => {
                     let connection = x11rb::connect(None).unwrap().0;
                     let focused_window = get_input_focus(&connection)
