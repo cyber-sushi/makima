@@ -124,25 +124,31 @@ impl EventReader {
     }
 
     pub async fn event_loop(&self) {
-        let (mut dpad_values, mut lstick_values, mut rstick_values, mut triggers_values) = ((0, 0), (0, 0), (0, 0), (0, 0));
+        let (mut dpad_values, mut lstick_values, mut rstick_values, mut triggers_values, mut abs_wheel_position) = ((0, 0), (0, 0), (0, 0), (0, 0), 0);
         let mut stream = self.stream.lock().await;
+		let mut max_abs_wheel = 0;
+		if let Ok(abs_state) = stream.device().get_abs_state() {
+			for state in abs_state {
+				if state.maximum > max_abs_wheel {
+					max_abs_wheel = state.maximum;
+				}
+			};
+		}
         while let Some(Ok(event)) = stream.next().await {
             match (event.event_type(), RelativeAxisType(event.code()), AbsoluteAxisType(event.code())) {
                 (EventType::KEY, _, _) => {
                     match event.code() {
                         312 | 313 => {},
-                        _ => self.convert_event(event, Event::Key(Key(event.code())), event.value()).await,
+                        _ => self.convert_event(event, Event::Key(Key(event.code())), event.value(), false).await,
                     }
                 },
-                (_, RelativeAxisType::REL_WHEEL | RelativeAxisType::REL_WHEEL_HI_RES, _) => {
+                (EventType::RELATIVE, RelativeAxisType::REL_WHEEL | RelativeAxisType::REL_WHEEL_HI_RES, _) => {
                     match event.value() {
                         -1 => {
-                            self.convert_event(event, Event::Axis(Axis::SCROLL_WHEEL_DOWN), 1).await;
-                            self.convert_event(event, Event::Axis(Axis::SCROLL_WHEEL_DOWN), 0).await;
+                            self.convert_event(event, Event::Axis(Axis::SCROLL_WHEEL_DOWN), 1, true).await;
                         },
                         1 => {
-                            self.convert_event(event, Event::Axis(Axis::SCROLL_WHEEL_UP), 1).await;
-                            self.convert_event(event, Event::Axis(Axis::SCROLL_WHEEL_UP), 0).await;
+                            self.convert_event(event, Event::Axis(Axis::SCROLL_WHEEL_UP), 1, true).await;
                         },
                         _ => {}
                     }
@@ -150,17 +156,17 @@ impl EventReader {
                 (_, _, AbsoluteAxisType::ABS_HAT0X) => {
                     match event.value() {
                         -1 => {
-                                self.convert_event(event, Event::Axis(Axis::BTN_DPAD_LEFT), 1).await;
+                                self.convert_event(event, Event::Axis(Axis::BTN_DPAD_LEFT), 1, false).await;
                                 dpad_values.0 = -1;
                         },
                         1 => {
-                                self.convert_event(event, Event::Axis(Axis::BTN_DPAD_RIGHT), 1).await;
+                                self.convert_event(event, Event::Axis(Axis::BTN_DPAD_RIGHT), 1, false).await;
                                 dpad_values.0 = 1;
                         },
                         0 => {
                             match dpad_values.0 {
-                                -1 => self.convert_event(event, Event::Axis(Axis::BTN_DPAD_LEFT), 0).await,
-                                1 => self.convert_event(event, Event::Axis(Axis::BTN_DPAD_RIGHT), 0).await,
+                                -1 => self.convert_event(event, Event::Axis(Axis::BTN_DPAD_LEFT), 0, false).await,
+                                1 => self.convert_event(event, Event::Axis(Axis::BTN_DPAD_RIGHT), 0, false).await,
                                 _ => {},
                             }
                             dpad_values.0 = 0;
@@ -171,17 +177,17 @@ impl EventReader {
                 (_, _, AbsoluteAxisType::ABS_HAT0Y) => {
                     match event.value() {
                         -1 => {
-                                self.convert_event(event, Event::Axis(Axis::BTN_DPAD_UP), 1).await;
+                                self.convert_event(event, Event::Axis(Axis::BTN_DPAD_UP), 1, false).await;
                                 dpad_values.1 = -1;
                         },
                         1 => {
-                                self.convert_event(event, Event::Axis(Axis::BTN_DPAD_DOWN), 1).await;
+                                self.convert_event(event, Event::Axis(Axis::BTN_DPAD_DOWN), 1, false).await;
                                 dpad_values.1 = 1;
                         },
                         0 => {
                             match dpad_values.1 {
-                                -1 => self.convert_event(event, Event::Axis(Axis::BTN_DPAD_UP), 0).await,
-                                1 => self.convert_event(event, Event::Axis(Axis::BTN_DPAD_DOWN), 0).await,
+                                -1 => self.convert_event(event, Event::Axis(Axis::BTN_DPAD_UP), 0, false).await,
+                                1 => self.convert_event(event, Event::Axis(Axis::BTN_DPAD_DOWN), 0, false).await,
                                 _ => {},
                             }
                             dpad_values.1 = 0;
@@ -206,17 +212,17 @@ impl EventReader {
                                 AbsoluteAxisType::ABS_Y => {
                                     match clamped_value {
                                         -1 if lstick_values.1 != -1 => {
-                                            self.convert_event(event, Event::Axis(Axis::LSTICK_UP), 1).await;
+                                            self.convert_event(event, Event::Axis(Axis::LSTICK_UP), 1, false).await;
                                             lstick_values.1 = -1
                                         },
                                         1 if lstick_values.1 != 1 => {
-                                            self.convert_event(event, Event::Axis(Axis::LSTICK_DOWN), 1).await;
+                                            self.convert_event(event, Event::Axis(Axis::LSTICK_DOWN), 1, false).await;
                                             lstick_values.1 = 1
                                         },
                                         0 => if lstick_values.1 != 0 {
                                             match lstick_values.1 {
-                                                -1 => self.convert_event(event, Event::Axis(Axis::LSTICK_UP), 0).await,
-                                                1 => self.convert_event(event, Event::Axis(Axis::LSTICK_DOWN), 0).await,
+                                                -1 => self.convert_event(event, Event::Axis(Axis::LSTICK_UP), 0, false).await,
+                                                1 => self.convert_event(event, Event::Axis(Axis::LSTICK_DOWN), 0, false).await,
                                                 _ => {},
                                             }
                                             lstick_values.1 = 0;
@@ -227,17 +233,17 @@ impl EventReader {
                                 AbsoluteAxisType::ABS_X => {
                                     match clamped_value {
                                         -1 if lstick_values.0 != -1 => {
-                                            self.convert_event(event, Event::Axis(Axis::LSTICK_LEFT), 1).await;
+                                            self.convert_event(event, Event::Axis(Axis::LSTICK_LEFT), 1, false).await;
                                             lstick_values.0 = -1
                                         },
                                         1 => if lstick_values.0 != 1 {
-                                            self.convert_event(event, Event::Axis(Axis::LSTICK_RIGHT), 1).await;
+                                            self.convert_event(event, Event::Axis(Axis::LSTICK_RIGHT), 1, false).await;
                                             lstick_values.0 = 1
                                         },
                                         0 => if lstick_values.0 != 0 {
                                             match lstick_values.0 {
-                                                -1 => self.convert_event(event, Event::Axis(Axis::LSTICK_LEFT), 0).await,
-                                                1 => self.convert_event(event, Event::Axis(Axis::LSTICK_RIGHT), 0).await,
+                                                -1 => self.convert_event(event, Event::Axis(Axis::LSTICK_LEFT), 0, false).await,
+                                                1 => self.convert_event(event, Event::Axis(Axis::LSTICK_RIGHT), 0, false).await,
                                                 _ => {},
                                             }
                                             lstick_values.0 = 0;
@@ -267,17 +273,17 @@ impl EventReader {
                                 AbsoluteAxisType::ABS_RY => {
                                     match clamped_value {
                                         -1 => if rstick_values.1 != -1 {
-                                            self.convert_event(event, Event::Axis(Axis::RSTICK_UP), 1).await;
+                                            self.convert_event(event, Event::Axis(Axis::RSTICK_UP), 1, false).await;
                                             rstick_values.1 = -1
                                         },
                                         1 => if rstick_values.1 != 1 {
-                                            self.convert_event(event, Event::Axis(Axis::RSTICK_DOWN), 1).await;
+                                            self.convert_event(event, Event::Axis(Axis::RSTICK_DOWN), 1, false).await;
                                             rstick_values.1 = 1
                                         },
                                         0 => if rstick_values.1 != 0 {
                                             match rstick_values.1 {
-                                                -1 => self.convert_event(event, Event::Axis(Axis::RSTICK_UP), 0).await,
-                                                1 => self.convert_event(event, Event::Axis(Axis::RSTICK_DOWN), 0).await,
+                                                -1 => self.convert_event(event, Event::Axis(Axis::RSTICK_UP), 0, false).await,
+                                                1 => self.convert_event(event, Event::Axis(Axis::RSTICK_DOWN), 0, false).await,
                                                 _ => {},
                                             }
                                             rstick_values.1 = 0;
@@ -288,17 +294,17 @@ impl EventReader {
                                 AbsoluteAxisType::ABS_RX => {
                                     match clamped_value {
                                         -1 if rstick_values.0 != -1 => {
-                                            self.convert_event(event, Event::Axis(Axis::RSTICK_LEFT), 1).await;
+                                            self.convert_event(event, Event::Axis(Axis::RSTICK_LEFT), 1, false).await;
                                             rstick_values.0 = -1
                                         },
                                         1 => if rstick_values.0 != 1 {
-                                            self.convert_event(event, Event::Axis(Axis::RSTICK_RIGHT), 1).await;
+                                            self.convert_event(event, Event::Axis(Axis::RSTICK_RIGHT), 1, false).await;
                                             rstick_values.0 = 1
                                         },
                                         0 => if rstick_values.0 != 0 {
                                             match rstick_values.0 {
-                                                -1 => self.convert_event(event, Event::Axis(Axis::RSTICK_LEFT), 0).await,
-                                                1 => self.convert_event(event, Event::Axis(Axis::RSTICK_RIGHT), 0).await,
+                                                -1 => self.convert_event(event, Event::Axis(Axis::RSTICK_LEFT), 0, false).await,
+                                                1 => self.convert_event(event, Event::Axis(Axis::RSTICK_RIGHT), 0, false).await,
                                                 _ => {},
                                             }
                                             rstick_values.0 = 0;
@@ -315,11 +321,11 @@ impl EventReader {
                 (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_Z) => {
                     match (event.value(), triggers_values.0) {
                         (0, 1) => {
-                            self.convert_event(event, Event::Axis(Axis::BTN_TL2), 0).await;
+                            self.convert_event(event, Event::Axis(Axis::BTN_TL2), 0, false).await;
                             triggers_values.0 = 0;
                         },
                         (_, 0) => {
-                            self.convert_event(event, Event::Axis(Axis::BTN_TL2), 1).await;
+                            self.convert_event(event, Event::Axis(Axis::BTN_TL2), 1, false).await;
                             triggers_values.0 = 1;
                         },
                         _ => {},
@@ -328,15 +334,34 @@ impl EventReader {
                 (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_RZ) => {
                     match (event.value(), triggers_values.1) {
                         (0, 1) => {
-                            self.convert_event(event, Event::Axis(Axis::BTN_TR2), 0).await;
+                            self.convert_event(event, Event::Axis(Axis::BTN_TR2), 0, false).await;
                             triggers_values.1 = 0;
                         },
                         (_, 0) => {
-                            self.convert_event(event, Event::Axis(Axis::BTN_TR2), 1).await;
+                            self.convert_event(event, Event::Axis(Axis::BTN_TR2), 1, false).await;
                             triggers_values.1 = 1;
                         },
                         _ => {},
                     }
+                },
+                (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_WHEEL) => {
+                	let value = event.value();
+                	if value != 0 && abs_wheel_position != 0 {
+						let gap = value - abs_wheel_position;
+						if gap < -max_abs_wheel/2 {
+							self.convert_event(event, Event::Axis(Axis::ABS_WHEEL_CW), 1, true).await;
+						} else if gap > max_abs_wheel/2 {
+							self.convert_event(event, Event::Axis(Axis::ABS_WHEEL_CCW), 1, true).await;
+						} else if value > abs_wheel_position {
+							self.convert_event(event, Event::Axis(Axis::ABS_WHEEL_CW), 1, true).await;
+						} else if value < abs_wheel_position {
+							self.convert_event(event, Event::Axis(Axis::ABS_WHEEL_CCW), 1, true).await;
+						}
+					}
+					abs_wheel_position = value;
+                },
+                (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_MISC) => {
+                	if event.value() == 0 { abs_wheel_position = 0 };
                 },
                 _ => self.emit_default_event(event).await,
             }
@@ -346,41 +371,41 @@ impl EventReader {
         println!("Disconnected device \"{}\".\n", self.config.get(&get_active_window(&self.environment.server, &self.config).await).unwrap().name);
     }
 
-    async fn convert_event(&self, default_event: InputEvent, event: Event, value: i32) {
+    async fn convert_event(&self, default_event: InputEvent, event: Event, value: i32, send_zero: bool) {
         let path = self.config.get(&get_active_window(&self.environment.server, &self.config).await).unwrap();
         let modifiers = self.modifiers.lock().await.clone();
         if let Some(map) = path.bindings.remap.get(&event) {
             if let Some(event_list) = map.get(&modifiers) {
-                self.emit_event(event_list, value, &modifiers, modifiers.is_empty(), !modifiers.is_empty()).await;
+                self.emit_event(event_list, value, &modifiers, modifiers.is_empty(), !modifiers.is_empty(), send_zero).await;
                 return
             }
             if let Some(event_list) = map.get(&vec![Event::Hold]) {
                 if !modifiers.is_empty() || self.settings.chain_only == false {
-                    self.emit_event(event_list, value, &modifiers, false, false).await;
+                    self.emit_event(event_list, value, &modifiers, false, false, send_zero).await;
                     return
                 }
             }
             if let Some(map) = path.bindings.commands.get(&event) {
 				if let Some(command_list) = map.get(&modifiers) {
-			        if value == 1 {self.spawn_subprocess(command_list).await};
+			        if value == 1 { self.spawn_subprocess(command_list).await };
 			        return
 			    }
 			}
             if let Some(event_list) = map.get(&Vec::new()) {
-                self.emit_event(event_list, value, &modifiers, true, false).await;
+                self.emit_event(event_list, value, &modifiers, true, false, send_zero).await;
                 return
             }
         }
         if let Some(map) = path.bindings.commands.get(&event) {
             if let Some(command_list) = map.get(&modifiers) {
-                if value == 1 {self.spawn_subprocess(command_list).await};
+                if value == 1 { self.spawn_subprocess(command_list).await };
                 return
             }
         }
         self.emit_nonmapped_event(default_event, event, value, &modifiers).await;
     }
 
-    async fn emit_event(&self, event_list: &Vec<Key>, value: i32, modifiers: &Vec<Event>, release_keys: bool, ignore_modifiers: bool) {
+    async fn emit_event(&self, event_list: &Vec<Key>, value: i32, modifiers: &Vec<Event>, release_keys: bool, ignore_modifiers: bool, send_zero: bool) {
         let path = self.config.get(&get_active_window(&self.environment.server, &self.config).await).unwrap();
         let mut virt_dev = self.virt_dev.lock().await;
         let mut modifier_was_activated = self.modifier_was_activated.lock().await;
@@ -400,6 +425,7 @@ impl EventReader {
             }
         }
         for key in event_list {
+        	println!("{:?}", key);
             if release_keys {
                 self.toggle_modifiers(Event::Key(*key), value).await;
             }
@@ -416,6 +442,10 @@ impl EventReader {
             } else {
                 let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), value);
                 virt_dev.keys.emit(&[virtual_event]).unwrap();
+                if send_zero {
+                	let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), 0);
+                	virt_dev.keys.emit(&[virtual_event]).unwrap();
+                }
                 *modifier_was_activated = true;
             }
         }
@@ -449,9 +479,7 @@ impl EventReader {
                     virt_dev.keys.emit(&[default_event]).unwrap();
                 },
                 EventType::RELATIVE => {
-                    if value == 1 {
-                        virt_dev.axis.emit(&[default_event]).unwrap();
-                    }
+                    virt_dev.axis.emit(&[default_event]).unwrap();
                 },
                 _ => {},
             }
