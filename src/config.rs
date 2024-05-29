@@ -1,6 +1,7 @@
 use std::{collections::HashMap, str::FromStr};
 use evdev::Key;
 use serde;
+use crate::udev_monitor::Client;
 
 
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Clone, Copy)]
@@ -60,6 +61,12 @@ impl FromStr for Axis {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Default, Clone)]
+pub struct Associations {
+    pub client: Client,
+    pub layout: u16,
+}
+
 #[derive(Default, Debug, Clone)]
 pub struct Bindings {
     pub remap: HashMap<Event, HashMap<Vec<Event>, Vec<Key>>>,
@@ -103,6 +110,7 @@ impl RawConfig {
 #[derive(Debug, Clone)]
 pub struct Config {
     pub name: String,
+    pub associations: Associations,
     pub bindings: Bindings,
     pub settings: HashMap<String, String>,
     pub mapped_modifiers: MappedModifiers,
@@ -112,9 +120,11 @@ impl Config {
     pub fn new_from_file(file: &str, file_name: String) -> Self {
         let raw_config = RawConfig::new_from_file(file);
         let (bindings, settings, mapped_modifiers) = parse_raw_config(raw_config);
+        let associations = Default::default();
 
         Self {
             name: file_name,
+            associations,
             bindings,
             settings,
             mapped_modifiers,
@@ -124,6 +134,7 @@ impl Config {
     pub fn new_empty(file_name: String) -> Self {
         Self {
             name: file_name,
+            associations: Default::default(),
             bindings: Default::default(),
             settings: Default::default(),
             mapped_modifiers: Default::default(),
