@@ -79,23 +79,30 @@ pub fn launch_tasks(config_files: &Vec<Config>, tasks: &mut Vec<JoinHandle<()>>,
             let split_config_name = config.name.split("::").collect::<Vec<&str>>();
             let associated_device_name = split_config_name[0];
             if associated_device_name == device.1.name().unwrap().replace("/", "") {
-                let (window_class, layout) = if split_config_name.len() == 1 {
-                    (Client::Default, 0)
-                } else if split_config_name.len() == 2 {
-                	if split_config_name[1].len() == 1 {
-                		(Client::Default, split_config_name[1].parse::<u16>().unwrap_or(1))
-                	} else {
-                		(Client::Class(split_config_name[1].to_string()), 0)
-                	}
-                } else if split_config_name.len() == 3 {
-                	if split_config_name[1].len() == 1 {
-                		(Client::Class(split_config_name[2].to_string()), split_config_name[1].parse::<u16>().unwrap_or(1))
-                	} else {
-                		(Client::Class(split_config_name[1].to_string()), split_config_name[2].parse::<u16>().unwrap_or(1))
-                	}
-                } else {
-                	(Client::Default, 0)
-                };
+            	let (window_class, layout) = match split_config_name.len() {
+            		1 => (Client::Default, 0),
+            		2 => {
+        				if let Ok(layout) = split_config_name[1].parse::<u16>() {
+        					(Client::Default, layout)
+        				} else {
+        					(Client::Class(split_config_name[1].to_string()), 0)
+        				}
+            		},
+            		3 => {
+        				if let Ok(layout) = split_config_name[1].parse::<u16>() {
+        					(Client::Class(split_config_name[2].to_string()), layout)
+        				} else if let Ok(layout) = split_config_name[2].parse::<u16>() {
+        					(Client::Class(split_config_name[1].to_string()), layout)
+        				} else {
+        					println!("Warning: unable to parse layout number in {}, treating it as default.", config.name);
+							(Client::Default, 0)
+        				}
+            		},
+            		_ => {
+            			println!("Warning: too many arguments in config file name {}, treating it as default.", config.name);
+            			(Client::Default, 0)
+            		},
+            	};
                 config.associations.client = window_class;
                 config.associations.layout = layout;
                 config_list.push(config.clone());
