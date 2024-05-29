@@ -1,4 +1,5 @@
-use std::{sync::Arc, option::Option, str::FromStr, process::{Command, Stdio}};
+use std::{sync::Arc, option::Option, str::FromStr, future::Future, pin::Pin, process::{Command, Stdio}};
+//use futures::future::{BoxFuture, FutureExt};
 use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
 use fork::{fork, Fork, setsid};
@@ -607,10 +608,11 @@ impl EventReader {
 
 	async fn change_active_layout(&self) {
 		let mut active_layout = self.active_layout.lock().await;
+    	let active_window = get_active_window(&self.environment.server, &self.config).await;
 		loop {
 			if *active_layout == 3 { *active_layout = 0 }
 			else { *active_layout += 1 };
-			if let Some(_) = self.config.iter().find(|&x| x.associations.layout == *active_layout) {
+			if let Some(_) = self.config.iter().find(|&x| x.associations.layout == *active_layout && x.associations.client == active_window) {
 				break
 			};
 		}
@@ -620,16 +622,22 @@ impl EventReader {
 		}
 	}
 
-	async fn get_config(&self) -> &Config {
-    	let active_layout = self.active_layout.lock().await;
-    	let active_window = get_active_window(&self.environment.server, &self.config).await;
-    	let associations = Associations {
-    		client: active_window,
-    		layout: *active_layout,
-    	};
-        let config = self.config.iter()
-        	.find(|&x| x.associations == associations).unwrap();
-        config
+	fn get_config(&self) -> Pin<Box<dyn Future<Output = &Config> + Send + '_>> {
+		Box::pin(async move {
+			let active_layout = self.active_layout.lock().await.clone();
+			let active_window = get_active_window(&self.environment.server, &self.config).await;
+			let associations = Associations {
+				client: active_window,
+				layout: active_layout,
+			};
+		    match self.config.iter().find(|&x| x.associations == associations) {
+				Some(config) => return config,
+				None => {
+					self.change_active_layout().await;
+					return self.get_config().await
+				},
+		    };
+        })
 	}
 
     pub async fn cursor_loop(&self) {
