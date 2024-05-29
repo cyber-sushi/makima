@@ -21,6 +21,7 @@ It works on both Wayland and X11 as it relies on the `evdev` kernel interface.
     - [Example config files](https://github.com/cyber-sushi/makima/tree/main/examples)
     - [Config file naming](https://github.com/cyber-sushi/makima/tree/main#config-file-naming)
     - [Application-specific bindings](https://github.com/cyber-sushi/makima/tree/main#application-specific-bindings)
+    - [On-the-fly layout switching](https://github.com/cyber-sushi/makima/tree/main#on-the-fly-layout-switching)
     - [Change bindings](https://github.com/cyber-sushi/makima/tree/main#bindings-and-settings)
         - [Remap](https://github.com/cyber-sushi/makima/tree/main#remap)
         - [Commands](https://github.com/cyber-sushi/makima/tree/main#commands)
@@ -70,14 +71,24 @@ All config files will be parsed automatically when `makima` is launched.\
 Files that don't end with `.toml` and files that start with `.` (dotfiles) won't be parsed, so you can add a dot at the beginning of the filename to mask them from Makima.
 
 ### Application-specific bindings
-**Hyprland, Sway and X11 only.**\
+**Hyprland, Sway, Plasma Wayland and X11 only.**\
 To apply a config file only to a specific application, just put `::<window_class>` at the end of their filename, before `.toml`.
 
 _Example: you want your DS4 controller to have a specific set of keybindings for Firefox, name that file `Sony Interactive Entertainment Wireless Controller::firefox.toml`. Note that Flatpaks will have names like `org.mozilla.firefox`._
 
 To retrieve the window class of a specific application, refer to your compositor's documentation, e.g. on Hyprland type `hyprctl clients` in your terminal while that application is open.
 
-**Note: on Wayland, make sure that the `XDG_CURRENT_DESKTOP` environment variable is set, or Makima won't be able to use application-specific bindings.**
+**Note: on Wayland, make sure that the `XDG_CURRENT_DESKTOP` environment variable is set, or Makima won't be able to use application-specific bindings.**\
+**Note 2: on Plasma Wayland, Makima uses `kdotool` to retrieve the active window instead of doing so internally, which means that you also need that installed. Sorry about this, but I didn't want to hardcode JavaScript snippets inside of Makima just to communicate with KWin.**
+
+### On-the-fly layout switching
+To declare multiple layouts, similarly to app-specific bindings, put `::<int>` at the end of a config file, where `int` is an integer value between 0 and 3, representing the layout number. If not specified, Makima will assume 0.\
+When pressing the key configured in the settings through the `LAYOUT_SWITCHER` parameter, Makima will automatically cycle through the available layouts. If a layout isn't set, e.g. you're on 0 and you switch to the next layout, but number 1 isn't found, Makima will automatically skip to layout 2 and so on.\
+You can also combine layouts and per application bindings by simply putting them both in the config file name.
+
+_Example: declare layout 2 in Nautilus by setting `Wireless Controller::2::nautilus.toml` or `Wireless Controller::nautilus::2.toml`._
+
+**Note: keep in mind that while bindings and commands are read from each config file independently, settings are only read from the main config file, the one with no layout and associated application specified. If such file isn't present, Makima will use the default values.**
 
 ## Bindings and settings
 The config file is divided into multiple sections:
@@ -122,8 +133,9 @@ Remember that keys like Ctrl and Alt have names like `KEY_LEFTCTRL`, `KEY_LEFTAL
 Axis events such as scroll wheels and analog stick movements are hardcoded, currently you can use the following:
 - `SCROLL_WHEEL_UP`, `SCROLL_WHEEL_DOWN` - for a mouse's scroll wheel
 - `BTN_DPAD_UP`, `BTN_DPAD_DOWN`, `BTN_DPAD_LEFT`, `BTN_DPAD_RIGHT` - for a game controller's D-Pad
-- `BTN_TL2`, `BTN_TR2` - for a game controller's triggers
+- `BTN_TL2`, `BTN_TR2` - for a game controller's triggers, respectively left and right
 - `LSTICK_UP`, `LSTICK_DOWN`, `LSTICK_LEFT`, `LSTICK_RIGHT`, `RSTICK_UP`, `RSTICK_DOWN`, `RSTICK_LEFT`, `RSTICK_RIGHT` - for a game controller's analog sticks
+- `ABS_WHEEL_CW`, `ABS_WHEEL_CCW` - for a tablet's wheel, respectively clockwise and counterclockwise
 
 Refer to the [sample config files](https://github.com/cyber-sushi/makima/tree/main/examples) for more information.
 
@@ -188,6 +200,14 @@ You can list multiple keys to treat as modifiers with the following syntax:\
 When using a [chained binding](https://github.com/cyber-sushi/makima/tree/main#chained-bindings), you can choose the behavior of the key when pressed alone.\
 Set to `"true"` (default) to make it fire the event only if other modifiers are active. Set to `"false"` to make it fire its designated event regardless.
 
+#### `LAYOUT_SWITCHER`
+Set a key to cycle through the available remap layouts in the config files.\
+Defaults to `BTN_0`, which is the key at the center of a tablet's wheel. 
+
+### `NOTIFY_LAYOUT_SWITCH`
+If set to `"true"`, send a notification for 0.5 seconds to notify that the layout has been changed, and what it has been changed to.\
+Defaults to `"false"`.
+
 ## Tested controllers
 - DualShock 2
 - DualShock 3
@@ -208,8 +228,8 @@ To add other controllers, please open an issue.
 **Q**: My controller works when using Bluetooth but not when using wired connection or vice-versa, why?\
 **A**: Some devices have a different evdev name when connected through Bluetooth, for example a `Sony Interactive Entertainment Wireless Controller` is just seen as `Wireless Controller` when connected via Bluetooth. You'll need to create a copy of the config file with that name.
 
-**Q**: Will application-specific bindings be implemented for desktops other than Hyprland, Sway and X11?\
-**A**: Gnome on Wayland requires an extension to retrieve the active window through D-Bus (???) and KDE on Wayland requires to use JavaScript plug-ins to make any request to KWin (also ???), which is why I haven't implemented active window tracking for them. If anyone finds a better solution, I'm all for it. Regarding other compositors, feel free to open an issue and I'll look into it.
+**Q**: Will application-specific bindings be implemented for other desktops like Gnome Wayland?\
+**A**: Gnome on Wayland requires an extension to retrieve the active window through D-Bus, which is why I haven't implemented window tracking for it. If anyone finds a better solution, I'm all for it. Regarding other compositors, feel free to open an issue and I'll look into it.
 
 **Q**: Makima gives me a "Permission Denied" error when launching, what do I do?\
 **A**: Make sure that the `uinput` kernel module is loaded. You can load it with `sudo modprobe uinput`. To make it permanent, create `/etc/modules-load.d/uinput.conf` and write `uinput` inside.
