@@ -1,13 +1,13 @@
-use std::{collections::HashMap, sync::Arc, option::Option, process::{Command, Stdio}};
+use std::{sync::Arc, option::Option, str::FromStr, process::{Command, Stdio}};
 use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
 use fork::{fork, Fork, setsid};
 use evdev::{EventStream, Key, RelativeAxisType, AbsoluteAxisType, EventType, InputEvent};
 use crate::virtual_devices::VirtualDevices;
 use crate::Config;
-use crate::config::{Event, Axis, parse_modifiers};
+use crate::config::{Event, Axis, Associations, parse_modifiers};
 use crate::active_client::*;
-use crate::udev_monitor::{Environment, Client};
+use crate::udev_monitor::Environment;
 
 struct Stick {
     function: String,
@@ -23,10 +23,12 @@ struct Settings {
     invert_scroll_axis: bool,
     axis_16_bit: bool,
     chain_only: bool,
+    layout_switcher: Key,
+    notify_layout_switch: bool,
 }
 
 pub struct EventReader {
-    config: HashMap<Client, Config>,
+    config: Vec<Config>,
     stream: Arc<Mutex<EventStream>>,
     virt_dev: Arc<Mutex<VirtualDevices>>,
     lstick_position: Arc<Mutex<Vec<i32>>>,
@@ -34,13 +36,14 @@ pub struct EventReader {
     modifiers: Arc<Mutex<Vec<Event>>>,
     modifier_was_activated: Arc<Mutex<bool>>,
     device_is_connected: Arc<Mutex<bool>>,
+    active_layout: Arc<Mutex<u16>>,
     environment: Environment,
     settings: Settings,
 }
 
 impl EventReader {
     pub fn new (
-        config: HashMap<Client, Config>,
+        config: Vec<Config>,
         stream: Arc<Mutex<EventStream>>,
         modifiers: Arc<Mutex<Vec<Event>>>,
         modifier_was_activated: Arc<Mutex<bool>>,
@@ -51,14 +54,15 @@ impl EventReader {
         let lstick_position = Arc::new(Mutex::new(position_vector.clone()));
         let rstick_position = Arc::new(Mutex::new(position_vector.clone()));
         let device_is_connected: Arc<Mutex<bool>> = Arc::new(Mutex::new(true));
+        let active_layout: Arc<Mutex<u16>> = Arc::new(Mutex::new(0));
         let virt_dev = Arc::new(Mutex::new(VirtualDevices::new()));
-        let lstick_function = config.get(&Client::Default).unwrap()
+        let lstick_function = config.iter().find(|&x| x.associations == Associations::default()).unwrap()
             .settings.get("LSTICK").unwrap_or(&"cursor".to_string()).to_string();
-        let lstick_sensitivity: u64 = config.get(&Client::Default).unwrap()
+        let lstick_sensitivity: u64 = config.iter().find(|&x| x.associations == Associations::default()).unwrap()
             .settings.get("LSTICK_SENSITIVITY").unwrap_or(&"0".to_string()).parse::<u64>().expect("Invalid value for LSTICK_SENSITIVITY, please use an integer value >= 0");
-        let lstick_deadzone: i32 = config.get(&Client::Default).unwrap()
+        let lstick_deadzone: i32 = config.iter().find(|&x| x.associations == Associations::default()).unwrap()
             .settings.get("LSTICK_DEADZONE").unwrap_or(&"5".to_string()).parse::<i32>().expect("Invalid value for LSTICK_DEADZONE, please use an integer between 0 and 128.");
-        let lstick_activation_modifiers: Vec<Event> = parse_modifiers(&config.get(&Client::Default).unwrap().settings, "LSTICK_ACTIVATION_MODIFIERS");
+        let lstick_activation_modifiers: Vec<Event> = parse_modifiers(&config.iter().find(|&x| x.associations == Associations::default()).unwrap().settings, "LSTICK_ACTIVATION_MODIFIERS");
         let lstick = Stick {
             function: lstick_function,
             sensitivity: lstick_sensitivity,
@@ -66,13 +70,13 @@ impl EventReader {
             activation_modifiers: lstick_activation_modifiers,
         };
 
-        let rstick_function: String = config.get(&Client::Default).unwrap()
+        let rstick_function: String = config.iter().find(|&x| x.associations == Associations::default()).unwrap()
             .settings.get("RSTICK").unwrap_or(&"scroll".to_string()).to_string();
-        let rstick_sensitivity: u64 = config.get(&Client::Default).unwrap()
+        let rstick_sensitivity: u64 = config.iter().find(|&x| x.associations == Associations::default()).unwrap()
             .settings.get("RSTICK_SENSITIVITY").unwrap_or(&"0".to_string()).parse::<u64>().expect("Invalid value for RSTICK_SENSITIVITY, please use an integer value >= 0");
-        let rstick_deadzone: i32 = config.get(&Client::Default).unwrap()
+        let rstick_deadzone: i32 = config.iter().find(|&x| x.associations == Associations::default()).unwrap()
             .settings.get("RSTICK_DEADZONE").unwrap_or(&"5".to_string()).parse::<i32>().expect("Invalid value for RSTICK_DEADZONE, please use an integer between 0 and 128.");
-        let rstick_activation_modifiers: Vec<Event> = parse_modifiers(&config.get(&Client::Default).unwrap().settings, "RSTICK_ACTIVATION_MODIFIERS");
+        let rstick_activation_modifiers: Vec<Event> = parse_modifiers(&config.iter().find(|&x| x.associations == Associations::default()).unwrap().settings, "RSTICK_ACTIVATION_MODIFIERS");
         let rstick = Stick {
             function: rstick_function,
             sensitivity: rstick_sensitivity,
@@ -80,17 +84,23 @@ impl EventReader {
             activation_modifiers: rstick_activation_modifiers,
         };
 
-        let axis_16_bit: bool = config.get(&Client::Default).unwrap()
+        let axis_16_bit: bool = config.iter().find(|&x| x.associations == Associations::default()).unwrap()
             .settings.get("16_BIT_AXIS").unwrap_or(&"false".to_string()).parse().expect("16_BIT_AXIS can only be true or false.");
 
-        let chain_only: bool = config.get(&Client::Default).unwrap()
+        let chain_only: bool = config.iter().find(|&x| x.associations == Associations::default()).unwrap()
             .settings.get("CHAIN_ONLY").unwrap_or(&"true".to_string()).parse().expect("CHAIN_ONLY can only be true or false.");
 
-        let invert_cursor_axis: bool = config.get(&Client::Default).unwrap()
+        let invert_cursor_axis: bool = config.iter().find(|&x| x.associations == Associations::default()).unwrap()
             .settings.get("INVERT_CURSOR_AXIS").unwrap_or(&"false".to_string()).parse().expect("INVERT_CURSOR_AXIS can only be true or false.");
 
-        let invert_scroll_axis: bool = config.get(&Client::Default).unwrap()
+        let invert_scroll_axis: bool = config.iter().find(|&x| x.associations == Associations::default()).unwrap()
             .settings.get("INVERT_SCROLL_AXIS").unwrap_or(&"false".to_string()).parse().expect("INVERT_SCROLL_AXIS can only be true or false.");
+
+        let layout_switcher: Key = Key::from_str(config.iter().find(|&x| x.associations == Associations::default()).unwrap()
+            .settings.get("LAYOUT_SWITCHER").unwrap_or(&"BTN_0".to_string())).expect("LAYOUT_SWITCHER is not a valid Key.");
+
+        let notify_layout_switch: bool = config.iter().find(|&x| x.associations == Associations::default()).unwrap()
+        	.settings.get("NOTIFY_LAYOUT_SWITCH").unwrap_or(&"false".to_string()).parse().expect("NOTIFY_LAYOUT_SWITCH can only be true or false.");
 
         let settings = Settings {
             lstick,
@@ -99,6 +109,8 @@ impl EventReader {
             invert_scroll_axis,
             axis_16_bit,
             chain_only,
+            layout_switcher,
+            notify_layout_switch,
         };
         Self {
             config,
@@ -109,13 +121,14 @@ impl EventReader {
             modifiers,
             modifier_was_activated,
             device_is_connected,
+            active_layout,
             environment,
             settings,
         }
     }
 
     pub async fn start(&self) {
-        println!("{:?} detected, reading events.\n", self.config.get(&get_active_window(&self.environment.server, &self.config).await).unwrap().name);
+        println!("{:?} detected, reading events.\n", self.config.iter().find(|&x| x.associations == Associations::default()).unwrap().name);
         tokio::join!(
             self.event_loop(),
             self.cursor_loop(),
@@ -125,6 +138,7 @@ impl EventReader {
 
     pub async fn event_loop(&self) {
         let (mut dpad_values, mut lstick_values, mut rstick_values, mut triggers_values, mut abs_wheel_position) = ((0, 0), (0, 0), (0, 0), (0, 0), 0);
+        let switcher: Key = self.settings.layout_switcher;
         let mut stream = self.stream.lock().await;
 		let mut max_abs_wheel = 0;
 		if let Ok(abs_state) = stream.device().get_abs_state() {
@@ -137,8 +151,9 @@ impl EventReader {
         while let Some(Ok(event)) = stream.next().await {
             match (event.event_type(), RelativeAxisType(event.code()), AbsoluteAxisType(event.code())) {
                 (EventType::KEY, _, _) => {
-                    match event.code() {
-                        312 | 313 => {},
+                    match Key(event.code()) {
+                        Key::BTN_TL2 | Key::BTN_TR2 => {},
+                        key if key == switcher && event.value() == 1 => { self.change_active_layout().await },
                         _ => self.convert_event(event, Event::Key(Key(event.code())), event.value(), false).await,
                     }
                 },
@@ -368,13 +383,14 @@ impl EventReader {
         }
         let mut device_is_connected = self.device_is_connected.lock().await;
         *device_is_connected = false;
-        println!("Disconnected device \"{}\".\n", self.config.get(&get_active_window(&self.environment.server, &self.config).await).unwrap().name);
+
+        println!("Disconnected device \"{}\".\n", self.get_config().await.name);
     }
 
     async fn convert_event(&self, default_event: InputEvent, event: Event, value: i32, send_zero: bool) {
-        let path = self.config.get(&get_active_window(&self.environment.server, &self.config).await).unwrap();
+    	let config = self.get_config().await;
         let modifiers = self.modifiers.lock().await.clone();
-        if let Some(map) = path.bindings.remap.get(&event) {
+        if let Some(map) = config.bindings.remap.get(&event) {
             if let Some(event_list) = map.get(&modifiers) {
                 self.emit_event(event_list, value, &modifiers, modifiers.is_empty(), !modifiers.is_empty(), send_zero).await;
                 return
@@ -385,7 +401,7 @@ impl EventReader {
                     return
                 }
             }
-            if let Some(map) = path.bindings.commands.get(&event) {
+            if let Some(map) = config.bindings.commands.get(&event) {
 				if let Some(command_list) = map.get(&modifiers) {
 			        if value == 1 { self.spawn_subprocess(command_list).await };
 			        return
@@ -396,7 +412,7 @@ impl EventReader {
                 return
             }
         }
-        if let Some(map) = path.bindings.commands.get(&event) {
+        if let Some(map) = config.bindings.commands.get(&event) {
             if let Some(command_list) = map.get(&modifiers) {
                 if value == 1 { self.spawn_subprocess(command_list).await };
                 return
@@ -406,7 +422,7 @@ impl EventReader {
     }
 
     async fn emit_event(&self, event_list: &Vec<Key>, value: i32, modifiers: &Vec<Event>, release_keys: bool, ignore_modifiers: bool, send_zero: bool) {
-        let path = self.config.get(&get_active_window(&self.environment.server, &self.config).await).unwrap();
+    	let config = self.get_config().await;
         let mut virt_dev = self.virt_dev.lock().await;
         let mut modifier_was_activated = self.modifier_was_activated.lock().await;
         if release_keys {
@@ -425,11 +441,10 @@ impl EventReader {
             }
         }
         for key in event_list {
-        	println!("{:?}", key);
             if release_keys {
                 self.toggle_modifiers(Event::Key(*key), value).await;
             }
-            if path.mapped_modifiers.custom.contains(&Event::Key(*key)) {
+            if config.mapped_modifiers.custom.contains(&Event::Key(*key)) {
                 if value == 0 && !*modifier_was_activated {
                     let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), 1);
                     virt_dev.keys.emit(&[virtual_event]).unwrap();
@@ -452,7 +467,7 @@ impl EventReader {
     }
 
     async fn emit_nonmapped_event(&self, default_event: InputEvent, event: Event, value: i32, modifiers: &Vec<Event>) {
-        let path = self.config.get(&get_active_window(&self.environment.server, &self.config).await).unwrap();
+    	let config = self.get_config().await;
         let mut virt_dev = self.virt_dev.lock().await;
         let mut modifier_was_activated = self.modifier_was_activated.lock().await;
         let released_keys: Vec<Key> = self.released_keys(&modifiers).await;
@@ -462,7 +477,7 @@ impl EventReader {
             virt_dev.keys.emit(&[virtual_event]).unwrap()
         }
         self.toggle_modifiers(event, value).await;
-        if path.mapped_modifiers.custom.contains(&event) {
+        if config.mapped_modifiers.custom.contains(&event) {
             if value == 0 && !*modifier_was_activated {
                 let virtual_event: InputEvent = InputEvent::new_now(default_event.event_type(), default_event.code(), 1);
                 virt_dev.keys.emit(&[virtual_event]).unwrap();
@@ -521,9 +536,8 @@ impl EventReader {
 		                    match fork() {
 		                        Ok(Fork::Child) => {
 		                            setsid().unwrap();
-		                            Command::new("sh")
-		                                .arg("-c")
-		                                .arg(format!("runuser {} -c '{}'", user, command))
+		                            Command::new("runuser")
+		                                .args([user, "-c", command])
 		                                .stdin(Stdio::null())
 		                                .stdout(Stdio::null())
 		                                .stderr(Stdio::null())
@@ -565,9 +579,9 @@ impl EventReader {
     }
     
     async fn toggle_modifiers(&self, modifier: Event, value: i32) {
-        let path = self.config.get(&get_active_window(&self.environment.server, &self.config).await).unwrap();
+    	let config = self.get_config().await;
         let mut modifiers = self.modifiers.lock().await;
-        if path.mapped_modifiers.all.contains(&modifier) {
+        if config.mapped_modifiers.all.contains(&modifier) {
             match value {
                 1 => {
                     modifiers.push(modifier);
@@ -581,15 +595,42 @@ impl EventReader {
     }
 
     async fn released_keys(&self, modifiers: &Vec<Event>) -> Vec<Key> {
-        let path = self.config.get(&get_active_window(&self.environment.server, &self.config).await).unwrap();
+    	let config = self.get_config().await;
         let mut released_keys: Vec<Key> = Vec::new();
-        for (_key, hashmap) in path.bindings.remap.iter() {
+        for (_key, hashmap) in config.bindings.remap.iter() {
             if let Some(event_list) = hashmap.get(modifiers) {
                 released_keys.extend(event_list);
             }
         }
         released_keys
     }
+
+	async fn change_active_layout(&self) {
+		let mut active_layout = self.active_layout.lock().await;
+		loop {
+			if *active_layout == 3 { *active_layout = 0 }
+			else { *active_layout += 1 };
+			if let Some(_) = self.config.iter().find(|&x| x.associations.layout == *active_layout) {
+				break
+			};
+		}
+		if self.settings.notify_layout_switch {
+			let notify = vec![String::from(format!("notify-send -t 500 'Makima' 'Switching to layout {}'", *active_layout))];
+			self.spawn_subprocess(&notify).await;
+		}
+	}
+
+	async fn get_config(&self) -> &Config {
+    	let active_layout = self.active_layout.lock().await;
+    	let active_window = get_active_window(&self.environment.server, &self.config).await;
+    	let associations = Associations {
+    		client: active_window,
+    		layout: *active_layout,
+    	};
+        let config = self.config.iter()
+        	.find(|&x| x.associations == associations).unwrap();
+        config
+	}
 
     pub async fn cursor_loop(&self) {
         let (cursor, sensitivity, activation_modifiers) = if self.settings.lstick.function.as_str() == "cursor" {
