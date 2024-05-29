@@ -1,15 +1,16 @@
-use std::{collections::HashMap, sync::Arc, path::Path, process::Command, env};
+use std::{sync::Arc, path::Path, process::Command, env};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tokio_stream::StreamExt;
 use evdev::{Device, EventStream};
 use crate::Config;
-use crate::config::Event;
+use crate::config::{Event, Associations};
 use crate::event_reader::EventReader;
 
 
-#[derive(Eq, PartialEq, Hash, Clone)]
+#[derive(Debug, Default, Eq, PartialEq, Hash, Clone)]
 pub enum Client {
+	#[default]
     Default,
     Class(String),
 }
@@ -73,26 +74,40 @@ pub fn launch_tasks(config_files: &Vec<Config>, tasks: &mut Vec<JoinHandle<()>>,
     let devices: evdev::EnumerateDevices = evdev::enumerate();
     let mut devices_found = 0;
     for device in devices {
-        let mut config_map: HashMap<Client, Config> = HashMap::new();
-        for config in config_files {
+        let mut config_list: Vec<Config> = Vec::new();
+        for mut config in config_files.clone() {
             let split_config_name = config.name.split("::").collect::<Vec<&str>>();
             let associated_device_name = split_config_name[0];
             if associated_device_name == device.1.name().unwrap().replace("/", "") {
-                let window_class = if split_config_name.len() == 1 {
-                    Client::Default
+                let (window_class, layout) = if split_config_name.len() == 1 {
+                    (Client::Default, 0)
+                } else if split_config_name.len() == 2 {
+                	if split_config_name[1].len() == 1 {
+                		(Client::Default, split_config_name[1].parse::<u16>().unwrap_or(1))
+                	} else {
+                		(Client::Class(split_config_name[1].to_string()), 0)
+                	}
+                } else if split_config_name.len() == 3 {
+                	if split_config_name[1].len() == 1 {
+                		(Client::Class(split_config_name[2].to_string()), split_config_name[1].parse::<u16>().unwrap_or(1))
+                	} else {
+                		(Client::Class(split_config_name[1].to_string()), split_config_name[2].parse::<u16>().unwrap_or(1))
+                	}
                 } else {
-                    Client::Class(split_config_name[1].to_string())
+                	(Client::Default, 0)
                 };
-                config_map.insert(window_class, config.clone());
+                config.associations.client = window_class;
+                config.associations.layout = layout;
+                config_list.push(config.clone());
             };
         }
-        if config_map.len() > 0 && !config_map.contains_key(&Client::Default) {
-            config_map.insert(Client::Default, Config::new_empty(device.1.name().unwrap().replace("/", "")));
+        if config_list.len() > 0 && !config_list.iter().any(|x| x.associations == Associations::default()) {
+            config_list.push(Config::new_empty(device.1.name().unwrap().replace("/", "")));
         }
         let event_device = device.0.as_path().to_str().unwrap().to_string();
-        if !config_map.is_empty() {
-            let stream = Arc::new(Mutex::new(get_event_stream(Path::new(&event_device), config_map.clone())));
-            let reader = EventReader::new(config_map.clone(), stream, modifiers.clone(), modifier_was_activated.clone(), environment.clone());
+        if config_list.len() != 0 {
+            let stream = Arc::new(Mutex::new(get_event_stream(Path::new(&event_device), config_list.clone())));
+            let reader = EventReader::new(config_list.clone(), stream, modifiers.clone(), modifier_was_activated.clone(), environment.clone());
             tasks.push(tokio::spawn(start_reader(reader)));
             devices_found += 1
         }
@@ -193,9 +208,9 @@ fn set_environment() -> Environment {
     }
 }
 
-pub fn get_event_stream(path: &Path, config: HashMap<Client, Config>) -> EventStream {
+pub fn get_event_stream(path: &Path, config: Vec<Config>) -> EventStream {
     let mut device: Device = Device::open(path).expect("Couldn't open device path.");
-	match config.get(&Client::Default).unwrap().settings.get("GRAB_DEVICE") {
+	match config.iter().find(|&x| x.associations == Associations::default()).unwrap().settings.get("GRAB_DEVICE") {
 		Some(value) => {
 			if value == &true.to_string() {
 				device.grab().expect("Unable to grab device. Is another instance of Makima running?")
