@@ -79,14 +79,15 @@ _Example: you want your DS4 controller to have a specific set of keybindings for
 To retrieve the window class of a specific application, refer to your compositor's documentation, e.g. on Hyprland type `hyprctl clients` in your terminal while that application is open.
 
 **Note: on Wayland, make sure that the `XDG_CURRENT_DESKTOP` environment variable is set, or Makima won't be able to use application-specific bindings.**\
-**Note 2: on Plasma Wayland, Makima uses `kdotool` to retrieve the active window instead of doing so internally, which means that you also need that installed. Sorry about this, but I didn't want to hardcode JavaScript snippets inside of Makima just to communicate with KWin.**
+**Note 2: on Plasma Wayland, Makima uses `kdotool` to retrieve the active window instead of doing so internally, which means that you also need that installed. Sorry about this, but I didn't want to hardcode JavaScript snippets inside of Makima just to communicate with KWin.**\
+**Note 3: Keep in mind that Flatpaks use names like `org.mozilla.firefox` instead of just `firefox`.**
 
 ### On-the-fly layout switching
 To declare multiple layouts, similarly to app-specific bindings, put `::<int>` at the end of a config file, where `int` is an integer value between 0 and 3, representing the layout number. If not specified, Makima will assume 0.\
 When pressing the key configured in the settings through the `LAYOUT_SWITCHER` parameter, Makima will automatically cycle through the available layouts. If a layout isn't set, e.g. you're on 0 and you switch to the next layout, but number 1 isn't found, Makima will automatically skip to layout 2 and so on.\
 You can also combine layouts and per application bindings by simply putting them both in the config file name.
 
-_Example: declare layout 2 in Nautilus by setting `Wireless Controller::2::nautilus.toml` or `Wireless Controller::nautilus::2.toml`._
+_Example: declare layout 2 in Nautilus by setting `Wireless Controller::2::org.gnome.Nautilus.toml` or `Wireless Controller::org.gnome.Nautilus::2.toml`._
 
 **Note: keep in mind that while bindings and commands are read from each config file independently, settings are only read from the main config file, the one with no layout and associated application specified. If such file isn't present, Makima will use the default values.**
 
