@@ -2,10 +2,10 @@ use crate::Config;
 use crate::udev_monitor::{Client, Server};
 use serde_json;
 use swayipc_async::Connection;
-use std::{collections::HashMap, process::Command};
+use std::process::Command;
 use x11rb::protocol::xproto::{get_property, get_input_focus, Atom, AtomEnum};
 
-pub async fn get_active_window(server: &Server, config: &HashMap<Client, Config>) -> Client {
+pub async fn get_active_window(server: &Server, config: &Vec<Config>) -> Client {
     match server {
         Server::Connected(server) => {
             let server_str = server.as_str();
@@ -14,8 +14,8 @@ pub async fn get_active_window(server: &Server, config: &HashMap<Client, Config>
                     let query = Command::new("hyprctl").args(["activewindow", "-j"]).output().unwrap();
                     if let Ok(reply) = serde_json::from_str::<serde_json::Value>(std::str::from_utf8(query.stdout.as_slice()).unwrap()) {
                         let active_window = Client::Class(reply["class"].to_string().replace("\"", ""));
-                        if config.contains_key(&active_window) {
-                            active_window
+		                if let Some(_) = config.iter().find(|&x| x.associations.client == active_window ) {
+		                    active_window
                         } else {
                             Client::Default
                         }
@@ -34,7 +34,7 @@ pub async fn get_active_window(server: &Server, config: &HashMap<Client, Config>
                         },
                         None => Client::Default
                     };
-                    if config.contains_key(&active_window) {
+                    if let Some(_) = config.iter().find(|&x| x.associations.client == active_window ) {
                         active_window
                     } else {
                         Client::Default
@@ -43,8 +43,8 @@ pub async fn get_active_window(server: &Server, config: &HashMap<Client, Config>
                 "KDE" => {
                 	if let Ok(query) = Command::new("sh").arg("c").arg("kdotool getactivewindow getwindowclassname").output() {
                 		let active_window = Client::Class(std::str::from_utf8(query.stdout.as_slice()).unwrap().trim().to_string());
-                		if config.contains_key(&active_window) {
-                			active_window
+		                if let Some(_) = config.iter().find(|&x| x.associations.client == active_window ) {
+		                    active_window
                 		} else {
                 			Client::Default
                 		}
@@ -66,8 +66,8 @@ pub async fn get_active_window(server: &Server, config: &HashMap<Client, Config>
                             class = &class[..class.len() -1];
                         }
                         let active_window = Client::Class(std::str::from_utf8(class).unwrap().to_string());
-                        if config.contains_key(&active_window) {
-                            active_window
+		                if let Some(_) = config.iter().find(|&x| x.associations.client == active_window ) {
+		                    active_window
                         } else {
                             Client::Default
                         }
