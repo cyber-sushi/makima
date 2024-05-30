@@ -1,5 +1,4 @@
 use std::{sync::Arc, option::Option, str::FromStr, future::Future, pin::Pin, process::{Command, Stdio}};
-//use futures::future::{BoxFuture, FutureExt};
 use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
 use fork::{fork, Fork, setsid};
@@ -38,6 +37,7 @@ pub struct EventReader {
     modifier_was_activated: Arc<Mutex<bool>>,
     device_is_connected: Arc<Mutex<bool>>,
     active_layout: Arc<Mutex<u16>>,
+    current_config: Arc<Mutex<Config>>,
     environment: Environment,
     settings: Settings,
 }
@@ -56,6 +56,7 @@ impl EventReader {
         let rstick_position = Arc::new(Mutex::new(position_vector.clone()));
         let device_is_connected: Arc<Mutex<bool>> = Arc::new(Mutex::new(true));
         let active_layout: Arc<Mutex<u16>> = Arc::new(Mutex::new(0));
+        let current_config: Arc<Mutex<Config>> = Arc::new(Mutex::new(config.iter().find(|&x| x.associations == Associations::default()).unwrap().clone()));
         let virt_dev = Arc::new(Mutex::new(VirtualDevices::new()));
         let lstick_function = config.iter().find(|&x| x.associations == Associations::default()).unwrap()
             .settings.get("LSTICK").unwrap_or(&"cursor".to_string()).to_string();
@@ -123,6 +124,7 @@ impl EventReader {
             modifier_was_activated,
             device_is_connected,
             active_layout,
+            current_config,
             environment,
             settings,
         }
@@ -385,11 +387,14 @@ impl EventReader {
         let mut device_is_connected = self.device_is_connected.lock().await;
         *device_is_connected = false;
 
-        println!("Disconnected device \"{}\".\n", self.get_config().await.name);
+        println!("Disconnected device \"{}\".\n", self.current_config.lock().await.name);
     }
 
     async fn convert_event(&self, default_event: InputEvent, event: Event, value: i32, send_zero: bool) {
-    	let config = self.get_config().await;
+    	if value == 1 {
+    		self.update_config().await;
+    	};
+    	let config = self.current_config.lock().await.clone();
         let modifiers = self.modifiers.lock().await.clone();
         if let Some(map) = config.bindings.remap.get(&event) {
             if let Some(event_list) = map.get(&modifiers) {
@@ -423,7 +428,7 @@ impl EventReader {
     }
 
     async fn emit_event(&self, event_list: &Vec<Key>, value: i32, modifiers: &Vec<Event>, release_keys: bool, ignore_modifiers: bool, send_zero: bool) {
-    	let config = self.get_config().await;
+    	let config = self.current_config.lock().await.clone();
         let mut virt_dev = self.virt_dev.lock().await;
         let mut modifier_was_activated = self.modifier_was_activated.lock().await;
         if release_keys {
@@ -468,7 +473,7 @@ impl EventReader {
     }
 
     async fn emit_nonmapped_event(&self, default_event: InputEvent, event: Event, value: i32, modifiers: &Vec<Event>) {
-    	let config = self.get_config().await;
+    	let config = self.current_config.lock().await.clone();
         let mut virt_dev = self.virt_dev.lock().await;
         let mut modifier_was_activated = self.modifier_was_activated.lock().await;
         let released_keys: Vec<Key> = self.released_keys(&modifiers).await;
@@ -580,7 +585,7 @@ impl EventReader {
     }
     
     async fn toggle_modifiers(&self, modifier: Event, value: i32) {
-    	let config = self.get_config().await;
+    	let config = self.current_config.lock().await.clone();
         let mut modifiers = self.modifiers.lock().await;
         if config.mapped_modifiers.all.contains(&modifier) {
             match value {
@@ -596,7 +601,7 @@ impl EventReader {
     }
 
     async fn released_keys(&self, modifiers: &Vec<Event>) -> Vec<Key> {
-    	let config = self.get_config().await;
+    	let config = self.current_config.lock().await.clone();
         let mut released_keys: Vec<Key> = Vec::new();
         for (_key, hashmap) in config.bindings.remap.iter() {
             if let Some(event_list) = hashmap.get(modifiers) {
@@ -608,7 +613,7 @@ impl EventReader {
 
 	async fn change_active_layout(&self) {
 		let mut active_layout = self.active_layout.lock().await;
-    	let active_window = get_active_window(&self.environment.server, &self.config).await;
+    	let active_window = get_active_window(&self.environment, &self.config).await;
 		loop {
 			if *active_layout == 3 { *active_layout = 0 }
 			else { *active_layout += 1 };
@@ -622,19 +627,22 @@ impl EventReader {
 		}
 	}
 
-	fn get_config(&self) -> Pin<Box<dyn Future<Output = &Config> + Send + '_>> {
+	fn update_config(&self) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
 		Box::pin(async move {
 			let active_layout = self.active_layout.lock().await.clone();
-			let active_window = get_active_window(&self.environment.server, &self.config).await;
+			let active_window = get_active_window(&self.environment, &self.config).await;
 			let associations = Associations {
 				client: active_window,
 				layout: active_layout,
 			};
 		    match self.config.iter().find(|&x| x.associations == associations) {
-				Some(config) => return config,
+				Some(config) => {
+					let mut current_config = self.current_config.lock().await;
+					*current_config = config.clone();
+				},
 				None => {
 					self.change_active_layout().await;
-					return self.get_config().await
+					self.update_config().await;
 				},
 		    };
         })
