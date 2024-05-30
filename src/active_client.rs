@@ -1,12 +1,12 @@
 use crate::Config;
-use crate::udev_monitor::{Client, Server};
+use crate::udev_monitor::{Client, Server, Environment};
 use serde_json;
 use swayipc_async::Connection;
 use std::process::Command;
 use x11rb::protocol::xproto::{get_property, get_input_focus, Atom, AtomEnum};
 
-pub async fn get_active_window(server: &Server, config: &Vec<Config>) -> Client {
-    match server {
+pub async fn get_active_window(environment: &Environment, config: &Vec<Config>) -> Client {
+    match &environment.server {
         Server::Connected(server) => {
             let server_str = server.as_str();
             match server_str {
@@ -14,7 +14,7 @@ pub async fn get_active_window(server: &Server, config: &Vec<Config>) -> Client 
                     let query = Command::new("hyprctl").args(["activewindow", "-j"]).output().unwrap();
                     if let Ok(reply) = serde_json::from_str::<serde_json::Value>(std::str::from_utf8(query.stdout.as_slice()).unwrap()) {
                         let active_window = Client::Class(reply["class"].to_string().replace("\"", ""));
-		                if let Some(_) = config.iter().find(|&x| x.associations.client == active_window ) {
+		                if let Some(_) = config.iter().find(|&x| x.associations.client == active_window) {
 		                    active_window
                         } else {
                             Client::Default
@@ -34,24 +34,51 @@ pub async fn get_active_window(server: &Server, config: &Vec<Config>) -> Client 
                         },
                         None => Client::Default
                     };
-                    if let Some(_) = config.iter().find(|&x| x.associations.client == active_window ) {
+                    if let Some(_) = config.iter().find(|&x| x.associations.client == active_window) {
                         active_window
                     } else {
                         Client::Default
                     }
                 },
                 "KDE" => {
-                	if let Ok(query) = Command::new("sh").arg("c").arg("kdotool getactivewindow getwindowclassname").output() {
-                		let active_window = Client::Class(std::str::from_utf8(query.stdout.as_slice()).unwrap().trim().to_string());
-		                if let Some(_) = config.iter().find(|&x| x.associations.client == active_window ) {
-		                    active_window
-                		} else {
-                			Client::Default
-                		}
-                	} else {
-                		Client::Default
-                	}
-                }
+        	        let (user, running_as_root) =
+						if let Ok(sudo_user) = environment.sudo_user.clone() {
+							(Option::Some(sudo_user), true)
+						}
+						else if let Ok(user) = environment.user.clone() {
+							(Option::Some(user), false)
+						}
+						else {
+							(Option::None, false)
+						};
+					let active_window = {
+						if let Some(user) = user {
+							if running_as_root {
+							    let output = Command::new("runuser")
+							    	.arg(user)
+							    	.arg("-c")
+							    	.arg("kdotool getactivewindow getwindowclassname")
+							        .output()
+							        .unwrap();
+							    Client::Class(std::str::from_utf8(output.stdout.as_slice()).unwrap().trim().to_string())
+							} else {
+								let output = Command::new("sh")
+									.arg("-c")
+									.arg(format!("systemd-run --user -M {}@ kdotool getactivewindow getwindowclassname", user))
+									.output()
+									.unwrap();
+								Client::Class(std::str::from_utf8(output.stdout.as_slice()).unwrap().trim().to_string())
+							}
+						} else {
+							Client::Default
+						}
+					};
+	                if let Some(_) = config.iter().find(|&x| x.associations.client == active_window) {
+	                    active_window
+            		} else {
+            			Client::Default
+            		}
+                },
                 "x11" => {
                     let connection = x11rb::connect(None).unwrap().0;
                     let focused_window = get_input_focus(&connection)
@@ -66,7 +93,7 @@ pub async fn get_active_window(server: &Server, config: &Vec<Config>) -> Client 
                             class = &class[..class.len() -1];
                         }
                         let active_window = Client::Class(std::str::from_utf8(class).unwrap().to_string());
-		                if let Some(_) = config.iter().find(|&x| x.associations.client == active_window ) {
+		                if let Some(_) = config.iter().find(|&x| x.associations.client == active_window) {
 		                    active_window
                         } else {
                             Client::Default
