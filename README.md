@@ -21,7 +21,7 @@ It works on both Wayland and X11 as it relies on the `evdev` kernel interface.
     - [Example config files](https://github.com/cyber-sushi/makima/tree/main/examples)
     - [Config file naming](https://github.com/cyber-sushi/makima/tree/main#config-file-naming)
     - [Application-specific bindings](https://github.com/cyber-sushi/makima/tree/main#application-specific-bindings)
-    - [On-the-fly layout switching](https://github.com/cyber-sushi/makima/tree/main#on-the-fly-layout-switching)
+    - [Layout hotswapping](https://github.com/cyber-sushi/makima/tree/main#layout-hotswapping)
     - [Change bindings](https://github.com/cyber-sushi/makima/tree/main#bindings-and-settings)
         - [Remap](https://github.com/cyber-sushi/makima/tree/main#remap)
         - [Commands](https://github.com/cyber-sushi/makima/tree/main#commands)
@@ -78,11 +78,11 @@ _Example: you want your DS4 controller to have a specific set of keybindings for
 
 To retrieve the window class of a specific application, refer to your compositor's documentation, e.g. on Hyprland type `hyprctl clients` in your terminal while that application is open.
 
-**Note: on Wayland, make sure that the `XDG_CURRENT_DESKTOP` environment variable is set, or Makima won't be able to use application-specific bindings.**\
-**Note 2: on Plasma Wayland, Makima uses `kdotool` to retrieve the active window instead of doing so internally, which means that you also need that installed. Sorry about this, but I didn't want to hardcode JavaScript snippets inside of Makima just to communicate with KWin.**\
-**Note 3: Keep in mind that Flatpaks use names like `org.mozilla.firefox` instead of just `firefox`.**
+**Note: on Wayland, make sure that the `XDG_CURRENT_DESKTOP` environment variable is set, or Makima won't be able to use application-specific bindings.**
 
-### On-the-fly layout switching
+**Note 2: on Plasma Wayland, Makima uses `kdotool` to retrieve the active window instead of doing so internally, which means that you also need that installed. Sorry about this, but I didn't want to hardcode JavaScript snippets inside of Makima just to communicate with KWin.**
+
+### Layout hotswapping
 To declare multiple layouts, similarly to app-specific bindings, put `::<int>` at the end of a config file, where `int` is an integer value between 0 and 3, representing the layout number. If not specified, Makima will assume 0.\
 When pressing the key configured in the settings through the `LAYOUT_SWITCHER` parameter, Makima will automatically cycle through the available layouts. If a layout isn't set, e.g. you're on 0 and you switch to the next layout, but number 1 isn't found, Makima will automatically skip to layout 2 and so on.\
 You can also combine layouts and per application bindings by simply putting them both in the config file name.
@@ -205,7 +205,7 @@ Set to `"true"` (default) to make it fire the event only if other modifiers are 
 Set a key to cycle through the available remap layouts in the config files.\
 Defaults to `BTN_0`, which is the key at the center of a tablet's wheel. 
 
-### `NOTIFY_LAYOUT_SWITCH`
+#### `NOTIFY_LAYOUT_SWITCH`
 If set to `"true"`, send a notification for 0.5 seconds to notify that the layout has been changed, and what it has been changed to.\
 Defaults to `"false"`.
 
