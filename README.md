@@ -71,16 +71,19 @@ All config files will be parsed automatically when `makima` is launched.\
 Files that don't end with `.toml` and files that start with `.` (dotfiles) won't be parsed, so you can add a dot at the beginning of the filename to mask them from Makima.
 
 ### Application-specific bindings
-**Hyprland, Sway, Plasma Wayland and X11 only.**\
 To apply a config file only to a specific application, just put `::<window_class>` at the end of their filename, before `.toml`.
 
-_Example: you want your DS4 controller to have a specific set of keybindings for Firefox, name that file `Sony Interactive Entertainment Wireless Controller::firefox.toml`. Note that Flatpaks will have names like `org.mozilla.firefox`._
+_Example: you want your DS4 controller to have a specific set of keybindings for Firefox, name that file `Sony Interactive Entertainment Wireless Controller::firefox.toml`._
 
 To retrieve the window class of a specific application, refer to your compositor's documentation, e.g. on Hyprland type `hyprctl clients` in your terminal while that application is open.
 
-**Note: on Wayland, make sure that the `XDG_CURRENT_DESKTOP` environment variable is set, or Makima won't be able to use application-specific bindings.**
+**Note: app-specific bindings are currently only supported on Hyprland, Sway, Plasma Wayland and all X11 sessions.**\
 
-**Note 2: on Plasma Wayland, Makima uses `kdotool` to retrieve the active window instead of doing so internally, which means that you also need that installed. Sorry about this, but I didn't want to hardcode JavaScript snippets inside of Makima just to communicate with KWin.**
+**Note 2: some applications, like Flatpaks for example, will have names like `org.mozilla.firefox`.**
+
+**Note 3: on Wayland, make sure that the `XDG_CURRENT_DESKTOP` environment variable is set, or Makima won't be able to use application-specific bindings.**
+
+**Note 4: on Plasma Wayland, Makima uses `kdotool` to retrieve the active window instead of doing so internally, which means that you also need that installed. Sorry about this, but I didn't want to hardcode JavaScript snippets inside of Makima just to communicate with KWin.**
 
 ### Layout hotswapping
 To declare multiple layouts, similarly to app-specific bindings, put `::<int>` at the end of a config file, where `int` is an integer value between 0 and 3, representing the layout number. If not specified, Makima will assume 0.\
