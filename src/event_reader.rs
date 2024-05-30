@@ -394,16 +394,16 @@ impl EventReader {
     	if value == 1 {
     		self.update_config().await;
     	};
-    	let config = self.current_config.lock().await.clone();
+    	let config = self.current_config.lock().await;
         let modifiers = self.modifiers.lock().await.clone();
         if let Some(map) = config.bindings.remap.get(&event) {
             if let Some(event_list) = map.get(&modifiers) {
-                self.emit_event(event_list, value, &modifiers, modifiers.is_empty(), !modifiers.is_empty(), send_zero).await;
+                self.emit_event(event_list, value, &modifiers, &config, modifiers.is_empty(), !modifiers.is_empty(), send_zero).await;
                 return
             }
             if let Some(event_list) = map.get(&vec![Event::Hold]) {
                 if !modifiers.is_empty() || self.settings.chain_only == false {
-                    self.emit_event(event_list, value, &modifiers, false, false, send_zero).await;
+                    self.emit_event(event_list, value, &modifiers, &config, false, false, send_zero).await;
                     return
                 }
             }
@@ -414,7 +414,7 @@ impl EventReader {
 			    }
 			}
             if let Some(event_list) = map.get(&Vec::new()) {
-                self.emit_event(event_list, value, &modifiers, true, false, send_zero).await;
+                self.emit_event(event_list, value, &modifiers, &config, true, false, send_zero).await;
                 return
             }
         }
@@ -424,17 +424,16 @@ impl EventReader {
                 return
             }
         }
-        self.emit_nonmapped_event(default_event, event, value, &modifiers).await;
+        self.emit_nonmapped_event(default_event, event, value, &modifiers, &config).await;
     }
 
-    async fn emit_event(&self, event_list: &Vec<Key>, value: i32, modifiers: &Vec<Event>, release_keys: bool, ignore_modifiers: bool, send_zero: bool) {
-    	let config = self.current_config.lock().await.clone();
+    async fn emit_event(&self, event_list: &Vec<Key>, value: i32, modifiers: &Vec<Event>, config: &Config, release_keys: bool, ignore_modifiers: bool, send_zero: bool) {
         let mut virt_dev = self.virt_dev.lock().await;
         let mut modifier_was_activated = self.modifier_was_activated.lock().await;
         if release_keys {
-            let released_keys: Vec<Key> = self.released_keys(&modifiers).await;
+            let released_keys: Vec<Key> = self.released_keys(&modifiers, &config).await;
             for key in released_keys {
-                self.toggle_modifiers(Event::Key(key), 0).await;
+                self.toggle_modifiers(Event::Key(key), 0, &config).await;
                 let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), 0);
                 virt_dev.keys.emit(&[virtual_event]).unwrap();
             }
@@ -448,7 +447,7 @@ impl EventReader {
         }
         for key in event_list {
             if release_keys {
-                self.toggle_modifiers(Event::Key(*key), value).await;
+                self.toggle_modifiers(Event::Key(*key), value, &config).await;
             }
             if config.mapped_modifiers.custom.contains(&Event::Key(*key)) {
                 if value == 0 && !*modifier_was_activated {
@@ -472,17 +471,16 @@ impl EventReader {
         }
     }
 
-    async fn emit_nonmapped_event(&self, default_event: InputEvent, event: Event, value: i32, modifiers: &Vec<Event>) {
-    	let config = self.current_config.lock().await.clone();
+    async fn emit_nonmapped_event(&self, default_event: InputEvent, event: Event, value: i32, modifiers: &Vec<Event>, config: &Config) {
         let mut virt_dev = self.virt_dev.lock().await;
         let mut modifier_was_activated = self.modifier_was_activated.lock().await;
-        let released_keys: Vec<Key> = self.released_keys(&modifiers).await;
+        let released_keys: Vec<Key> = self.released_keys(&modifiers, &config).await;
         for key in released_keys {
-            self.toggle_modifiers(Event::Key(key), 0).await;
+            self.toggle_modifiers(Event::Key(key), 0, &config).await;
             let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), 0);
             virt_dev.keys.emit(&[virtual_event]).unwrap()
         }
-        self.toggle_modifiers(event, value).await;
+        self.toggle_modifiers(event, value, &config).await;
         if config.mapped_modifiers.custom.contains(&event) {
             if value == 0 && !*modifier_was_activated {
                 let virtual_event: InputEvent = InputEvent::new_now(default_event.event_type(), default_event.code(), 1);
@@ -584,8 +582,7 @@ impl EventReader {
         }
     }
     
-    async fn toggle_modifiers(&self, modifier: Event, value: i32) {
-    	let config = self.current_config.lock().await.clone();
+    async fn toggle_modifiers(&self, modifier: Event, value: i32, config: &Config) {
         let mut modifiers = self.modifiers.lock().await;
         if config.mapped_modifiers.all.contains(&modifier) {
             match value {
@@ -600,8 +597,7 @@ impl EventReader {
         }
     }
 
-    async fn released_keys(&self, modifiers: &Vec<Event>) -> Vec<Key> {
-    	let config = self.current_config.lock().await.clone();
+    async fn released_keys(&self, modifiers: &Vec<Event>, config: &Config) -> Vec<Key> {
         let mut released_keys: Vec<Key> = Vec::new();
         for (_key, hashmap) in config.bindings.remap.iter() {
             if let Some(event_list) = hashmap.get(modifiers) {
@@ -726,5 +722,4 @@ impl EventReader {
         }
     }
 }
-
 
