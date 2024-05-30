@@ -2,7 +2,7 @@ use crate::Config;
 use crate::udev_monitor::{Client, Server, Environment};
 use serde_json;
 use swayipc_async::Connection;
-use std::process::Command;
+use std::process::{Command, Stdio};
 use x11rb::protocol::xproto::{get_property, get_input_focus, Atom, AtomEnum};
 
 pub async fn get_active_window(environment: &Environment, config: &Vec<Config>) -> Client {
@@ -64,7 +64,8 @@ pub async fn get_active_window(environment: &Environment, config: &Vec<Config>) 
 							} else {
 								let output = Command::new("sh")
 									.arg("-c")
-									.arg(format!("systemd-run --user -M {}@ kdotool getactivewindow getwindowclassname", user))
+									.arg(format!("systemd-run --user --scope -M {}@ kdotool getactivewindow getwindowclassname", user))
+					                .stderr(Stdio::null())
 									.output()
 									.unwrap();
 								Client::Class(std::str::from_utf8(output.stdout.as_slice()).unwrap().trim().to_string())
