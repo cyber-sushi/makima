@@ -49,7 +49,8 @@ Make sure that the executable has permissions to run as a program with `chmod +x
 There are two recommended ways to execute Makima:
 - **Run Makima as root with `sudo -E makima`.**\
 Navigate into the directory of the executable and use `sudo -E ./makima`.\
-Alternatively, add Makima to a directory that's in `PATH`, possibly `/usr/bin` or `~/.local/bin` and simply use `sudo -E makima` from anywhere.\
+Alternatively, add Makima to a directory that's in `PATH`, possibly `/usr/bin` or `~/.local/bin` and simply use `sudo -E makima` from anywhere.
+
 _Note: the `-E` argument is necessary because it allows Makima to inherit your user environment instead of the root environment when running with `sudo`. You can also add the `-b` argument (`sudo -Eb makima`) to detach if from the terminal and make it run in the background._
 
 - **Run Makima as a Systemd service.**\
@@ -57,6 +58,8 @@ Move the executable into `/usr/bin`.\
 Grab `makima.service` from this repo and edit the `User=` line with your username.\
 Move the file into `/etc/systemd/system`, then run `systemctl daemon-reload`.\
 After this, you can start and stop Makima with `systemctl start/stop makima` or you can enable/disable it on startup with `systemctl enable/disable makima`. If you change the config files and you want the changes to take place, restart Makima with `systemctl restart makima`.
+
+_Note: when running as a systemd service, Makima inherits your systemd user environment, not your shell environment (you can see it with `systemctl --user show-environment`). If you need to pass env variables to it, do so by adding them to the unit file with `Environment=VARIABLE=value`._
 
 ## Configuration
 You can find a bunch of [example config files](https://github.com/cyber-sushi/makima/tree/main/examples) on this repo, either pick one of them or create your own from scratch.\
@@ -83,7 +86,7 @@ To retrieve the window class of a specific application, refer to your compositor
 
 **Note 3: on Wayland, make sure that the `XDG_CURRENT_DESKTOP` environment variable is set, or Makima won't be able to use application-specific bindings.**
 
-**Note 4: on Plasma Wayland, Makima uses `kdotool` to retrieve the active window instead of doing so internally, which means that you also need that installed. Sorry about this, but I didn't want to hardcode JavaScript snippets inside of Makima just to communicate with KWin.**
+**Note 4: on Plasma Wayland, Makima uses `kdotool` ([Github repo](https://github.com/jinliu/kdotool) or [AUR package](https://aur.archlinux.org/packages/kdotool-git)) to retrieve the active window instead of doing so internally, which means that you also need that installed. Sorry about this, but I didn't want to hardcode JavaScript snippets inside of Makima just to communicate with KWin.**
 
 ### Layout hotswapping
 To declare multiple layouts, similarly to app-specific bindings, put `::<int>` at the end of a config file, where `int` is an integer value between 0 and 3, representing the layout number. If not specified, Makima will assume 0.\
