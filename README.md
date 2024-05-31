@@ -236,7 +236,7 @@ To add other controllers, please open an issue.
 **A**: Gnome on Wayland requires an extension to retrieve the active window through D-Bus, which is why I haven't implemented window tracking for it. If anyone finds a better solution, I'm all for it. Regarding other compositors, feel free to open an issue and I'll look into it.
 
 **Q**: Makima gives me a "Permission Denied" error when launching, what do I do?\
-**A**: Make sure that the `uinput` kernel module is loaded. You can load it with `sudo modprobe uinput`. To make it permanent, create `/etc/modules-load.d/uinput.conf` and write `uinput` inside.
+**A**: Pick `50-makima.rules` from this repo and copy it into `/etc/udev/rules.d/`, then load the `uinput` module with `sudo modprobe uinput`. To load it automatically on boot, create `/etc/modules-load.d/uinput.conf` and write `uinput` inside.
 
 **Q**: SELinux prevents Makima's system service from running, what do I do?\
 **A**: Put `makima.service` inside `/usr/lib/systemd/system` instead of `/etc/systemd/system`, then run the following commands:
