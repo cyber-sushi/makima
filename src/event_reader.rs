@@ -102,7 +102,7 @@ impl EventReader {
             .settings.get("LAYOUT_SWITCHER").unwrap_or(&"BTN_0".to_string())).expect("LAYOUT_SWITCHER is not a valid Key.");
 
         let notify_layout_switch: bool = config.iter().find(|&x| x.associations == Associations::default()).unwrap()
-        	.settings.get("NOTIFY_LAYOUT_SWITCH").unwrap_or(&"false".to_string()).parse().expect("NOTIFY_LAYOUT_SWITCH can only be true or false.");
+            .settings.get("NOTIFY_LAYOUT_SWITCH").unwrap_or(&"false".to_string()).parse().expect("NOTIFY_LAYOUT_SWITCH can only be true or false.");
 
         let settings = Settings {
             lstick,
@@ -143,14 +143,14 @@ impl EventReader {
         let (mut dpad_values, mut lstick_values, mut rstick_values, mut triggers_values, mut abs_wheel_position) = ((0, 0), (0, 0), (0, 0), (0, 0), 0);
         let switcher: Key = self.settings.layout_switcher;
         let mut stream = self.stream.lock().await;
-		let mut max_abs_wheel = 0;
-		if let Ok(abs_state) = stream.device().get_abs_state() {
-			for state in abs_state {
-				if state.maximum > max_abs_wheel {
-					max_abs_wheel = state.maximum;
-				}
-			};
-		}
+        let mut max_abs_wheel = 0;
+        if let Ok(abs_state) = stream.device().get_abs_state() {
+            for state in abs_state {
+                if state.maximum > max_abs_wheel {
+                    max_abs_wheel = state.maximum;
+                }
+            };
+        }
         while let Some(Ok(event)) = stream.next().await {
             match (event.event_type(), RelativeAxisType(event.code()), AbsoluteAxisType(event.code())) {
                 (EventType::KEY, _, _) => {
@@ -174,12 +174,12 @@ impl EventReader {
                 (_, _, AbsoluteAxisType::ABS_HAT0X) => {
                     match event.value() {
                         -1 => {
-                                self.convert_event(event, Event::Axis(Axis::BTN_DPAD_LEFT), 1, false).await;
-                                dpad_values.0 = -1;
+                            self.convert_event(event, Event::Axis(Axis::BTN_DPAD_LEFT), 1, false).await;
+                            dpad_values.0 = -1;
                         },
                         1 => {
-                                self.convert_event(event, Event::Axis(Axis::BTN_DPAD_RIGHT), 1, false).await;
-                                dpad_values.0 = 1;
+                            self.convert_event(event, Event::Axis(Axis::BTN_DPAD_RIGHT), 1, false).await;
+                            dpad_values.0 = 1;
                         },
                         0 => {
                             match dpad_values.0 {
@@ -195,12 +195,12 @@ impl EventReader {
                 (_, _, AbsoluteAxisType::ABS_HAT0Y) => {
                     match event.value() {
                         -1 => {
-                                self.convert_event(event, Event::Axis(Axis::BTN_DPAD_UP), 1, false).await;
-                                dpad_values.1 = -1;
+                            self.convert_event(event, Event::Axis(Axis::BTN_DPAD_UP), 1, false).await;
+                            dpad_values.1 = -1;
                         },
                         1 => {
-                                self.convert_event(event, Event::Axis(Axis::BTN_DPAD_DOWN), 1, false).await;
-                                dpad_values.1 = 1;
+                            self.convert_event(event, Event::Axis(Axis::BTN_DPAD_DOWN), 1, false).await;
+                            dpad_values.1 = 1;
                         },
                         0 => {
                             match dpad_values.1 {
@@ -363,20 +363,20 @@ impl EventReader {
                     }
                 },
                 (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_WHEEL) => {
-                	let value = event.value();
-                	if value != 0 && abs_wheel_position != 0 {
-						let gap = value - abs_wheel_position;
-						if gap < -max_abs_wheel/2 {
-							self.convert_event(event, Event::Axis(Axis::ABS_WHEEL_CW), 1, true).await;
-						} else if gap > max_abs_wheel/2 {
-							self.convert_event(event, Event::Axis(Axis::ABS_WHEEL_CCW), 1, true).await;
-						} else if value > abs_wheel_position {
-							self.convert_event(event, Event::Axis(Axis::ABS_WHEEL_CW), 1, true).await;
-						} else if value < abs_wheel_position {
-							self.convert_event(event, Event::Axis(Axis::ABS_WHEEL_CCW), 1, true).await;
-						}
-					}
-					abs_wheel_position = value;
+                    let value = event.value();
+                    if value != 0 && abs_wheel_position != 0 {
+                        let gap = value - abs_wheel_position;
+                        if gap < -max_abs_wheel/2 {
+                            self.convert_event(event, Event::Axis(Axis::ABS_WHEEL_CW), 1, true).await;
+                        } else if gap > max_abs_wheel/2 {
+                            self.convert_event(event, Event::Axis(Axis::ABS_WHEEL_CCW), 1, true).await;
+                        } else if value > abs_wheel_position {
+                            self.convert_event(event, Event::Axis(Axis::ABS_WHEEL_CW), 1, true).await;
+                        } else if value < abs_wheel_position {
+                            self.convert_event(event, Event::Axis(Axis::ABS_WHEEL_CCW), 1, true).await;
+                        }
+                    }
+                    abs_wheel_position = value;
                 },
                 (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_MISC) => {
                 	if event.value() == 0 { abs_wheel_position = 0 };
@@ -392,7 +392,7 @@ impl EventReader {
 
     async fn convert_event(&self, default_event: InputEvent, event: Event, value: i32, send_zero: bool) {
     	if value == 1 {
-    		self.update_config().await;
+            self.update_config().await;
     	};
     	let config = self.current_config.lock().await;
         let modifiers = self.modifiers.lock().await.clone();
@@ -408,11 +408,11 @@ impl EventReader {
                 }
             }
             if let Some(map) = config.bindings.commands.get(&event) {
-				if let Some(command_list) = map.get(&modifiers) {
-			        if value == 1 { self.spawn_subprocess(command_list).await };
-			        return
-			    }
-			}
+                if let Some(command_list) = map.get(&modifiers) {
+                    if value == 1 { self.spawn_subprocess(command_list).await };
+                    return
+                }
+            }
             if let Some(event_list) = map.get(&Vec::new()) {
                 self.emit_event(event_list, value, &modifiers, &config, true, false, send_zero).await;
                 return
@@ -463,8 +463,8 @@ impl EventReader {
                 let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), value);
                 virt_dev.keys.emit(&[virtual_event]).unwrap();
                 if send_zero {
-                	let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), 0);
-                	virt_dev.keys.emit(&[virtual_event]).unwrap();
+                    let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), 0);
+                    virt_dev.keys.emit(&[virtual_event]).unwrap();
                 }
                 *modifier_was_activated = true;
             }
@@ -536,36 +536,36 @@ impl EventReader {
             for command in command_list {
                 if running_as_root {
                     match fork() {
-		                Ok(Fork::Child) => {
-		                    match fork() {
-		                        Ok(Fork::Child) => {
-		                            setsid().unwrap();
-		                            Command::new("runuser")
-		                                .args([user, "-c", command])
-		                                .stdin(Stdio::null())
-		                                .stdout(Stdio::null())
-		                                .stderr(Stdio::null())
-		                                .spawn()
-		                                .unwrap();
-		                            std::process::exit(0);
-		                        }
-		                        Ok(Fork::Parent(_)) => std::process::exit(0),
-		                        Err(_) => std::process::exit(1),
-		                    }
-		                }
-		                Ok(Fork::Parent(_)) => (),
-		                Err(_) => std::process::exit(1),
-		            }
+                        Ok(Fork::Child) => {
+                            match fork() {
+                                Ok(Fork::Child) => {
+                                    setsid().unwrap();
+                                    Command::new("runuser")
+                                        .args([user, "-c", command])
+                                        .stdin(Stdio::null())
+                                        .stdout(Stdio::null())
+                                        .stderr(Stdio::null())
+                                        .spawn()
+                                        .unwrap();
+                                    std::process::exit(0);
+                                }
+                                Ok(Fork::Parent(_)) => std::process::exit(0),
+                                Err(_) => std::process::exit(1),
+                            }
+                        }
+                        Ok(Fork::Parent(_)) => (),
+                        Err(_) => std::process::exit(1),
+                    }
                 } else {
-                	Command::new("sh")
-		                .arg("-c")
-		                .arg(format!("systemd-run --user -M {}@ {}", user, command))
-		                .stdin(Stdio::null())
-		                .stdout(Stdio::null())
-		                .stderr(Stdio::null())
-		                .spawn()
-		                .unwrap();
-				}
+                    Command::new("sh")
+                        .arg("-c")
+                        .arg(format!("systemd-run --user -M {}@ {}", user, command))
+                        .stdin(Stdio::null())
+                        .stdout(Stdio::null())
+                        .stderr(Stdio::null())
+                        .spawn()
+                        .unwrap();
+                }
             }
         }
     }
@@ -607,42 +607,42 @@ impl EventReader {
         released_keys
     }
 
-	async fn change_active_layout(&self) {
-		let mut active_layout = self.active_layout.lock().await;
-    	let active_window = get_active_window(&self.environment, &self.config).await;
-		loop {
-			if *active_layout == 3 { *active_layout = 0 }
-			else { *active_layout += 1 };
-			if let Some(_) = self.config.iter().find(|&x| x.associations.layout == *active_layout && x.associations.client == active_window) {
-				break
-			};
-		}
-		if self.settings.notify_layout_switch {
-			let notify = vec![String::from(format!("notify-send -t 500 'Makima' 'Switching to layout {}'", *active_layout))];
-			self.spawn_subprocess(&notify).await;
-		}
-	}
+    async fn change_active_layout(&self) {
+        let mut active_layout = self.active_layout.lock().await;
+        let active_window = get_active_window(&self.environment, &self.config).await;
+        loop {
+            if *active_layout == 3 { *active_layout = 0 }
+            else { *active_layout += 1 };
+            if let Some(_) = self.config.iter().find(|&x| x.associations.layout == *active_layout && x.associations.client == active_window) {
+                break
+            };
+        }
+        if self.settings.notify_layout_switch {
+            let notify = vec![String::from(format!("notify-send -t 500 'Makima' 'Switching to layout {}'", *active_layout))];
+            self.spawn_subprocess(&notify).await;
+        }
+    }
 
-	fn update_config(&self) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
-		Box::pin(async move {
-			let active_layout = self.active_layout.lock().await.clone();
-			let active_window = get_active_window(&self.environment, &self.config).await;
-			let associations = Associations {
-				client: active_window,
-				layout: active_layout,
-			};
-		    match self.config.iter().find(|&x| x.associations == associations) {
-				Some(config) => {
-					let mut current_config = self.current_config.lock().await;
-					*current_config = config.clone();
-				},
-				None => {
-					self.change_active_layout().await;
-					self.update_config().await;
-				},
-		    };
+    fn update_config(&self) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
+        Box::pin(async move {
+            let active_layout = self.active_layout.lock().await.clone();
+            let active_window = get_active_window(&self.environment, &self.config).await;
+            let associations = Associations {
+                client: active_window,
+                layout: active_layout,
+            };
+            match self.config.iter().find(|&x| x.associations == associations) {
+                Some(config) => {
+                    let mut current_config = self.current_config.lock().await;
+                    *current_config = config.clone();
+                },
+                None => {
+                    self.change_active_layout().await;
+                    self.update_config().await;
+                },
+            };
         })
-	}
+    }
 
     pub async fn cursor_loop(&self) {
         let (cursor, sensitivity, activation_modifiers) = if self.settings.lstick.function.as_str() == "cursor" {
@@ -665,9 +665,9 @@ impl EventReader {
                     if stick_position[0] != 0 || stick_position[1] != 0 {
                         let modifiers = self.modifiers.lock().await;
                         if activation_modifiers.len() == 0 || activation_modifiers == *modifiers {
-                        	let (x_coord, y_coord) =
-                        		if self.settings.invert_cursor_axis { (-stick_position[0], -stick_position[1]) }
-                        		else { (stick_position[0], stick_position[1]) };
+                            let (x_coord, y_coord) =
+                                if self.settings.invert_cursor_axis { (-stick_position[0], -stick_position[1]) }
+                                else { (stick_position[0], stick_position[1]) };
                             let virtual_event_x: InputEvent = InputEvent::new_now(EventType::RELATIVE, 0, x_coord);
                             let virtual_event_y: InputEvent = InputEvent::new_now(EventType::RELATIVE, 1, y_coord);
                             let mut virt_dev = self.virt_dev.lock().await;
@@ -704,9 +704,9 @@ impl EventReader {
                     if stick_position[0] != 0 || stick_position[1] != 0 {
                         let modifiers = self.modifiers.lock().await;
                         if activation_modifiers.len() == 0 || activation_modifiers == *modifiers {
-                        	let (x_coord, y_coord) =
-                        		if self.settings.invert_scroll_axis { (-stick_position[0], -stick_position[1]) }
-                        		else { (stick_position[0], stick_position[1]) };
+                            let (x_coord, y_coord) =
+                                if self.settings.invert_scroll_axis { (-stick_position[0], -stick_position[1]) }
+                                else { (stick_position[0], stick_position[1]) };
                             let virtual_event_x: InputEvent = InputEvent::new_now(EventType::RELATIVE, 12, x_coord);
                             let virtual_event_y: InputEvent = InputEvent::new_now(EventType::RELATIVE, 11, y_coord);
                             let mut virt_dev = self.virt_dev.lock().await;
