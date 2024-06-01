@@ -379,7 +379,7 @@ impl EventReader {
                     abs_wheel_position = value;
                 },
                 (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_MISC) => {
-                	if event.value() == 0 { abs_wheel_position = 0 };
+                    if event.value() == 0 { abs_wheel_position = 0 };
                 },
                 _ => self.emit_default_event(event).await,
             }
@@ -398,12 +398,16 @@ impl EventReader {
         let modifiers = self.modifiers.lock().await.clone();
         if let Some(map) = config.bindings.remap.get(&event) {
             if let Some(event_list) = map.get(&modifiers) {
-                self.emit_event(event_list, value, &modifiers, &config, modifiers.is_empty(), !modifiers.is_empty(), send_zero).await;
+                self.emit_event(event_list, value, &modifiers, &config, modifiers.is_empty(), !modifiers.is_empty()).await;
+                if send_zero {
+                    let modifiers = self.modifiers.lock().await.clone();
+                    self.emit_event(event_list, 0, &modifiers, &config, modifiers.is_empty(), !modifiers.is_empty()).await;
+                }
                 return
             }
             if let Some(event_list) = map.get(&vec![Event::Hold]) {
                 if !modifiers.is_empty() || self.settings.chain_only == false {
-                    self.emit_event(event_list, value, &modifiers, &config, false, false, send_zero).await;
+                    self.emit_event(event_list, value, &modifiers, &config, false, false).await;
                     return
                 }
             }
@@ -414,7 +418,11 @@ impl EventReader {
                 }
             }
             if let Some(event_list) = map.get(&Vec::new()) {
-                self.emit_event(event_list, value, &modifiers, &config, true, false, send_zero).await;
+                self.emit_event(event_list, value, &modifiers, &config, true, false).await;
+                if send_zero {
+                    let modifiers = self.modifiers.lock().await.clone();
+                    self.emit_event(event_list, 0, &modifiers, &config, true, false).await;
+                }
                 return
             }
         }
@@ -427,7 +435,7 @@ impl EventReader {
         self.emit_nonmapped_event(default_event, event, value, &modifiers, &config).await;
     }
 
-    async fn emit_event(&self, event_list: &Vec<Key>, value: i32, modifiers: &Vec<Event>, config: &Config, release_keys: bool, ignore_modifiers: bool, send_zero: bool) {
+    async fn emit_event(&self, event_list: &Vec<Key>, value: i32, modifiers: &Vec<Event>, config: &Config, release_keys: bool, ignore_modifiers: bool) {
         let mut virt_dev = self.virt_dev.lock().await;
         let mut modifier_was_activated = self.modifier_was_activated.lock().await;
         if release_keys {
@@ -462,10 +470,6 @@ impl EventReader {
             } else {
                 let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), value);
                 virt_dev.keys.emit(&[virtual_event]).unwrap();
-                if send_zero {
-                    let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), 0);
-                    virt_dev.keys.emit(&[virtual_event]).unwrap();
-                }
                 *modifier_was_activated = true;
             }
         }
