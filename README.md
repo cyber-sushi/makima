@@ -86,7 +86,7 @@ To retrieve the window class of a specific application, refer to your compositor
 
 **Note 3: on Wayland, make sure that the `XDG_CURRENT_DESKTOP` environment variable is set, or Makima won't be able to use application-specific bindings.**
 
-**Note 4: on Plasma Wayland, Makima uses `kdotool` ([Github repo](https://github.com/jinliu/kdotool) or [AUR package](https://aur.archlinux.org/packages/kdotool-git)) to retrieve the active window instead of doing so internally, which means that you also need that installed. Sorry about this, but I didn't want to hardcode JavaScript snippets inside of Makima just to communicate with KWin.**
+**Note 4: on Plasma Wayland, Makima uses `kdotool` ([Github repo](https://github.com/jinliu/kdotool) or [AUR package](https://aur.archlinux.org/packages/kdotool-git)) to retrieve the active window instead of doing so internally, which means that you also need that installed. Sorry about this, but I didn't want to hardcode JavaScript snippets inside of Makima just to communicate with KWin. IT'S BEEN REPORTED THAT THIS SOLUTION MIGHT INTRODUCE PERFORMANCE ISSUES, IF YOU EXPERIENCE PROBLEMS, REMOVE `kdotool` FROM PATH UNTIL I FIGURE OUT A SOLUTION.**
 
 ### Layout hotswapping
 To declare multiple layouts, similarly to app-specific bindings, put `::<int>` at the end of a config file, where `int` is an integer value between 0 and 3, representing the layout number. If not specified, Makima will assume 0.\
