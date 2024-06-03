@@ -51,7 +51,8 @@ There are two recommended ways to execute Makima:
 Navigate into the directory of the executable and use `sudo -E ./makima`.\
 Alternatively, add Makima to a directory that's in `PATH`, possibly `/usr/bin` or `~/.local/bin` and simply use `sudo -E makima` from anywhere.
 
-_Note: the `-E` argument is necessary because it allows Makima to inherit your user environment instead of the root environment when running with `sudo`. You can also add the `-b` argument (`sudo -Eb makima`) to detach if from the terminal and make it run in the background._
+> [!NOTE]
+> The `-E` argument is necessary because it allows Makima to inherit your user environment instead of the root environment when running with `sudo`. You can also add the `-b` argument (`sudo -Eb makima`) to detach if from the terminal and make it run in the background.
 
 - **Run Makima as a Systemd service.**\
 Move the executable into `/usr/bin`.\
@@ -59,43 +60,50 @@ Grab `makima.service` from this repo and edit the `User=` line with your usernam
 Move the file into `/etc/systemd/system`, then run `systemctl daemon-reload`.\
 After this, you can start and stop Makima with `systemctl start/stop makima` or you can enable/disable it on startup with `systemctl enable/disable makima`. If you change the config files and you want the changes to take place, restart Makima with `systemctl restart makima`.
 
-_Note: when running as a systemd service, Makima inherits your systemd user environment, not your shell environment (you can see it with `systemctl --user show-environment`). If you need to pass env variables to it, do so by adding them to the unit file with `Environment=VARIABLE=value`._
+> [!NOTE]
+> When running as a systemd service, Makima inherits your systemd user environment, not your shell environment (you can see it with `systemctl --user show-environment`). If you need to pass env variables to it, do so by adding them to the unit file with `Environment=VARIABLE=value`.
 
 ## Configuration
 You can find a bunch of [example config files](https://github.com/cyber-sushi/makima/tree/main/examples) on this repo, either pick one of them or create your own from scratch.\
 Makima's config directory defaults to `$HOME/.config/makima` but can be changed through the `MAKIMA_CONFIG` environment variable (if you run Makima as a system service, add it directly to the Systemd unit).
 
 ### Config file naming
-To associate a config file to an input device, the file name should be identical to that of the device. If your device's name includes a `/`, just omit it.
-
-_Example: you run `evtest` and see that your Dualshock 4 controller is named `Sony Interactive Entertainment Wireless Controller`. All you have to do is rename your config file to `Sony Interactive Entertainment Wireless Controller.toml`._
+To associate a config file to an input device, the file name should be identical to that of the device, plus `.toml` at the end. If your device's name includes a `/`, just omit it.
 
 All config files will be parsed automatically when `makima` is launched.\
 Files that don't end with `.toml` and files that start with `.` (dotfiles) won't be parsed, so you can add a dot at the beginning of the filename to mask them from Makima.
 
+> [!TIP]
+> Example: you run `evtest` and see that your Dualshock 4 controller is named `Sony Interactive Entertainment Wireless Controller`. All you have to do is rename your config file to `Sony Interactive Entertainment Wireless Controller.toml`.
+
 ### Application-specific bindings
 To apply a config file only to a specific application, just put `::<window_class>` at the end of their filename, before `.toml`.
 
-_Example: you want your DS4 controller to have a specific set of keybindings for Firefox, name that file `Sony Interactive Entertainment Wireless Controller::firefox.toml`._
+> [!TIP]
+> Example: you want your DS4 controller to have a specific set of keybindings for Firefox, name that file `Sony Interactive Entertainment Wireless Controller::firefox.toml`.\
+> To retrieve the window class of a specific application, refer to your compositor's documentation, e.g. on Hyprland type `hyprctl clients` in your terminal while that application is open.
 
-To retrieve the window class of a specific application, refer to your compositor's documentation, e.g. on Hyprland type `hyprctl clients` in your terminal while that application is open.
 
-**Note: app-specific bindings are currently only supported on Hyprland, Sway, Plasma Wayland and all X11 sessions.**\
+> [!IMPORTANT]
+> App-specific bindings are currently only supported on Hyprland, Sway, Plasma Wayland and all X11 sessions.\
+> Some applications, like Flatpaks for example, will have names like `org.mozilla.firefox`.\
+> On Wayland, make sure that the `XDG_CURRENT_DESKTOP` environment variable is set, othewise Makima won't be able to use application-specific bindings.
+> 
+> On Plasma Wayland, Makima uses `kdotool` ([Github repo](https://github.com/jinliu/kdotool) or [AUR package](https://aur.archlinux.org/packages/kdotool-git)) to retrieve the active window instead of doing so internally, which means that you also need that installed. Sorry about this, but I didn't want to hardcode JavaScript snippets inside of Makima just to communicate with KWin.
 
-**Note 2: some applications, like Flatpaks for example, will have names like `org.mozilla.firefox`.**
-
-**Note 3: on Wayland, make sure that the `XDG_CURRENT_DESKTOP` environment variable is set, or Makima won't be able to use application-specific bindings.**
-
-**Note 4: on Plasma Wayland, Makima uses `kdotool` ([Github repo](https://github.com/jinliu/kdotool) or [AUR package](https://aur.archlinux.org/packages/kdotool-git)) to retrieve the active window instead of doing so internally, which means that you also need that installed. Sorry about this, but I didn't want to hardcode JavaScript snippets inside of Makima just to communicate with KWin. IT'S BEEN REPORTED THAT THIS SOLUTION MIGHT INTRODUCE PERFORMANCE ISSUES, IF YOU EXPERIENCE PROBLEMS, REMOVE `kdotool` FROM PATH UNTIL I FIGURE OUT A SOLUTION.**
+> [!WARNING]
+> It's been reported that active window retrieval through `kdotool` on Plasma might introduce performance issues, if you experience problems, remove `kdotool`'s executable from `PATH` until I figure out how a solution.
 
 ### Layout hotswapping
 To declare multiple layouts, similarly to app-specific bindings, put `::<int>` at the end of a config file, where `int` is an integer value between 0 and 3, representing the layout number. If not specified, Makima will assume 0.\
 When pressing the key configured in the settings through the `LAYOUT_SWITCHER` parameter, Makima will automatically cycle through the available layouts. If a layout isn't set, e.g. you're on 0 and you switch to the next layout, but number 1 isn't found, Makima will automatically skip to layout 2 and so on.\
 You can also combine layouts and per application bindings by simply putting them both in the config file name.
 
-_Example: declare layout 2 in Nautilus by setting `Wireless Controller::2::org.gnome.Nautilus.toml` or `Wireless Controller::org.gnome.Nautilus::2.toml`._
+> [!TIP]
+> Example: declare layout 2 in Nautilus by setting `Wireless Controller::2::org.gnome.Nautilus.toml` or `Wireless Controller::org.gnome.Nautilus::2.toml`.
 
-**Note: keep in mind that while bindings and commands are read from each config file independently, settings are only read from the main config file, the one with no layout and associated application specified. If such file isn't present, Makima will use the default values.**
+> [!NOTE]
+> Keep in mind that while bindings and commands are read from each config file independently, settings are only read from the main config file, the one with no layout and associated application specified. If such file isn't present, Makima will use the default values.
 
 ## Bindings and settings
 The config file is divided into multiple sections:
