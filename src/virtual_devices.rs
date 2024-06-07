@@ -12,10 +12,12 @@ impl VirtualDevices {
         for i in 1..334 {key_capabilities.insert(Key(i));};
         let mut axis_capabilities = evdev::AttributeSet::new();
         for i in 0..13 {axis_capabilities.insert(evdev::RelativeAxisType(i));};
-        let keys_builder = VirtualDeviceBuilder::new().unwrap()
+        let keys_builder = VirtualDeviceBuilder::new()
+            .expect("Unable to create virtual device through uinput. Take a look at the Troubleshooting section for more info.")
             .name("Makima Virtual Keyboard/Mouse")
             .with_keys(&key_capabilities).unwrap();
-        let axis_builder = VirtualDeviceBuilder::new().unwrap()
+        let axis_builder = VirtualDeviceBuilder::new()
+            .expect("Unable to create virtual device through uinput. Take a look at the Troubleshooting section for more info.")
             .name("Makima Virtual Pointer")
             .with_relative_axes(&axis_capabilities).unwrap();
         let virtual_device_keys = keys_builder.build().unwrap();
