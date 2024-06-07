@@ -95,7 +95,7 @@ pub fn launch_tasks(config_files: &Vec<Config>, tasks: &mut Vec<JoinHandle<()>>,
                             (Client::Class(split_config_name[1].to_string()), layout)
                         } else {
                             println!("Warning: unable to parse layout number in {}, treating it as default.", config.name);
-                                    (Client::Default, 0)
+                            (Client::Default, 0)
                         }
                     },
                     _ => {
@@ -144,23 +144,27 @@ fn set_environment() -> Environment {
             }
         },
         Err(_) => {
-        	let uid = Command::new("sh").arg("-c").arg("id -u").output().unwrap();
-        	let uid_number = std::str::from_utf8(uid.stdout.as_slice()).unwrap().trim();
-        	if uid_number != "0" {
-                    let bus_address = format!("unix:path=/run/user/{}/bus", uid_number);
-                    env::set_var("DBUS_SESSION_BUS_ADDRESS", bus_address);
-                    let command = Command::new("sh").arg("-c").arg("systemctl --user show-environment").output().unwrap();
-                    let vars = std::str::from_utf8(command.stdout.as_slice()).unwrap().split("\n").collect::<Vec<&str>>();
-                    for var in vars {
-                        if let Some((variable, value)) = var.split_once("=") {
-                            if let Err(env::VarError::NotPresent) = env::var(variable) {
-                                env::set_var(variable, value);
-                            }
+            let uid = Command::new("sh").arg("-c").arg("id -u").output().unwrap();
+            let uid_number = std::str::from_utf8(uid.stdout.as_slice()).unwrap().trim();
+            if uid_number != "0" {
+                let bus_address = format!("unix:path=/run/user/{}/bus", uid_number);
+                env::set_var("DBUS_SESSION_BUS_ADDRESS", bus_address);
+                let command = Command::new("sh").arg("-c").arg("systemctl --user show-environment").output().unwrap();
+                let vars = std::str::from_utf8(command.stdout.as_slice()).unwrap().split("\n").collect::<Vec<&str>>();
+                for var in vars {
+                    if let Some((variable, value)) = var.split_once("=") {
+                        if let Err(env::VarError::NotPresent) = env::var(variable) {
+                            env::set_var(variable, value);
+                        } else if variable == "PATH" {
+                            let current_path = env::var("PATH").unwrap();
+                            let chained_path = format!("{}:{}", value, current_path);
+                            env::set_var("PATH", chained_path);
                         }
                     }
-	        } else {
-                    println!("Warning: unable to inherit user environment.\n\
-                            Launch Makima with 'sudo -E makima' or make sure that your systemd unit is running with the 'User=<username>' parameter.\n");
+                }
+            } else {
+                println!("Warning: unable to inherit user environment.\n\
+                        Launch Makima with 'sudo -E makima' or make sure that your systemd unit is running with the 'User=<username>' parameter.\n");
             }
         },
     };
