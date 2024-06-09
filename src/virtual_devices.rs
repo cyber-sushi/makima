@@ -1,5 +1,7 @@
-use evdev::{Key, uinput::{VirtualDevice, VirtualDeviceBuilder}};
-
+use evdev::{
+    uinput::{VirtualDevice, VirtualDeviceBuilder},
+    Key,
+};
 
 pub struct VirtualDevices {
     pub keys: VirtualDevice,
@@ -9,9 +11,13 @@ pub struct VirtualDevices {
 impl VirtualDevices {
     pub fn new() -> Self {
         let mut key_capabilities = evdev::AttributeSet::new();
-        for i in 1..334 {key_capabilities.insert(Key(i));};
+        for i in 1..334 {
+            key_capabilities.insert(Key(i));
+        }
         let mut axis_capabilities = evdev::AttributeSet::new();
-        for i in 0..13 {axis_capabilities.insert(evdev::RelativeAxisType(i));};
+        for i in 0..13 {
+            axis_capabilities.insert(evdev::RelativeAxisType(i));
+        }
         let keys_builder = VirtualDeviceBuilder::new()
             .expect("Unable to create virtual device through uinput. Take a look at the Troubleshooting section for more info.")
             .name("Makima Virtual Keyboard/Mouse")
@@ -28,4 +34,3 @@ impl VirtualDevices {
         }
     }
 }
-
