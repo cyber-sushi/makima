@@ -163,22 +163,7 @@ pub async fn start_reader(reader: EventReader) {
 fn set_environment() -> Environment {
     match env::var("DBUS_SESSION_BUS_ADDRESS") {
         Ok(_) => {
-            let command = Command::new("sh")
-                .arg("-c")
-                .arg("systemctl --user show-environment")
-                .output()
-                .unwrap();
-            let vars = std::str::from_utf8(command.stdout.as_slice())
-                .unwrap()
-                .split("\n")
-                .collect::<Vec<&str>>();
-            for var in vars {
-                if let Some((variable, value)) = var.split_once("=") {
-                    if let Err(env::VarError::NotPresent) = env::var(variable) {
-                        env::set_var(variable, value);
-                    }
-                }
-            }
+            copy_variables()
         }
         Err(_) => {
             let uid = Command::new("sh").arg("-c").arg("id -u").output().unwrap();
@@ -186,26 +171,7 @@ fn set_environment() -> Environment {
             if uid_number != "0" {
                 let bus_address = format!("unix:path=/run/user/{}/bus", uid_number);
                 env::set_var("DBUS_SESSION_BUS_ADDRESS", bus_address);
-                let command = Command::new("sh")
-                    .arg("-c")
-                    .arg("systemctl --user show-environment")
-                    .output()
-                    .unwrap();
-                let vars = std::str::from_utf8(command.stdout.as_slice())
-                    .unwrap()
-                    .split("\n")
-                    .collect::<Vec<&str>>();
-                for var in vars {
-                    if let Some((variable, value)) = var.split_once("=") {
-                        if let Err(env::VarError::NotPresent) = env::var(variable) {
-                            env::set_var(variable, value);
-                        } else if variable == "PATH" {
-                            let current_path = env::var("PATH").unwrap();
-                            let chained_path = format!("{}:{}", value, current_path);
-                            env::set_var("PATH", chained_path);
-                        }
-                    }
-                }
+                copy_variables()
             } else {
                 println!("Warning: unable to inherit user environment.\n\
                         Launch Makima with 'sudo -E makima' or make sure that your systemd unit is running with the 'User=<username>' parameter.\n");
@@ -272,6 +238,27 @@ fn set_environment() -> Environment {
         user: env::var("USER"),
         sudo_user: env::var("SUDO_USER"),
         server,
+    }
+}
+
+fn copy_variables() {
+    let command = Command::new("sh")
+        .arg("-c")
+        .arg("systemctl --user show-environment")
+        .output()
+        .unwrap();
+    let vars = std::str::from_utf8(command.stdout.as_slice())
+        .unwrap()
+        .split("\n")
+        .collect::<Vec<&str>>();
+    for var in vars {
+        if let Some((variable, value)) = var.split_once("=") {
+            if let Err(env::VarError::NotPresent) = env::var(variable) {
+                env::set_var(variable, value);
+            } else if variable == "PATH" {
+                env::set_var("PATH", format!("{}:{}", value, env::var("PATH").unwrap()));
+            }
+        }
     }
 }
 
