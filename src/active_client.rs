@@ -55,6 +55,28 @@ pub async fn get_active_window(environment: &Environment, config: &Vec<Config>) 
                         Client::Default
                     }
                 }
+                "niri" => {
+                    let query = Command::new("niri")
+                        .args(["msg", "-j", "focused-window"])
+                        .output()
+                        .unwrap();
+                    if let Ok(reply) = serde_json::from_str::<serde_json::Value>(
+                        std::str::from_utf8(query.stdout.as_slice()).unwrap(),
+                    ) {
+                        let active_window =
+                            Client::Class(reply["app_id"].to_string().replace("\"", ""));
+                        if let Some(_) = config
+                            .iter()
+                            .find(|&x| x.associations.client == active_window)
+                        {
+                            active_window
+                        } else {
+                            Client::Default
+                        }
+                    } else {
+                        Client::Default
+                    }
+                }
                 "KDE" => {
                     let (user, running_as_root) =
                         if let Ok(sudo_user) = environment.sudo_user.clone() {

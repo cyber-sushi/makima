@@ -184,7 +184,7 @@ fn set_environment() -> Environment {
         env::set_var("XDG_SESSION_TYPE", "wayland")
     }
 
-    let supported_compositors = vec!["Hyprland", "sway", "KDE"]
+    let supported_compositors = vec!["Hyprland", "sway", "KDE", "niri"]
         .into_iter()
         .map(|str| String::from(str))
         .collect::<Vec<String>>();
