@@ -6,7 +6,7 @@ It works on both Wayland and X11 as it relies on the `evdev` kernel interface.
 ## Features
 - Translates keys, buttons or combinations to other keys, sequences or shell commands.
 - Devices are remapped individually using simple TOML config files.
-- Automatically switch layouts based on the active window (only on Hyprland, Sway and X11 currently).
+- Automatically switch layouts based on the active window (only on Hyprland, Sway, Niri and X11 currently).
 - Works with keyboards, mice, controllers, tablets and any other device that uses `KEY`/`BTN` input events present inside `/usr/include/linux/input-event-codes.h`.
 - Also supports some common `ABS` and `REL` events, like analog stick movements and mouse scroll wheels.
 - Supports hot plugging to connect and disconnect devices on the fly.
@@ -85,7 +85,7 @@ To apply a config file only to a specific application, just put `::<window_class
 
 
 > [!IMPORTANT]
-> App-specific bindings are currently only supported on Hyprland, Sway, Plasma Wayland and all X11 sessions.\
+> App-specific bindings are currently only supported on Hyprland, Sway, Niri, Plasma Wayland and all X11 sessions.\
 > Some applications, like Flatpaks for example, will have names like `org.mozilla.firefox`.\
 > On Wayland, make sure that the `XDG_CURRENT_DESKTOP` environment variable is set, othewise Makima won't be able to use application-specific bindings.
 > 
