@@ -52,6 +52,7 @@ pub struct EventReader {
 impl EventReader {
     pub fn new(
         config: Vec<Config>,
+        virt_dev: Arc<Mutex<VirtualDevices>>,
         stream: Arc<Mutex<EventStream>>,
         modifiers: Arc<Mutex<Vec<Event>>>,
         modifier_was_activated: Arc<Mutex<bool>>,
@@ -72,7 +73,6 @@ impl EventReader {
                 .unwrap()
                 .clone(),
         ));
-        let virt_dev = Arc::new(Mutex::new(VirtualDevices::new()));
         let lstick_function = config
             .iter()
             .find(|&x| x.associations == Associations::default())
@@ -264,6 +264,11 @@ impl EventReader {
         ) = ((0, 0), (0, 0), (0, 0), (0, 0), 0);
         let switcher: Key = self.settings.layout_switcher;
         let mut stream = self.stream.lock().await;
+        let mut pen_events: Vec<InputEvent> = Vec::new();
+        let is_tablet: bool =
+            stream.device().properties().contains(evdev::PropType::POINTER)
+            && stream.device().supported_keys()
+            .unwrap_or(&evdev::AttributeSet::new()).contains(evdev::Key::BTN_TOOL_PEN);
         let mut max_abs_wheel = 0;
         if let Ok(abs_state) = stream.device().get_abs_state() {
             for state in abs_state {
@@ -277,9 +282,18 @@ impl EventReader {
                 event.event_type(),
                 RelativeAxisType(event.code()),
                 AbsoluteAxisType(event.code()),
+                is_tablet,
             ) {
-                (EventType::KEY, _, _) => match Key(event.code()) {
+                (EventType::KEY, _, _, _) => match Key(event.code()) {
                     Key::BTN_TL2 | Key::BTN_TR2 => {}
+                    Key::BTN_TOOL_PEN
+                    | Key::BTN_TOOL_RUBBER
+                    | Key::BTN_TOOL_BRUSH
+                    | Key::BTN_TOOL_PENCIL
+                    | Key::BTN_TOOL_AIRBRUSH
+                    | Key::BTN_TOOL_MOUSE
+                    | Key::BTN_TOOL_LENS
+                    if is_tablet => pen_events.push(event),
                     key if key == switcher && event.value() == 1 => {
                         self.change_active_layout().await
                     }
@@ -297,6 +311,7 @@ impl EventReader {
                     EventType::RELATIVE,
                     RelativeAxisType::REL_WHEEL | RelativeAxisType::REL_WHEEL_HI_RES,
                     _,
+                    _,
                 ) => match event.value() {
                     -1 => {
                         self.convert_event(event, Event::Axis(Axis::SCROLL_WHEEL_DOWN), 1, true)
@@ -308,7 +323,35 @@ impl EventReader {
                     }
                     _ => {}
                 },
-                (_, _, AbsoluteAxisType::ABS_HAT0X) => {
+                (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_WHEEL, _) => {
+                    let value = event.value();
+                    if value != 0 && abs_wheel_position != 0 {
+                        let gap = value - abs_wheel_position;
+                        if gap < -max_abs_wheel / 2 {
+                            self.convert_event(event, Event::Axis(Axis::ABS_WHEEL_CW), 1, true)
+                                .await;
+                        } else if gap > max_abs_wheel / 2 {
+                            self.convert_event(event, Event::Axis(Axis::ABS_WHEEL_CCW), 1, true)
+                                .await;
+                        } else if value > abs_wheel_position {
+                            self.convert_event(event, Event::Axis(Axis::ABS_WHEEL_CW), 1, true)
+                                .await;
+                        } else if value < abs_wheel_position {
+                            self.convert_event(event, Event::Axis(Axis::ABS_WHEEL_CCW), 1, true)
+                                .await;
+                        }
+                    }
+                    abs_wheel_position = value;
+                }
+                (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_MISC, false) => {
+                    if event.value() == 0 {
+                        abs_wheel_position = 0
+                    }
+                }
+                (EventType::ABSOLUTE, _, _, true) => {
+                    pen_events.push(event)
+                }
+                (_, _, AbsoluteAxisType::ABS_HAT0X, _) => {
                     match event.value() {
                         -1 => {
                             self.convert_event(event, Event::Axis(Axis::BTN_DPAD_LEFT), 1, false)
@@ -347,7 +390,7 @@ impl EventReader {
                         _ => {}
                     };
                 }
-                (_, _, AbsoluteAxisType::ABS_HAT0Y) => {
+                (_, _, AbsoluteAxisType::ABS_HAT0Y, _) => {
                     match event.value() {
                         -1 => {
                             self.convert_event(event, Event::Axis(Axis::BTN_DPAD_UP), 1, false)
@@ -386,7 +429,12 @@ impl EventReader {
                         _ => {}
                     };
                 }
-                (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_X | AbsoluteAxisType::ABS_Y) => {
+                (
+                    EventType::ABSOLUTE,
+                    _,
+                    AbsoluteAxisType::ABS_X | AbsoluteAxisType::ABS_Y,
+                    false
+                ) => {
                     match self.settings.lstick.function.as_str() {
                         "cursor" | "scroll" => {
                             let axis_value = self
@@ -513,7 +561,12 @@ impl EventReader {
                         _ => {}
                     }
                 }
-                (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_RX | AbsoluteAxisType::ABS_RY) => {
+                (
+                    EventType::ABSOLUTE,
+                    _,
+                    AbsoluteAxisType::ABS_RX | AbsoluteAxisType::ABS_RY,
+                    false
+                ) => {
                     match self.settings.rstick.function.as_str() {
                         "cursor" | "scroll" => {
                             let axis_value = self
@@ -644,7 +697,7 @@ impl EventReader {
                         _ => {}
                     }
                 }
-                (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_Z) => {
+                (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_Z, false) => {
                     match (event.value(), triggers_values.0) {
                         (0, 1) => {
                             self.convert_event(event, Event::Axis(Axis::BTN_TL2), 0, false)
@@ -659,7 +712,7 @@ impl EventReader {
                         _ => {}
                     }
                 }
-                (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_RZ) => {
+                (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_RZ, false) => {
                     match (event.value(), triggers_values.1) {
                         (0, 1) => {
                             self.convert_event(event, Event::Axis(Axis::BTN_TR2), 0, false)
@@ -674,30 +727,15 @@ impl EventReader {
                         _ => {}
                     }
                 }
-                (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_WHEEL) => {
-                    let value = event.value();
-                    if value != 0 && abs_wheel_position != 0 {
-                        let gap = value - abs_wheel_position;
-                        if gap < -max_abs_wheel / 2 {
-                            self.convert_event(event, Event::Axis(Axis::ABS_WHEEL_CW), 1, true)
-                                .await;
-                        } else if gap > max_abs_wheel / 2 {
-                            self.convert_event(event, Event::Axis(Axis::ABS_WHEEL_CCW), 1, true)
-                                .await;
-                        } else if value > abs_wheel_position {
-                            self.convert_event(event, Event::Axis(Axis::ABS_WHEEL_CW), 1, true)
-                                .await;
-                        } else if value < abs_wheel_position {
-                            self.convert_event(event, Event::Axis(Axis::ABS_WHEEL_CCW), 1, true)
-                                .await;
-                        }
+                (EventType::MISC, _, _, true) => {
+                    if !stream.device().properties().contains(evdev::PropType::POINTER) {
+                        self.emit_default_event(event).await;
+                    } else if evdev::MiscType(event.code()) == evdev::MiscType::MSC_SERIAL {
+                        pen_events.push(event);
+                        let mut virt_dev = self.virt_dev.lock().await;
+                        virt_dev.abs.emit(&pen_events).unwrap();
+                        pen_events.clear()
                     }
-                    abs_wheel_position = value;
-                }
-                (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_MISC) => {
-                    if event.value() == 0 {
-                        abs_wheel_position = 0
-                    };
                 }
                 _ => self.emit_default_event(event).await,
             }
@@ -877,6 +915,13 @@ impl EventReader {
                 EventType::RELATIVE => {
                     virt_dev.axis.emit(&[default_event]).unwrap();
                 }
+                EventType::ABSOLUTE => {
+                    virt_dev.abs.emit(&[default_event]).unwrap();
+                }
+                EventType::MISC => {
+                    let mut virt_dev = self.virt_dev.lock().await;
+                    virt_dev.abs.emit(&[default_event]).unwrap();
+                }
                 _ => {}
             }
         }
@@ -891,6 +936,14 @@ impl EventReader {
             EventType::RELATIVE => {
                 let mut virt_dev = self.virt_dev.lock().await;
                 virt_dev.axis.emit(&[event]).unwrap();
+            }
+            EventType::ABSOLUTE => {
+                let mut virt_dev = self.virt_dev.lock().await;
+                virt_dev.abs.emit(&[event]).unwrap();
+            }
+            EventType::MISC => {
+                let mut virt_dev = self.virt_dev.lock().await;
+                virt_dev.abs.emit(&[event]).unwrap();
             }
             _ => {}
         }

@@ -1,6 +1,7 @@
 use crate::config::{Associations, Event};
 use crate::event_reader::EventReader;
 use crate::Config;
+use crate::virtual_devices::VirtualDevices;
 use evdev::{Device, EventStream};
 use std::{env, path::Path, process::Command, sync::Arc};
 use tokio::sync::Mutex;
@@ -138,8 +139,10 @@ pub fn launch_tasks(
                 Path::new(&event_device),
                 config_list.clone(),
             )));
+            let virt_dev = Arc::new(Mutex::new(VirtualDevices::new(device.1)));
             let reader = EventReader::new(
                 config_list.clone(),
+                virt_dev,
                 stream,
                 modifiers.clone(),
                 modifier_was_activated.clone(),
@@ -213,7 +216,7 @@ fn set_environment() -> Environment {
         }
         (Ok(session), Ok(desktop)) if session == wayland => {
             println!("Warning: unsupported compositor: {}, won't be able to change bindings according to the active window.\n\
-                    Currently supported desktops: Hyprland, Sway, Plasma/KWin, X11.\n", desktop);
+                    Currently supported desktops: Hyprland, Sway, Niri, Plasma/KWin, X11.\n", desktop);
             Server::Unsupported
         }
         (Ok(session), _) if session == x11 => {
