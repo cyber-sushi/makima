@@ -24,19 +24,17 @@ impl VirtualDevices {
             for (axis_type, info) in absinfo.iter().enumerate() {
                 if [0, 1, 2, 5, 6, 8, 24, 25, 26, 27].contains(&axis_type) {
                     let new_absinfo = evdev::AbsInfo::new(
-                            info.value,
-                            info.minimum,
-                            info.maximum,
-                            info.fuzz,
-                            info.flat,
-                            info.resolution
+                        info.value,
+                        info.minimum,
+                        info.maximum,
+                        info.fuzz,
+                        info.flat,
+                        info.resolution,
                     );
-                    tablet_abs_capabilities.push(
-                        evdev::UinputAbsSetup::new(
-                            evdev::AbsoluteAxisType(axis_type.try_into().unwrap()),
-                            new_absinfo
-                        )
-                    )
+                    tablet_abs_capabilities.push(evdev::UinputAbsSetup::new(
+                        evdev::AbsoluteAxisType(axis_type.try_into().unwrap()),
+                        new_absinfo,
+                    ))
                 }
             }
         }
@@ -77,7 +75,7 @@ impl VirtualDevices {
             .input_id(device.input_id());
         for abs_setup in tablet_abs_capabilities {
             abs_builder = abs_builder.with_absolute_axis(&abs_setup).unwrap();
-        };
+        }
         let virtual_device_keys = keys_builder.build().unwrap();
         let virtual_device_axis = axis_builder.build().unwrap();
         let virtual_device_abs = abs_builder.build().unwrap();

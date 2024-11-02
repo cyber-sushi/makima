@@ -1,7 +1,7 @@
 use crate::config::{Associations, Event};
 use crate::event_reader::EventReader;
-use crate::Config;
 use crate::virtual_devices::VirtualDevices;
+use crate::Config;
 use evdev::{Device, EventStream};
 use std::{env, path::Path, process::Command, sync::Arc};
 use tokio::sync::Mutex;
@@ -165,9 +165,7 @@ pub async fn start_reader(reader: EventReader) {
 
 fn set_environment() -> Environment {
     match env::var("DBUS_SESSION_BUS_ADDRESS") {
-        Ok(_) => {
-            copy_variables()
-        }
+        Ok(_) => copy_variables(),
         Err(_) => {
             let uid = Command::new("sh").arg("-c").arg("id -u").output().unwrap();
             let uid_number = std::str::from_utf8(uid.stdout.as_slice()).unwrap().trim();
