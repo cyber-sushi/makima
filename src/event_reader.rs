@@ -265,8 +265,7 @@ impl EventReader {
         let switcher: Key = self.settings.layout_switcher;
         let mut stream = self.stream.lock().await;
         let mut pen_events: Vec<InputEvent> = Vec::new();
-        let is_tablet: bool =
-            stream
+        let is_tablet: bool = stream
             .device()
             .supported_keys()
             .unwrap_or(&evdev::AttributeSet::new())
