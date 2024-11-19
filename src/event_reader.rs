@@ -265,15 +265,12 @@ impl EventReader {
         let switcher: Key = self.settings.layout_switcher;
         let mut stream = self.stream.lock().await;
         let mut pen_events: Vec<InputEvent> = Vec::new();
-        let is_tablet: bool = stream
+        let is_tablet: bool =
+            stream
             .device()
-            .properties()
-            .contains(evdev::PropType::POINTER)
-            && stream
-                .device()
-                .supported_keys()
-                .unwrap_or(&evdev::AttributeSet::new())
-                .contains(evdev::Key::BTN_TOOL_PEN);
+            .supported_keys()
+            .unwrap_or(&evdev::AttributeSet::new())
+            .contains(evdev::Key::BTN_TOOL_PEN);
         let mut max_abs_wheel = 0;
         if let Ok(abs_state) = stream.device().get_abs_state() {
             for state in abs_state {
@@ -351,9 +348,11 @@ impl EventReader {
                     }
                     abs_wheel_position = value;
                 }
-                (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_MISC, false) => {
-                    if event.value() == 0 {
+                (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_MISC, _) => {
+                    if is_tablet == false && event.value() == 0 {
                         abs_wheel_position = 0
+                    } else {
+                        self.emit_default_event(event).await;
                     }
                 }
                 (EventType::ABSOLUTE, _, _, true) => pen_events.push(event),
@@ -730,13 +729,7 @@ impl EventReader {
                     }
                 }
                 (EventType::MISC, _, _, true) => {
-                    if !stream
-                        .device()
-                        .properties()
-                        .contains(evdev::PropType::POINTER)
-                    {
-                        self.emit_default_event(event).await;
-                    } else if evdev::MiscType(event.code()) == evdev::MiscType::MSC_SERIAL {
+                    if evdev::MiscType(event.code()) == evdev::MiscType::MSC_SERIAL {
                         pen_events.push(event);
                         let mut virt_dev = self.virt_dev.lock().await;
                         virt_dev.abs.emit(&pen_events).unwrap();
