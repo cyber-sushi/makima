@@ -29,6 +29,7 @@ struct Settings {
     invert_cursor_axis: bool,
     invert_scroll_axis: bool,
     axis_16_bit: bool,
+    stadia: bool,
     chain_only: bool,
     layout_switcher: Key,
     notify_layout_switch: bool,
@@ -165,6 +166,16 @@ impl EventReader {
             .parse()
             .expect("16_BIT_AXIS can only be true or false.");
 
+        let stadia: bool = config
+            .iter()
+            .find(|&x| x.associations == Associations::default())
+            .unwrap()
+            .settings
+            .get("STADIA")
+            .unwrap_or(&"false".to_string())
+            .parse()
+            .expect("STADIA can only be true or false.");
+
         let chain_only: bool = config
             .iter()
             .find(|&x| x.associations == Associations::default())
@@ -222,6 +233,7 @@ impl EventReader {
             invert_cursor_axis,
             invert_scroll_axis,
             axis_16_bit,
+            stadia,
             chain_only,
             layout_switcher,
             notify_layout_switch,
@@ -698,33 +710,187 @@ impl EventReader {
                     _ => {}
                 },
                 (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_Z, false) => {
-                    match (event.value(), triggers_values.0) {
-                        (0, 1) => {
-                            self.convert_event(event, Event::Axis(Axis::BTN_TL2), 0, false)
-                                .await;
-                            triggers_values.0 = 0;
+                    if !self.settings.stadia {
+                        match (event.value(), triggers_values.0) {
+                            (0, 1) => {
+                                self.convert_event(event, Event::Axis(Axis::BTN_TL2), 0, false)
+                                    .await;
+                                triggers_values.0 = 0;
+                            }
+                            (_, 0) => {
+                                self.convert_event(event, Event::Axis(Axis::BTN_TL2), 1, false)
+                                    .await;
+                                triggers_values.0 = 1;
+                            }
+                            _ => {}
                         }
-                        (_, 0) => {
-                            self.convert_event(event, Event::Axis(Axis::BTN_TL2), 1, false)
-                                .await;
-                            triggers_values.0 = 1;
+                    } else {
+                        match self.settings.rstick.function.as_str() {
+                            "cursor" | "scroll" => {
+                                let axis_value = self
+                                    .get_axis_value(&event, &self.settings.rstick.deadzone)
+                                    .await;
+                                let mut rstick_position = self.rstick_position.lock().await;
+                                rstick_position[0] = axis_value;
+                            }
+                            "bind" => {
+                                let axis_value = self
+                                    .get_axis_value(&event, &self.settings.rstick.deadzone)
+                                    .await;
+                                let clamped_value = if axis_value < 0 {
+                                    -1
+                                } else if axis_value > 0 {
+                                    1
+                                } else {
+                                    0
+                                };
+                                match clamped_value {
+                                    -1 if rstick_values.0 != -1 => {
+                                        self.convert_event(
+                                            event,
+                                            Event::Axis(Axis::RSTICK_LEFT),
+                                            1,
+                                            false,
+                                        )
+                                        .await;
+                                        rstick_values.0 = -1
+                                    }
+                                    1 => {
+                                        if rstick_values.0 != 1 {
+                                            self.convert_event(
+                                                event,
+                                                Event::Axis(Axis::RSTICK_RIGHT),
+                                                1,
+                                                false,
+                                            )
+                                            .await;
+                                            rstick_values.0 = 1
+                                        }
+                                    }
+                                    0 => {
+                                        if rstick_values.0 != 0 {
+                                            match rstick_values.0 {
+                                                -1 => {
+                                                    self.convert_event(
+                                                        event,
+                                                        Event::Axis(Axis::RSTICK_LEFT),
+                                                        0,
+                                                        false,
+                                                    )
+                                                    .await
+                                                }
+                                                1 => {
+                                                    self.convert_event(
+                                                        event,
+                                                        Event::Axis(Axis::RSTICK_RIGHT),
+                                                        0,
+                                                        false,
+                                                    )
+                                                    .await
+                                                }
+                                                _ => {}
+                                            }
+                                            rstick_values.0 = 0;
+                                        }
+                                    }
+                                    _ => {}
+                                }
+                            }
+                            _ => {}
                         }
-                        _ => {}
                     }
                 }
                 (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_RZ, false) => {
-                    match (event.value(), triggers_values.1) {
-                        (0, 1) => {
-                            self.convert_event(event, Event::Axis(Axis::BTN_TR2), 0, false)
-                                .await;
-                            triggers_values.1 = 0;
+                    if !self.settings.stadia {
+                        match (event.value(), triggers_values.1) {
+                            (0, 1) => {
+                                self.convert_event(event, Event::Axis(Axis::BTN_TR2), 0, false)
+                                    .await;
+                                triggers_values.1 = 0;
+                            }
+                            (_, 0) => {
+                                self.convert_event(event, Event::Axis(Axis::BTN_TR2), 1, false)
+                                    .await;
+                                triggers_values.1 = 1;
+                            }
+                            _ => {}
                         }
-                        (_, 0) => {
-                            self.convert_event(event, Event::Axis(Axis::BTN_TR2), 1, false)
-                                .await;
-                            triggers_values.1 = 1;
+                    } else {
+                        match self.settings.rstick.function.as_str() {
+                            "cursor" | "scroll" => {
+                                let axis_value = self
+                                    .get_axis_value(&event, &self.settings.rstick.deadzone)
+                                    .await;
+                                let mut rstick_position = self.rstick_position.lock().await;
+                                rstick_position[1] = axis_value;
+                            }
+                            "bind" => {
+                                let axis_value = self
+                                    .get_axis_value(&event, &self.settings.rstick.deadzone)
+                                    .await;
+                                let clamped_value = if axis_value < 0 {
+                                    -1
+                                } else if axis_value > 0 {
+                                    1
+                                } else {
+                                    0
+                                };
+                                match clamped_value {
+                                    -1 => {
+                                        if rstick_values.1 != -1 {
+                                            self.convert_event(
+                                                event,
+                                                Event::Axis(Axis::RSTICK_UP),
+                                                1,
+                                                false,
+                                            )
+                                            .await;
+                                            rstick_values.1 = -1
+                                        }
+                                    }
+                                    1 => {
+                                        if rstick_values.1 != 1 {
+                                            self.convert_event(
+                                                event,
+                                                Event::Axis(Axis::RSTICK_DOWN),
+                                                1,
+                                                false,
+                                            )
+                                            .await;
+                                            rstick_values.1 = 1
+                                        }
+                                    }
+                                    0 => {
+                                        if rstick_values.1 != 0 {
+                                            match rstick_values.1 {
+                                                -1 => {
+                                                    self.convert_event(
+                                                        event,
+                                                        Event::Axis(Axis::RSTICK_UP),
+                                                        0,
+                                                        false,
+                                                    )
+                                                    .await
+                                                }
+                                                1 => {
+                                                    self.convert_event(
+                                                        event,
+                                                        Event::Axis(Axis::RSTICK_DOWN),
+                                                        0,
+                                                        false,
+                                                    )
+                                                    .await
+                                                }
+                                                _ => {}
+                                            }
+                                            rstick_values.1 = 0;
+                                        }
+                                    }
+                                    _ => {}
+                                }
+                            }
+                            _ => {}
                         }
-                        _ => {}
                     }
                 }
                 (EventType::MISC, _, _, true) => {
@@ -746,7 +912,6 @@ impl EventReader {
             self.current_config.lock().await.name
         );
     }
-
     async fn convert_event(
         &self,
         default_event: InputEvent,
