@@ -1003,7 +1003,8 @@ impl EventReader {
             for key in released_keys {
                 if config.mapped_modifiers.all.contains(&Event::Key(key)) {
                     self.toggle_modifiers(Event::Key(key), 0, &config).await;
-                    let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), 0);
+                    let virtual_event: InputEvent =
+                        InputEvent::new_now(EventType::KEY, key.code(), 0);
                     virt_dev.keys.emit(&[virtual_event]).unwrap();
                 }
             }
