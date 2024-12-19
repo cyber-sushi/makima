@@ -41,4 +41,5 @@ LSTICK = "cursor" #cursor, scroll, bind or disabled
 RSTICK = "bind" #cursor, scroll, bind or disabled
 LSTICK_DEADZONE = "5" #integer between 0 and 128, bigger number is wider deadzone, default 5
 RSTICK_DEADZONE = "64" #integer between 0 and 128, bigger number is wider deadzone, default 5
+STADIA = "true"
 GRAB_DEVICE = "false" #gain exclusivity on the device
