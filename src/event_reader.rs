@@ -566,7 +566,7 @@ impl EventReader {
                 (
                     EventType::ABSOLUTE,
                     _,
-                    AbsoluteAxisType::ABS_RZ | AbsoluteAxisType::ABS_Z,
+                    AbsoluteAxisType::ABS_RX | AbsoluteAxisType::ABS_RY,
                     false,
                 ) => match self.settings.rstick.function.as_str() {
                     "cursor" | "scroll" => {
@@ -574,11 +574,7 @@ impl EventReader {
                             .get_axis_value(&event, &self.settings.rstick.deadzone)
                             .await;
                         let mut rstick_position = self.rstick_position.lock().await;
-                        if event.code() == 2 {
-                          rstick_position[event.code() as usize - 2] = axis_value;
-                        } else {
-                          rstick_position[event.code() as usize - 4] = axis_value;
-                        }
+                        rstick_position[event.code() as usize - 3] = axis_value;
                     }
                     "bind" => {
                         let axis_value = self
@@ -592,7 +588,7 @@ impl EventReader {
                             0
                         };
                         match AbsoluteAxisType(event.code()) {
-                            AbsoluteAxisType::ABS_RZ => match clamped_value {
+                            AbsoluteAxisType::ABS_RY => match clamped_value {
                                 -1 => {
                                     if rstick_values.1 != -1 {
                                         self.convert_event(
@@ -645,7 +641,7 @@ impl EventReader {
                                 }
                                 _ => {}
                             },
-                            AbsoluteAxisType::ABS_Z => match clamped_value {
+                            AbsoluteAxisType::ABS_RX => match clamped_value {
                                 -1 if rstick_values.0 != -1 => {
                                     self.convert_event(
                                         event,
