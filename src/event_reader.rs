@@ -998,12 +998,14 @@ impl EventReader {
     ) {
         let mut virt_dev = self.virt_dev.lock().await;
         let mut modifier_was_activated = self.modifier_was_activated.lock().await;
-        if release_keys {
+        if release_keys && value != 2 {
             let released_keys: Vec<Key> = self.released_keys(&modifiers, &config).await;
             for key in released_keys {
-                self.toggle_modifiers(Event::Key(key), 0, &config).await;
-                let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), 0);
-                virt_dev.keys.emit(&[virtual_event]).unwrap();
+                if config.mapped_modifiers.all.contains(&Event::Key(key)) {
+                    self.toggle_modifiers(Event::Key(key), 0, &config).await;
+                    let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), 0);
+                    virt_dev.keys.emit(&[virtual_event]).unwrap();
+                }
             }
         } else if ignore_modifiers {
             for key in modifiers.iter() {
@@ -1015,7 +1017,7 @@ impl EventReader {
             }
         }
         for key in event_list {
-            if release_keys {
+            if release_keys && value != 2 {
                 self.toggle_modifiers(Event::Key(*key), value, &config)
                     .await;
             }
@@ -1050,11 +1052,13 @@ impl EventReader {
     ) {
         let mut virt_dev = self.virt_dev.lock().await;
         let mut modifier_was_activated = self.modifier_was_activated.lock().await;
-        let released_keys: Vec<Key> = self.released_keys(&modifiers, &config).await;
-        for key in released_keys {
-            self.toggle_modifiers(Event::Key(key), 0, &config).await;
-            let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), 0);
-            virt_dev.keys.emit(&[virtual_event]).unwrap()
+        if config.mapped_modifiers.all.contains(&event) && value != 2 {
+            let released_keys: Vec<Key> = self.released_keys(&modifiers, &config).await;
+            for key in released_keys {
+                self.toggle_modifiers(Event::Key(key), 0, &config).await;
+                let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), 0);
+                virt_dev.keys.emit(&[virtual_event]).unwrap()
+            }
         }
         self.toggle_modifiers(event, value, &config).await;
         if config.mapped_modifiers.custom.contains(&event) {
