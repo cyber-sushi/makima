@@ -42,7 +42,8 @@ pub async fn get_active_window(environment: &Environment, config: &Vec<Config>) 
                     {
                         Some(window) => match window.app_id {
                             Some(id) => Client::Class(id),
-                            None => window.window_properties
+                            None => window
+                                .window_properties
                                 .and_then(|window_properties| window_properties.class)
                                 .map_or(Client::Default, Client::Class),
                         },
