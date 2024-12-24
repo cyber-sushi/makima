@@ -25,6 +25,7 @@ It works on both Wayland and X11 as it relies on the `evdev` kernel interface.
     - [Change bindings](https://github.com/cyber-sushi/makima/tree/main#bindings-and-settings)
         - [Remap](https://github.com/cyber-sushi/makima/tree/main#remap)
         - [Commands](https://github.com/cyber-sushi/makima/tree/main#commands)
+        - [Movements](https://github.com/cyber-sushi/makima/tree/main#movements)
         - [Settings](https://github.com/cyber-sushi/makima/tree/main#settings)
 - [Tested controllers](https://github.com/cyber-sushi/makima/tree/main#tested-controllers)
 - [Troubleshooting and FAQ](https://github.com/cyber-sushi/makima/tree/main#troubleshooting-and-faq)
@@ -176,8 +177,23 @@ BTN_SELECT-BTN_TL2 = ["KEY_LEFTALT"]
 If the key with the dash is pressed alone, its behavior will depend on the `CHAIN_ONLY` setting: if set to `"true"` (default) it will ignore the keypress and only fire if pressed together with a combination, if set to `"false"`, it will fire the designated event regardless.\
 You can declare both a `-BTN_TR2` and a `BTN_TR2` binding: in this case, the first will fire when chained and the second will fire when used alone (assuming `CHAIN_ONLY` is set to`"true"`).
 
+### **[movements]**
+# Move the cursor up
+```
+KEY_LEFTSHIFT-KEY_W = "CURSOR_UP"
+```
+# Scroll down
+BTN_DPAD_DOWN = "SCROLL_DOWN"
 
-### \[settings]
+#### Movement events
+There are 8 available movements available:\
+- `CURSOR_UP`, `CURSOR_DOWN`, `CURSOR_LEFT`, `CURSOR_RIGHT`
+- `SCROLL_UP`, `SCROLL_DOWN`, `SCROLL_LEFT`, `SCROLL_RIGHT`
+
+> [!NOTE]
+> To make movements work, you also have to set a speed value using `CURSOR_SPEED` or `SCROLL_SPEED` in the `[settings]` section.
+
+### **[settings]**
 #### `GRAB_DEVICE`
 Sets if Makima should have exclusivity over the device.\
 If `"true"`, no other program will read the original input of the device. If `"false"`, both the original input and the remapped input will be read by applications.
@@ -201,6 +217,14 @@ Example:
 LSTICK = "cursor"
 LSTICK_ACTIVATION_MODIFIERS = "BTN_SELECT-BTN_START"
 ```
+#### `CURSOR_SPEED` and `SCROLL_SPEED`
+When using keys/buttons to move your cursor or scroll through a page, you can use this parameter to change speed.\
+Speed is measured in pixels per 5 milliseconds.\
+Must be an integer value, can be negative (it will move in the opposite direction). Defaults to `0`.
+#### `CURSOR_ACCEL` and `SCROLL_ACCEL`
+When using keys/buttons to move your cursor or scroll through a page, you can use this parameter to determine how much it takes to reach the speed set in `CURSOR_SPEED` and `SCROLL_SPEED`.\
+For example, setting a value of `"0.2"` means that every 5 milliseconds, the speed will increase by 2% of the maximum speed.\
+Must be a float value between `"0.0"` and `"1.0"`. Defaults to `1.0`.
 #### `16_BIT_AXIS`
 This is needed if you're using Xbox controllers and Switch Joy-Cons to properly calibrate the analog stick's sensitivity.\
 Set to `"true"` if you're using those controllers.
@@ -210,6 +234,10 @@ While pressed, they will act as modifiers without emitting their respective `KEY
 This is useful if you want to have a key that behaves like a modifier but can still emit its own event if pressed alone.\
 You can list multiple keys to treat as modifiers with the following syntax:\
 `CUSTOM_MODIFIERS = "KEY_A-KEY_BACKSLASH-KEY_GRAVE"`
+
+#### `STADIA`
+If you're using a Stadia controller, set this to `"true"`, otherwise you won't be able to use your right analog stick.\
+Defaults to `"false"`.
 
 #### `CHAIN_ONLY`
 When using a [chained binding](https://github.com/cyber-sushi/makima/tree/main#chained-bindings), you can choose the behavior of the key when pressed alone.\
