@@ -60,6 +60,47 @@ impl FromStr for Axis {
     }
 }
 
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Clone, Copy)]
+pub enum Relative {
+    Cursor(Cursor),
+    Scroll(Scroll),
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Clone, Copy)]
+pub enum Cursor {
+    CURSOR_UP,
+    CURSOR_DOWN,
+    CURSOR_LEFT,
+    CURSOR_RIGHT,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Clone, Copy)]
+pub enum Scroll {
+    SCROLL_UP,
+    SCROLL_DOWN,
+    SCROLL_LEFT,
+    SCROLL_RIGHT,
+}
+
+impl FromStr for Relative {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Relative, Self::Err> {
+        match s {
+            "CURSOR_UP" => Ok(Relative::Cursor(Cursor::CURSOR_UP)),
+            "CURSOR_DOWN" => Ok(Relative::Cursor(Cursor::CURSOR_DOWN)),
+            "CURSOR_LEFT" => Ok(Relative::Cursor(Cursor::CURSOR_LEFT)),
+            "CURSOR_RIGHT" => Ok(Relative::Cursor(Cursor::CURSOR_RIGHT)),
+            "SCROLL_UP" => Ok(Relative::Scroll(Scroll::SCROLL_UP)),
+            "SCROLL_DOWN" => Ok(Relative::Scroll(Scroll::SCROLL_DOWN)),
+            "SCROLL_LEFT" => Ok(Relative::Scroll(Scroll::SCROLL_LEFT)),
+            "SCROLL_RIGHT" => Ok(Relative::Scroll(Scroll::SCROLL_RIGHT)),
+            _ => Err(s.to_string()),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Default, Clone)]
 pub struct Associations {
     pub client: Client,
@@ -70,6 +111,7 @@ pub struct Associations {
 pub struct Bindings {
     pub remap: HashMap<Event, HashMap<Vec<Event>, Vec<Key>>>,
     pub commands: HashMap<Event, HashMap<Vec<Event>, Vec<String>>>,
+    pub movements: HashMap<Event, HashMap<Vec<Event>, Relative>>,
 }
 
 #[derive(Default, Debug, Clone)]
@@ -86,6 +128,8 @@ pub struct RawConfig {
     #[serde(default)]
     pub commands: HashMap<String, Vec<String>>,
     #[serde(default)]
+    pub movements: HashMap<String, String>,
+    #[serde(default)]
     pub settings: HashMap<String, String>,
 }
 
@@ -100,10 +144,12 @@ impl RawConfig {
             toml::from_str(&file_content).expect("Couldn't parse config file.");
         let remap = raw_config.remap;
         let commands = raw_config.commands;
+        let movements = raw_config.movements;
         let settings = raw_config.settings;
         Self {
             remap,
             commands,
+            movements,
             settings,
         }
     }
@@ -147,6 +193,7 @@ impl Config {
 fn parse_raw_config(raw_config: RawConfig) -> (Bindings, HashMap<String, String>, MappedModifiers) {
     let remap: HashMap<String, Vec<Key>> = raw_config.remap;
     let commands: HashMap<String, Vec<String>> = raw_config.commands;
+    let movements: HashMap<String, String> = raw_config.movements;
     let settings: HashMap<String, String> = raw_config.settings;
     let mut bindings: Bindings = Default::default();
     let default_modifiers = vec![
@@ -317,6 +364,82 @@ fn parse_raw_config(raw_config: RawConfig) -> (Bindings, HashMap<String, String>
                         .get_mut(&Event::Key(event))
                         .unwrap()
                         .insert(modifiers, output);
+                }
+            }
+        }
+    }
+
+    for (input, output) in movements.clone() {
+        if let Some((mods, event)) = input.rsplit_once("-") {
+            let str_modifiers = mods.split("-").collect::<Vec<&str>>();
+            let mut modifiers: Vec<Event> = Vec::new();
+            for event in str_modifiers.clone() {
+                if let Ok(axis) = Axis::from_str(event) {
+                    modifiers.push(Event::Axis(axis));
+                } else if let Ok(key) = Key::from_str(event) {
+                    modifiers.push(Event::Key(key));
+                }
+            }
+            modifiers.sort();
+            modifiers.dedup();
+            for modifier in &modifiers {
+                if !mapped_modifiers.default.contains(&modifier) {
+                    mapped_modifiers.custom.push(modifier.clone());
+                }
+            }
+            if str_modifiers[0] == "" {
+                modifiers.push(Event::Hold);
+            }
+            if let Ok(event) = Axis::from_str(event) {
+                if !bindings.movements.contains_key(&Event::Axis(event)) {
+                    bindings
+                        .movements
+                        .insert(Event::Axis(event), HashMap::from([(modifiers, Relative::from_str(output.as_str()).expect("Invalid movement in [movements]."))]));
+                } else {
+                    bindings
+                        .movements
+                        .get_mut(&Event::Axis(event))
+                        .unwrap()
+                        .insert(modifiers, Relative::from_str(output.as_str()).expect("Invalid movement in [movements]."));
+                }
+            } else if let Ok(event) = Key::from_str(event) {
+                if !bindings.movements.contains_key(&Event::Key(event)) {
+                    bindings
+                        .movements
+                        .insert(Event::Key(event), HashMap::from([(modifiers, Relative::from_str(output.as_str()).expect("Invalid movement in [movements]."))]));
+                } else {
+                    bindings
+                        .movements
+                        .get_mut(&Event::Key(event))
+                        .unwrap()
+                        .insert(modifiers, Relative::from_str(output.as_str()).expect("Invalid movement in [movements]."));
+                }
+            }
+        } else {
+            let modifiers: Vec<Event> = Vec::new();
+            if let Ok(event) = Axis::from_str(input.as_str()) {
+                if !bindings.movements.contains_key(&Event::Axis(event)) {
+                    bindings
+                        .movements
+                        .insert(Event::Axis(event), HashMap::from([(modifiers, Relative::from_str(output.as_str()).expect("Invalid movement in [movements]."))]));
+                } else {
+                    bindings
+                        .movements
+                        .get_mut(&Event::Axis(event))
+                        .unwrap()
+                        .insert(modifiers, Relative::from_str(output.as_str()).expect("Invalid movement in [movements]."));
+                }
+            } else if let Ok(event) = Key::from_str(input.as_str()) {
+                if !bindings.movements.contains_key(&Event::Key(event)) {
+                    bindings
+                        .movements
+                        .insert(Event::Key(event), HashMap::from([(modifiers, Relative::from_str(output.as_str()).expect("Invalid movement in [movements]."))]));
+                } else {
+                    bindings
+                        .movements
+                        .get_mut(&Event::Key(event))
+                        .unwrap()
+                        .insert(modifiers, Relative::from_str(output.as_str()).expect("Invalid movement in [movements]."));
                 }
             }
         }

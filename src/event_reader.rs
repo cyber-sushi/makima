@@ -1,5 +1,5 @@
 use crate::active_client::*;
-use crate::config::{parse_modifiers, Associations, Axis, Event};
+use crate::config::{parse_modifiers, Associations, Axis, Event, Relative, Cursor, Scroll};
 use crate::udev_monitor::Environment;
 use crate::virtual_devices::VirtualDevices;
 use crate::Config;
@@ -23,6 +23,11 @@ struct Stick {
     activation_modifiers: Vec<Event>,
 }
 
+struct Movement {
+    speed: i32,
+    acceleration: f32,
+}
+
 struct Settings {
     lstick: Stick,
     rstick: Stick,
@@ -30,6 +35,8 @@ struct Settings {
     invert_scroll_axis: bool,
     axis_16_bit: bool,
     stadia: bool,
+    cursor: Movement,
+    scroll: Movement,
     chain_only: bool,
     layout_switcher: Key,
     notify_layout_switch: bool,
@@ -41,6 +48,8 @@ pub struct EventReader {
     virt_dev: Arc<Mutex<VirtualDevices>>,
     lstick_position: Arc<Mutex<Vec<i32>>>,
     rstick_position: Arc<Mutex<Vec<i32>>>,
+    cursor_movement: Arc<Mutex<(i32, i32)>>,
+    scroll_movement: Arc<Mutex<(i32, i32)>>,
     modifiers: Arc<Mutex<Vec<Event>>>,
     modifier_was_activated: Arc<Mutex<bool>>,
     device_is_connected: Arc<Mutex<bool>>,
@@ -65,6 +74,8 @@ impl EventReader {
         }
         let lstick_position = Arc::new(Mutex::new(position_vector.clone()));
         let rstick_position = Arc::new(Mutex::new(position_vector.clone()));
+        let cursor_movement = Arc::new(Mutex::new((0, 0)));
+        let scroll_movement = Arc::new(Mutex::new((0, 0)));
         let device_is_connected: Arc<Mutex<bool>> = Arc::new(Mutex::new(true));
         let active_layout: Arc<Mutex<u16>> = Arc::new(Mutex::new(0));
         let current_config: Arc<Mutex<Config>> = Arc::new(Mutex::new(
@@ -206,6 +217,56 @@ impl EventReader {
             .parse()
             .expect("INVERT_SCROLL_AXIS can only be true or false.");
 
+        let cursor_speed: i32 = config
+            .iter()
+            .find(|&x| x.associations == Associations::default())
+            .unwrap()
+            .settings
+            .get("CURSOR_SPEED")
+            .unwrap_or(&"0".to_string())
+            .parse()
+            .expect("Invalid value for CURSOR_SPEED, please use an integer value.");
+
+        let cursor_acceleration: f32 = config
+            .iter()
+            .find(|&x| x.associations == Associations::default())
+            .unwrap()
+            .settings
+            .get("CURSOR_ACCEL")
+            .unwrap_or(&"0".to_string())
+            .parse()
+            .expect("Invalid value for CURSOR_ACCEL, please use an float value between 0 and 1.");
+
+        let scroll_speed: i32 = config
+            .iter()
+            .find(|&x| x.associations == Associations::default())
+            .unwrap()
+            .settings
+            .get("SCROLL_SPEED")
+            .unwrap_or(&"0".to_string())
+            .parse()
+            .expect("Invalid value for SCROLL_SPEED, please use an integer value.");
+
+        let scroll_acceleration: f32 = config
+            .iter()
+            .find(|&x| x.associations == Associations::default())
+            .unwrap()
+            .settings
+            .get("SCROLL_ACCEL")
+            .unwrap_or(&"0".to_string())
+            .parse()
+            .expect("Invalid value for SCROLL_ACCEL, please use a float value between 0 and 1.");
+
+        let cursor = Movement {
+            speed: cursor_speed,
+            acceleration: cursor_acceleration,
+        };
+
+        let scroll = Movement {
+            speed: scroll_speed,
+            acceleration: scroll_acceleration,
+        };
+
         let layout_switcher: Key = Key::from_str(
             config
                 .iter()
@@ -234,6 +295,8 @@ impl EventReader {
             invert_scroll_axis,
             axis_16_bit,
             stadia,
+            cursor,
+            scroll,
             chain_only,
             layout_switcher,
             notify_layout_switch,
@@ -244,6 +307,8 @@ impl EventReader {
             virt_dev,
             lstick_position,
             rstick_position,
+            cursor_movement,
+            scroll_movement,
             modifiers,
             modifier_was_activated,
             device_is_connected,
@@ -263,7 +328,7 @@ impl EventReader {
                 .unwrap()
                 .name
         );
-        tokio::join!(self.event_loop(), self.cursor_loop(), self.scroll_loop(),);
+        tokio::join!(self.event_loop(), self.cursor_loop(), self.scroll_loop(), self.key_cursor_loop(), self.key_scroll_loop());
     }
 
     pub async fn event_loop(&self) {
@@ -964,6 +1029,14 @@ impl EventReader {
                     return;
                 }
             }
+            if let Some(map) = config.bindings.movements.get(&event) {
+                if let Some(movement) = map.get(&modifiers) {
+                    if value <= 1 {
+                        self.emit_movement(movement, value).await;
+                    }
+                };
+                return;
+            }
             if let Some(event_list) = map.get(&Vec::new()) {
                 self.emit_event(event_list, value, &modifiers, &config, true, false)
                     .await;
@@ -982,6 +1055,14 @@ impl EventReader {
                 };
                 return;
             }
+        }
+        if let Some(map) = config.bindings.movements.get(&event) {
+            if let Some(movement) = map.get(&modifiers) {
+                if value <= 1 {
+                    self.emit_movement(movement, value).await;
+                }
+            };
+            return;
         }
         self.emit_nonmapped_event(default_event, event, value, &modifiers, &config)
             .await;
@@ -1115,6 +1196,21 @@ impl EventReader {
             }
             _ => {}
         }
+    }
+
+    async fn emit_movement(&self, movement: &Relative, value: i32) {
+        let mut cursor_movement = self.cursor_movement.lock().await;
+        let mut scroll_movement = self.scroll_movement.lock().await;
+        match movement {
+            Relative::Cursor(Cursor::CURSOR_UP) => cursor_movement.1 = -value,
+            Relative::Cursor(Cursor::CURSOR_DOWN) => cursor_movement.1 = value,
+            Relative::Cursor(Cursor::CURSOR_LEFT) => cursor_movement.0 = -value,
+            Relative::Cursor(Cursor::CURSOR_RIGHT) => cursor_movement.0 = value,
+            Relative::Scroll(Scroll::SCROLL_UP) => scroll_movement.1 = -value,
+            Relative::Scroll(Scroll::SCROLL_DOWN) => scroll_movement.1 = value,
+            Relative::Scroll(Scroll::SCROLL_LEFT) => scroll_movement.0 = -value,
+            Relative::Scroll(Scroll::SCROLL_RIGHT) => scroll_movement.0 = value,
+        };
     }
 
     async fn spawn_subprocess(&self, command_list: &Vec<String>) {
@@ -1346,6 +1442,90 @@ impl EventReader {
             }
         } else {
             return;
+        }
+    }
+
+    pub async fn key_cursor_loop(&self) {
+        let (speed, acceleration, mut current_speed) = (
+            if self.settings.cursor.speed == 0 {
+                return
+            } else {
+                self.settings.cursor.speed
+            },
+            if self.settings.cursor.acceleration.abs() > 1.0 {
+                1.0
+            } else {
+                self.settings.cursor.acceleration.abs()
+            },
+            self.settings.cursor.speed as f32
+        );
+        while *self.device_is_connected.lock().await {
+            {
+                let cursor_movement = self.cursor_movement.lock().await;
+                if *cursor_movement == (0, 0) {
+                    current_speed = 0.0
+                } else {
+                    current_speed += speed as f32 * acceleration / 10.0;
+                    if current_speed > speed as f32 {
+                        current_speed = speed as f32
+                    }
+                    if cursor_movement.0 != 0 {
+                        let mut virt_dev = self.virt_dev.lock().await;
+                        let virtual_event_x: InputEvent =
+                            InputEvent::new_now(EventType::RELATIVE, 0, cursor_movement.0 * current_speed as i32);
+                        virt_dev.axis.emit(&[virtual_event_x]).unwrap();
+                    }
+                    if cursor_movement.1 != 0 {
+                        let mut virt_dev = self.virt_dev.lock().await;
+                        let virtual_event_y: InputEvent =
+                            InputEvent::new_now(EventType::RELATIVE, 1, cursor_movement.1 * current_speed as i32);
+                        virt_dev.axis.emit(&[virtual_event_y]).unwrap();
+                    }
+                }
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    }
+
+    pub async fn key_scroll_loop(&self) {
+        let (speed, acceleration, mut current_speed) = (
+            if self.settings.scroll.speed == 0 {
+                return
+            } else {
+                self.settings.scroll.speed
+            },
+            if self.settings.scroll.acceleration.abs() > 1.0 {
+                1.0
+            } else {
+                self.settings.scroll.acceleration.abs()
+            },
+            self.settings.scroll.speed as f32
+        );
+        while *self.device_is_connected.lock().await {
+            {
+                let scroll_movement = self.scroll_movement.lock().await;
+                if *scroll_movement == (0, 0) {
+                    current_speed = 0.0
+                } else {
+                    current_speed += speed as f32 * acceleration / 10.0;
+                    if current_speed > speed as f32 {
+                        current_speed = speed as f32
+                    }
+                    if scroll_movement.0 != 0 {
+                        let mut virt_dev = self.virt_dev.lock().await;
+                        let virtual_event_x: InputEvent =
+                            InputEvent::new_now(EventType::RELATIVE, 12, scroll_movement.0 * current_speed as i32);
+                        virt_dev.axis.emit(&[virtual_event_x]).unwrap();
+                    }
+                    if scroll_movement.1 != 0 {
+                        let mut virt_dev = self.virt_dev.lock().await;
+                        let virtual_event_y: InputEvent =
+                            InputEvent::new_now(EventType::RELATIVE, 11, scroll_movement.1 * current_speed as i32);
+                        virt_dev.axis.emit(&[virtual_event_y]).unwrap();
+                    }
+                }
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
         }
     }
 }
