@@ -233,7 +233,7 @@ impl EventReader {
             .unwrap()
             .settings
             .get("CURSOR_ACCEL")
-            .unwrap_or(&"0".to_string())
+            .unwrap_or(&"1".to_string())
             .parse()
             .expect("Invalid value for CURSOR_ACCEL, please use an float value between 0 and 1.");
 
@@ -253,7 +253,7 @@ impl EventReader {
             .unwrap()
             .settings
             .get("SCROLL_ACCEL")
-            .unwrap_or(&"0".to_string())
+            .unwrap_or(&"1".to_string())
             .parse()
             .expect("Invalid value for SCROLL_ACCEL, please use a float value between 0 and 1.");
 
