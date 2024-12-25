@@ -346,7 +346,7 @@ impl EventReader {
             .device()
             .supported_keys()
             .unwrap_or(&evdev::AttributeSet::new())
-            .contains(evdev::Key::BTN_TOOL_PEN);
+            .contains(Key::BTN_TOOL_PEN);
         let mut max_abs_wheel = 0;
         if let Ok(abs_state) = stream.device().get_abs_state() {
             for state in abs_state {
@@ -1511,14 +1511,13 @@ impl EventReader {
                     if current_speed > speed as f32 {
                         current_speed = speed as f32
                     }
+                    let mut virt_dev = self.virt_dev.lock().await;
                     if scroll_movement.0 != 0 {
-                        let mut virt_dev = self.virt_dev.lock().await;
                         let virtual_event_x: InputEvent =
                             InputEvent::new_now(EventType::RELATIVE, 12, scroll_movement.0 * current_speed as i32);
                         virt_dev.axis.emit(&[virtual_event_x]).unwrap();
                     }
                     if scroll_movement.1 != 0 {
-                        let mut virt_dev = self.virt_dev.lock().await;
                         let virtual_event_y: InputEvent =
                             InputEvent::new_now(EventType::RELATIVE, 11, scroll_movement.1 * current_speed as i32);
                         virt_dev.axis.emit(&[virtual_event_y]).unwrap();
