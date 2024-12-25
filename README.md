@@ -119,6 +119,7 @@ You can also combine layouts and per application bindings by simply putting them
 The config file is divided into multiple sections:
 - `[remap]`, where you can rebind keys, buttons, combinations and some axis events to other keys, buttons and combinations.
 - `[commands]`, where you can rebind keys, buttons, combinations and some axis events to shell commands.
+- `[movements]`, where you can rebind keys, buttons, combinations and some axis events to cursor movements and scrolling.
 - `[settings]`, where you can configure a few settings.
 
 ### **[remap]**
@@ -150,6 +151,33 @@ MODIFIER1-MODIFIER2-MODIFIER3-KEY1 = ["command1"]
 # Use a key sequence to invoke a list of shell commands
 MODIFIER1-MODIFIER2-MODIFIER3-KEY1 = ["command1", "command2", "command3"]
 ```
+
+### **[movements]**
+```
+# Use a key to move the cursor in a direction
+KEY1 = "CURSOR_UP/DOWN/LEFT/RIGHT"
+
+# Use a key sequence to move the cursor in a direction
+MODIFIER1-MODIFIER2-MODIFIER3-KEY1 = "CURSOR_UP/DOWN/LEFT/RIGHT"
+
+# Use a key to scroll in a direction
+KEY1 = "SCROLL_UP/DOWN/LEFT/RIGHT"
+
+# Use a key sequence to scroll in a direction
+MODIFIER1-MODIFIER2-MODIFIER3-KEY1 = "SCROLL_UP/DOWN/LEFT/RIGHT"
+```
+
+#### Movement events
+There are 8 available movements available:\
+- `CURSOR_UP`, `CURSOR_DOWN`, `CURSOR_LEFT`, `CURSOR_RIGHT`
+- `SCROLL_UP`, `SCROLL_DOWN`, `SCROLL_LEFT`, `SCROLL_RIGHT`
+
+> [!NOTE]
+> To make movements work, you also have to set a speed value using `CURSOR_SPEED` or `SCROLL_SPEED` in the `[settings]` section.
+
+> [!NOTE]
+> It's preferable not to use CTRL and ALT as modifiers for scrolling because they'll get interpreted by the application as zoom in/out and forward/back instead of an actual scroll movement.
+
 #### Key names:
 You can find the `KEY` names inside `/usr/include/linux/input-event-codes.h`, or launch `evtest` to see the events emitted by your devices.\
 Remember that keys like Ctrl and Alt have names like `KEY_LEFTCTRL`, `KEY_LEFTALT` etc. Just using `KEY_CTRL` and `KEY_ALT` will throw a parsing error because the key code does not exist.
@@ -185,22 +213,6 @@ BTN_SELECT-BTN_TL2 = ["KEY_LEFTALT"]
 
 If the key with the dash is pressed alone, its behavior will depend on the `CHAIN_ONLY` setting: if set to `"true"` (default) it will ignore the keypress and only fire if pressed together with a combination, if set to `"false"`, it will fire the designated event regardless.\
 You can declare both a `-BTN_TR2` and a `BTN_TR2` binding: in this case, the first will fire when chained and the second will fire when used alone (assuming `CHAIN_ONLY` is set to`"true"`).
-
-### **[movements]**
-# Move the cursor up
-```
-KEY_LEFTSHIFT-KEY_W = "CURSOR_UP"
-```
-# Scroll down
-BTN_DPAD_DOWN = "SCROLL_DOWN"
-
-#### Movement events
-There are 8 available movements available:\
-- `CURSOR_UP`, `CURSOR_DOWN`, `CURSOR_LEFT`, `CURSOR_RIGHT`
-- `SCROLL_UP`, `SCROLL_DOWN`, `SCROLL_LEFT`, `SCROLL_RIGHT`
-
-> [!NOTE]
-> To make movements work, you also have to set a speed value using `CURSOR_SPEED` or `SCROLL_SPEED` in the `[settings]` section.
 
 ### **[settings]**
 #### `GRAB_DEVICE`
