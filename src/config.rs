@@ -392,54 +392,90 @@ fn parse_raw_config(raw_config: RawConfig) -> (Bindings, HashMap<String, String>
             }
             if let Ok(event) = Axis::from_str(event) {
                 if !bindings.movements.contains_key(&Event::Axis(event)) {
-                    bindings
-                        .movements
-                        .insert(Event::Axis(event), HashMap::from([(modifiers, Relative::from_str(output.as_str()).expect("Invalid movement in [movements]."))]));
+                    bindings.movements.insert(
+                        Event::Axis(event),
+                        HashMap::from([(
+                            modifiers,
+                            Relative::from_str(output.as_str())
+                                .expect("Invalid movement in [movements]."),
+                        )]),
+                    );
                 } else {
                     bindings
                         .movements
                         .get_mut(&Event::Axis(event))
                         .unwrap()
-                        .insert(modifiers, Relative::from_str(output.as_str()).expect("Invalid movement in [movements]."));
+                        .insert(
+                            modifiers,
+                            Relative::from_str(output.as_str())
+                                .expect("Invalid movement in [movements]."),
+                        );
                 }
             } else if let Ok(event) = Key::from_str(event) {
                 if !bindings.movements.contains_key(&Event::Key(event)) {
-                    bindings
-                        .movements
-                        .insert(Event::Key(event), HashMap::from([(modifiers, Relative::from_str(output.as_str()).expect("Invalid movement in [movements]."))]));
+                    bindings.movements.insert(
+                        Event::Key(event),
+                        HashMap::from([(
+                            modifiers,
+                            Relative::from_str(output.as_str())
+                                .expect("Invalid movement in [movements]."),
+                        )]),
+                    );
                 } else {
                     bindings
                         .movements
                         .get_mut(&Event::Key(event))
                         .unwrap()
-                        .insert(modifiers, Relative::from_str(output.as_str()).expect("Invalid movement in [movements]."));
+                        .insert(
+                            modifiers,
+                            Relative::from_str(output.as_str())
+                                .expect("Invalid movement in [movements]."),
+                        );
                 }
             }
         } else {
             let modifiers: Vec<Event> = Vec::new();
             if let Ok(event) = Axis::from_str(input.as_str()) {
                 if !bindings.movements.contains_key(&Event::Axis(event)) {
-                    bindings
-                        .movements
-                        .insert(Event::Axis(event), HashMap::from([(modifiers, Relative::from_str(output.as_str()).expect("Invalid movement in [movements]."))]));
+                    bindings.movements.insert(
+                        Event::Axis(event),
+                        HashMap::from([(
+                            modifiers,
+                            Relative::from_str(output.as_str())
+                                .expect("Invalid movement in [movements]."),
+                        )]),
+                    );
                 } else {
                     bindings
                         .movements
                         .get_mut(&Event::Axis(event))
                         .unwrap()
-                        .insert(modifiers, Relative::from_str(output.as_str()).expect("Invalid movement in [movements]."));
+                        .insert(
+                            modifiers,
+                            Relative::from_str(output.as_str())
+                                .expect("Invalid movement in [movements]."),
+                        );
                 }
             } else if let Ok(event) = Key::from_str(input.as_str()) {
                 if !bindings.movements.contains_key(&Event::Key(event)) {
-                    bindings
-                        .movements
-                        .insert(Event::Key(event), HashMap::from([(modifiers, Relative::from_str(output.as_str()).expect("Invalid movement in [movements]."))]));
+                    bindings.movements.insert(
+                        Event::Key(event),
+                        HashMap::from([(
+                            modifiers,
+                            Relative::from_str(output.as_str())
+                                .expect("Invalid movement in [movements]."),
+                        )]),
+                    );
                 } else {
                     bindings
                         .movements
                         .get_mut(&Event::Key(event))
                         .unwrap()
-                        .insert(modifiers, Relative::from_str(output.as_str()).expect("Invalid movement in [movements]."));
+                        .insert(
+                            modifiers,
+                            Relative::from_str(output.as_str())
+                                .expect("Invalid movement in [movements]."),
+                        );
                 }
             }
         }
