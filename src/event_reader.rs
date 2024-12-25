@@ -1034,8 +1034,8 @@ impl EventReader {
                     if value <= 1 {
                         self.emit_movement(movement, value).await;
                     }
+                    return;
                 };
-                return;
             }
             if let Some(event_list) = map.get(&Vec::new()) {
                 self.emit_event(event_list, value, &modifiers, &config, true, false)
@@ -1061,8 +1061,8 @@ impl EventReader {
                 if value <= 1 {
                     self.emit_movement(movement, value).await;
                 }
+                return;
             };
-            return;
         }
         self.emit_nonmapped_event(default_event, event, value, &modifiers, &config)
             .await;
