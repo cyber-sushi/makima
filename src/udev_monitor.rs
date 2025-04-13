@@ -295,7 +295,7 @@ pub fn is_mapped(udev_device: &tokio_udev::Device, config_files: &Vec<Config>) -
                 for config in config_files {
                     if config
                         .name
-                        .contains(&evdev_device.1.name().unwrap().to_string())
+                        .contains(&evdev_device.1.name().unwrap().to_string().replace("/", ""))
                         && devnode.to_path_buf() == evdev_device.0
                     {
                         return true;
