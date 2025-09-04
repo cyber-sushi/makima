@@ -265,8 +265,7 @@ When using a [chained binding](https://github.com/cyber-sushi/makima/tree/main#c
 Set to `"true"` (default) to make it fire the event only if other modifiers are active. Set to `"false"` to make it fire its designated event regardless.
 
 #### `LAYOUT_SWITCHER`
-Set a key to cycle through the available remap layouts in the config files.\
-Defaults to `BTN_0`, which is the key at the center of a tablet's wheel. 
+Set a key or combination to cycle through the available remap layouts in the config files.
 
 #### `NOTIFY_LAYOUT_SWITCH`
 If set to `"true"`, send a notification for 0.5 seconds to notify that the layout has been changed, and what it has been changed to.\
