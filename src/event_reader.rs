@@ -266,23 +266,33 @@ impl EventReader {
             speed: scroll_speed,
             acceleration: scroll_acceleration,
         };
-        let layout_switcher = if let Some(combination) =
-            config
-                .iter()
-                .find(|&x| x.associations == Associations::default())
-                .unwrap()
-                .settings
-                .get("LAYOUT_SWITCHER") {
-                if let Some(sequence) = combination.rsplit_once("-") {
-                    let mut mods: Vec<Event> = sequence.0.split("-").map(|m| Event::Key(Key::from_str(m).expect("LAYOUT_SWITCHER is invalid."))).collect();
-                    mods.sort();
-                    mods.dedup();
-                    Some((Event::Key(Key::from_str(sequence.1).expect("LAYOUT_SWITCHER is invalid.")), mods))
-                } else {
-                    Some((Event::Key(Key::from_str(combination).expect("LAYOUT_SWITCHER is invalid.")), Vec::new()))
-                }
+        let layout_switcher = if let Some(combination) = config
+            .iter()
+            .find(|&x| x.associations == Associations::default())
+            .unwrap()
+            .settings
+            .get("LAYOUT_SWITCHER")
+        {
+            if let Some(sequence) = combination.rsplit_once("-") {
+                let mut mods: Vec<Event> = sequence
+                    .0
+                    .split("-")
+                    .map(|m| Event::Key(Key::from_str(m).expect("LAYOUT_SWITCHER is invalid.")))
+                    .collect();
+                mods.sort();
+                mods.dedup();
+                Some((
+                    Event::Key(Key::from_str(sequence.1).expect("LAYOUT_SWITCHER is invalid.")),
+                    mods,
+                ))
             } else {
-                None
+                Some((
+                    Event::Key(Key::from_str(combination).expect("LAYOUT_SWITCHER is invalid.")),
+                    Vec::new(),
+                ))
+            }
+        } else {
+            None
         };
         let notify_layout_switch: bool = config
             .iter()
@@ -1077,16 +1087,18 @@ impl EventReader {
                 for modifier in modifiers {
                     self.toggle_modifiers(modifier, 0, &config).await;
                     if let Event::Key(key) = modifier {
-                        let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), 0);
+                        let virtual_event: InputEvent =
+                            InputEvent::new_now(EventType::KEY, key.code(), 0);
                         virt_dev.keys.emit(&[virtual_event]).unwrap()
                     }
                 }
                 if let Event::Key(key) = event {
-                    let virtual_event: InputEvent = InputEvent::new_now(EventType::KEY, key.code(), 0);
+                    let virtual_event: InputEvent =
+                        InputEvent::new_now(EventType::KEY, key.code(), 0);
                     virt_dev.keys.emit(&[virtual_event]).unwrap()
                 }
                 self.change_active_layout().await;
-                return
+                return;
             }
         }
         self.emit_nonmapped_event(default_event, event, value, &modifiers, &config)
