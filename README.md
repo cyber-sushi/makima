@@ -186,7 +186,7 @@ Remember that keys like Ctrl and Alt have names like `KEY_LEFTCTRL`, `KEY_LEFTAL
 Axis events such as scroll wheels and analog stick movements are hardcoded, currently you can use the following:
 - `SCROLL_WHEEL_UP`, `SCROLL_WHEEL_DOWN` - for a mouse's scroll wheel
 - `BTN_DPAD_UP`, `BTN_DPAD_DOWN`, `BTN_DPAD_LEFT`, `BTN_DPAD_RIGHT` - for a game controller's D-Pad
-- `BTN_TL2`, `BTN_TR2` - for a game controller's triggers, respectively left and right
+- `ABS_Z`, `ABS_RZ` - for a game controller's triggers, respectively left and right
 - `LSTICK_UP`, `LSTICK_DOWN`, `LSTICK_LEFT`, `LSTICK_RIGHT`, `RSTICK_UP`, `RSTICK_DOWN`, `RSTICK_LEFT`, `RSTICK_RIGHT` - for a game controller's analog sticks
 - `ABS_WHEEL_CW`, `ABS_WHEEL_CCW` - for a tablet's wheel, respectively clockwise and counterclockwise
 

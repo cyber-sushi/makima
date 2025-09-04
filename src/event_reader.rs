@@ -374,7 +374,6 @@ impl EventReader {
                 is_tablet,
             ) {
                 (EventType::KEY, _, _, _) => match Key(event.code()) {
-                    Key::BTN_TL2 | Key::BTN_TR2 => {}
                     Key::BTN_TOOL_PEN
                     | Key::BTN_TOOL_RUBBER
                     | Key::BTN_TOOL_BRUSH
@@ -386,9 +385,6 @@ impl EventReader {
                     {
                         pen_events.push(event)
                     }
-                    //key if key == switcher && event.value() == 1 => {
-                    //    self.change_active_layout().await
-                    //} SPOSTO QUESTO NELLA SEZIONE CONVERT EVENT, ALLA FINE
                     _ => {
                         self.convert_event(
                             event,
@@ -789,12 +785,12 @@ impl EventReader {
                     if !self.settings.stadia {
                         match (event.value(), triggers_values.0) {
                             (0, 1) => {
-                                self.convert_event(event, Event::Axis(Axis::BTN_TL2), 0, false)
+                                self.convert_event(event, Event::Axis(Axis::ABS_Z), 0, false)
                                     .await;
                                 triggers_values.0 = 0;
                             }
                             (_, 0) => {
-                                self.convert_event(event, Event::Axis(Axis::BTN_TL2), 1, false)
+                                self.convert_event(event, Event::Axis(Axis::ABS_Z), 1, false)
                                     .await;
                                 triggers_values.0 = 1;
                             }
@@ -880,12 +876,12 @@ impl EventReader {
                     if !self.settings.stadia {
                         match (event.value(), triggers_values.1) {
                             (0, 1) => {
-                                self.convert_event(event, Event::Axis(Axis::BTN_TR2), 0, false)
+                                self.convert_event(event, Event::Axis(Axis::ABS_RZ), 0, false)
                                     .await;
                                 triggers_values.1 = 0;
                             }
                             (_, 0) => {
-                                self.convert_event(event, Event::Axis(Axis::BTN_TR2), 1, false)
+                                self.convert_event(event, Event::Axis(Axis::ABS_RZ), 1, false)
                                     .await;
                                 triggers_values.1 = 1;
                             }
