@@ -303,3 +303,6 @@ To add other controllers, please open an issue.
 - `sudo restorecon -v /usr/lib/systemd/system/makima.service`
 - `sudo semanage fcontext -a -t bin_t "/usr/bin/makima"`
 - `sudo restorecon -v /usr/bin/makima`
+
+**Q**: I have ACL set up and Makima is unable to read input events, what do I do?\
+**A**: Create a new ACL rule at `/etc/udev/rules.d/70-makima-acl.rules` with the the following content: `SUBSYSTEM=="input", KERNEL=="event*", TAG+="uaccess", TAG+="seat"`
