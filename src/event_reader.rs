@@ -1286,7 +1286,7 @@ impl EventReader {
                     Command::new("sh")
                         .arg("-c")
                         .arg(format!(
-                            "systemd-run --user --scope -M {}@ {}",
+                            "systemd-run --wait --pipe --user --machine {}@ -- systemd-run --user --scope {}",
                             user, command
                         ))
                         .stdin(Stdio::null())
