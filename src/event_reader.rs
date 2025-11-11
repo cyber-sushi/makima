@@ -1273,7 +1273,7 @@ impl EventReader {
                 } else {
                     Command::new("sh")
                         .arg("-c")
-                        .arg(format!("systemd-run --user -M {}@ {}", user, command))
+                        .arg(format!("systemd-run --user --scope -M {}@ {}", user, command))
                         .stdin(Stdio::null())
                         .stdout(Stdio::null())
                         .stderr(Stdio::null())
