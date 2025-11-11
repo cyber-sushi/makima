@@ -31,7 +31,8 @@ It works on both Wayland and X11 as it relies on the `evdev` kernel interface.
 - [Troubleshooting and FAQ](https://github.com/cyber-sushi/makima/tree/main#troubleshooting-and-faq)
 
 ## Installation
-Makima can be installed automatically or manually.\
+Makima can be installed automatically or manually. It can also be installed from the AUR.
+
 **To install and run Makima automatically as a systemd service:**
 - Download the executable from the [Releases page](https://github.com/cyber-sushi/makima/releases).
 - Retrieve `install.sh`, `makima.service` and _optionally_ `50-makima.rules` from this repo and put them in the same folder as the executable.
@@ -39,9 +40,11 @@ Makima can be installed automatically or manually.\
 - Run `sudo ./install.sh username` where `username` is the name of the user you're installing it for.
 - Skip the rest of the "Installation" and "Running Makima" paragraphs and go directly to "Configuration".
 
-**To install and run Makima manually, refer to the following paragraphs.**
+Arch users can instead install [makima-bin](https://aur.archlinux.org/packages/makima-bin) from the AUR, then enable `makima.service`.
 
-#### Building from source
+**To install and run Makima manually, refer to the following sections.**
+
+### Building from source
 1. Install `rustup` using your distro's package manager or refer to the [official docs](https://www.rust-lang.org/tools/install) if your distro doesn't ship `rustup`.
 2. Run `rustup default stable` which will automatically install Cargo (Rust's package manager) and the Rust toolchain.
 3. Git clone and build with:
