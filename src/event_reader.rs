@@ -317,22 +317,36 @@ impl EventReader {
             layout_switcher,
             notify_layout_switch,
         };
-        Self {
-            config,
-            stream,
-            virt_dev,
-            lstick_position,
-            rstick_position,
-            cursor_movement,
-            scroll_movement,
-            modifiers,
-            modifier_was_activated,
-            device_is_connected,
-            active_layout,
-            current_config,
-            environment,
-            settings,
-        }
+        
+let config_dir = std::env::var("MAKIMA_CONFIG")
+    .unwrap_or_else(|_| {
+        let home = std::env::var("HOME").expect("HOME environment variable not set");
+        format!("{}/.config/makima", home)
+    });
+let file_path = std::path::PathBuf::from(&config_dir).join("current_layout");
+
+if let Some(parent) = file_path.parent() {
+    let _ = std::fs::create_dir_all(parent);
+}
+
+let _ = std::fs::write(&file_path, "0\n");
+
+Self {
+    config,
+    stream,
+    virt_dev,
+    lstick_position,
+    rstick_position,
+    cursor_movement,
+    scroll_movement,
+    modifiers,
+    modifier_was_activated,
+    device_is_connected,
+    active_layout,
+    current_config,
+    environment,
+    settings,
+}
     }
 
     pub async fn start(&self) {
@@ -1336,29 +1350,38 @@ impl EventReader {
         released_keys
     }
 
-    async fn change_active_layout(&self) {
-        let mut active_layout = self.active_layout.lock().await;
-        let active_window = get_active_window(&self.environment, &self.config).await;
-        loop {
-            if *active_layout == 3 {
-                *active_layout = 0
-            } else {
-                *active_layout += 1
-            };
-            if let Some(_) = self.config.iter().find(|&x| {
-                x.associations.layout == *active_layout && x.associations.client == active_window
-            }) {
-                break;
-            };
-        }
-        if self.settings.notify_layout_switch {
-            let notify = vec![String::from(format!(
-                "notify-send -t 500 'Makima' 'Switching to layout {}'",
-                *active_layout
-            ))];
-            self.spawn_subprocess(&notify).await;
-        }
+   async fn change_active_layout(&self) {
+    let mut active_layout = self.active_layout.lock().await;
+    let active_window = get_active_window(&self.environment, &self.config).await;
+    loop {
+        if *active_layout == 3 {
+            *active_layout = 0
+        } else {
+            *active_layout += 1
+        };
+        if let Some(_) = self.config.iter().find(|&x| {
+            x.associations.layout == *active_layout && x.associations.client == active_window
+        }) {
+            break;
+        };
     }
+    
+    let config_dir = std::env::var("MAKIMA_CONFIG")
+        .unwrap_or_else(|_| {
+            let home = std::env::var("HOME").expect("HOME environment variable not set");
+            format!("{}/.config/makima", home)
+        });
+    let file_path = std::path::PathBuf::from(&config_dir).join("current_layout");
+    let _ = std::fs::write(&file_path, format!("{}\n", *active_layout));
+    
+    if self.settings.notify_layout_switch {
+        let notify = vec![String::from(format!(
+            "notify-send -t 500 'Makima' 'Switching to layout {}'",
+            *active_layout
+        ))];
+        self.spawn_subprocess(&notify).await;
+    }
+}
 
     fn update_config(&self) -> Pin<Box<dyn Future<Output = ()> + Send + '_>> {
         Box::pin(async move {
