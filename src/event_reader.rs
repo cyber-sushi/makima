@@ -407,20 +407,36 @@ impl EventReader {
                 },
                 (
                     EventType::RELATIVE,
-                    RelativeAxisType::REL_WHEEL | RelativeAxisType::REL_WHEEL_HI_RES,
+                    RelativeAxisType::REL_WHEEL
+                    | RelativeAxisType::REL_WHEEL_HI_RES
+                    | RelativeAxisType::REL_HWHEEL
+                    | RelativeAxisType::REL_HWHEEL_HI_RES,
                     _,
                     _,
-                ) => match event.value() {
-                    -120 => {
-                        self.convert_event(event, Event::Axis(Axis::SCROLL_WHEEL_DOWN), 1, true)
+                ) => {
+                    let val = event.value();
+                    let scroll_event = match RelativeAxisType(event.code()) {
+                        RelativeAxisType::REL_WHEEL if val < 0 => {
+                            Some((Event::Axis(Axis::SCROLL_WHEEL_DOWN), 1))
+                        }
+                        RelativeAxisType::REL_WHEEL if val > 0 => {
+                            Some((Event::Axis(Axis::SCROLL_WHEEL_UP), 1))
+                        }
+                        RelativeAxisType::REL_WHEEL_HI_RES if val <= -120 => {
+                            Some((Event::Axis(Axis::SCROLL_WHEEL_DOWN), 1))
+                        }
+                        RelativeAxisType::REL_WHEEL_HI_RES if val >= 120 => {
+                            Some((Event::Axis(Axis::SCROLL_WHEEL_UP), 1))
+                        }
+                        _ => None,
+                    };
+                    if let Some((mapped_event, mapped_val)) = scroll_event {
+                        self.convert_event(event, mapped_event, mapped_val, true)
                             .await;
                     }
-                    120 => {
-                        self.convert_event(event, Event::Axis(Axis::SCROLL_WHEEL_UP), 1, true)
-                            .await;
-                    }
-                    _ => {}
-                },
+                    // Always forward the raw scroll event for smooth scrolling
+                    self.emit_default_event(event).await;
+                }
                 (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_WHEEL, _) => {
                     let value = event.value();
                     if value != 0 && abs_wheel_position != 0 {
