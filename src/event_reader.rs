@@ -421,6 +421,22 @@ impl EventReader {
                     }
                     _ => {}
                 },
+                (
+                    EventType::RELATIVE,
+                    RelativeAxisType::REL_HWHEEL | RelativeAxisType::REL_HWHEEL_HI_RES,
+                    _,
+                    _,
+                ) => match event.value() {
+                    -120 => {
+                        self.convert_event(event, Event::Axis(Axis::SCROLL_HWHEEL_LEFT), 1, true)
+                            .await;
+                    }
+                    120 => {
+                        self.convert_event(event, Event::Axis(Axis::SCROLL_HWHEEL_RIGHT), 1, true)
+                            .await;
+                    }
+                    _ => {}
+                },
                 (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_WHEEL, _) => {
                     let value = event.value();
                     if value != 0 && abs_wheel_position != 0 {
