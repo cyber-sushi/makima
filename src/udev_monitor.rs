@@ -93,10 +93,11 @@ pub fn launch_tasks(
     let mut devices_found = 0;
     for device in devices {
         let mut config_list: Vec<Config> = Vec::new();
+        let device_name = device.1.name().unwrap().trim().replace("/", "");
         for mut config in config_files.clone() {
             let split_config_name = config.name.split("::").collect::<Vec<&str>>();
             let associated_device_name = split_config_name[0];
-            if associated_device_name == device.1.name().unwrap().replace("/", "") {
+            if associated_device_name == device_name {
                 let (window_class, layout) = match split_config_name.len() {
                     1 => (Client::Default, 0),
                     2 => {
@@ -131,7 +132,7 @@ pub fn launch_tasks(
                 .iter()
                 .any(|x| x.associations == Associations::default())
         {
-            config_list.push(Config::new_empty(device.1.name().unwrap().replace("/", "")));
+            config_list.push(Config::new_empty(device_name));
         }
         let event_device = device.0.as_path().to_str().unwrap().to_string();
         if config_list.len() != 0 {
@@ -295,7 +296,7 @@ pub fn is_mapped(udev_device: &tokio_udev::Device, config_files: &Vec<Config>) -
                 for config in config_files {
                     if config
                         .name
-                        .contains(&evdev_device.1.name().unwrap().to_string().replace("/", ""))
+                        .contains(&evdev_device.1.name().unwrap().to_string().trim().replace("/", ""))
                         && devnode.to_path_buf() == evdev_device.0
                     {
                         return true;
