@@ -407,35 +407,36 @@ impl EventReader {
                 },
                 (
                     EventType::RELATIVE,
-                    RelativeAxisType::REL_WHEEL | RelativeAxisType::REL_WHEEL_HI_RES,
+                    RelativeAxisType::REL_WHEEL_HI_RES,
                     _,
                     _,
-                ) => match event.value() {
-                    -120 => {
-                        self.convert_event(event, Event::Axis(Axis::SCROLL_WHEEL_DOWN), 1, true)
-                            .await;
-                    }
-                    120 => {
+                ) => {
+                    if event.value() > 0 {
                         self.convert_event(event, Event::Axis(Axis::SCROLL_WHEEL_UP), 1, true)
                             .await;
+                    } else if event.value() < 0 {
+                        self.convert_event(event, Event::Axis(Axis::SCROLL_WHEEL_DOWN), 1, true)
+                            .await;
+                    } else {
+                        self.emit_default_event(event).await;
                     }
-                    _ => {}
+
                 },
                 (
                     EventType::RELATIVE,
-                    RelativeAxisType::REL_HWHEEL | RelativeAxisType::REL_HWHEEL_HI_RES,
+                    RelativeAxisType::REL_HWHEEL_HI_RES,
                     _,
                     _,
-                ) => match event.value() {
-                    -120 => {
-                        self.convert_event(event, Event::Axis(Axis::SCROLL_HWHEEL_LEFT), 1, true)
-                            .await;
-                    }
-                    120 => {
+                ) => {
+                    if event.value() > 0 {
                         self.convert_event(event, Event::Axis(Axis::SCROLL_HWHEEL_RIGHT), 1, true)
                             .await;
+                    } else if event.value() < 0 {
+                        self.convert_event(event, Event::Axis(Axis::SCROLL_HWHEEL_LEFT), 1, true)
+                            .await;
+                    } else {
+                        self.emit_default_event(event).await;
                     }
-                    _ => {}
                 },
                 (EventType::ABSOLUTE, _, AbsoluteAxisType::ABS_WHEEL, _) => {
                     let value = event.value();
