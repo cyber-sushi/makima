@@ -132,12 +132,19 @@ pub async fn get_active_window(environment: &Environment, config: &Vec<Config>) 
                     }
                 }
                 "x11" => {
-                    let connection = x11rb::connect(None).unwrap().0;
-                    let focused_window =
-                        get_input_focus(&connection).unwrap().reply().unwrap().focus;
+                    let Ok((connection, _)) = x11rb::connect(None) else {
+                        return Client::Default;
+                    };
+                    let focused_window = match get_input_focus(&connection) {
+                        Ok(cookie) => match cookie.reply() {
+                            Ok(reply) => reply.focus,
+                            Err(_) => return Client::Default,
+                        },
+                        Err(_) => return Client::Default,
+                    };
                     let (wm_class, string): (Atom, Atom) =
                         (AtomEnum::WM_CLASS.into(), AtomEnum::STRING.into());
-                    let class = get_property(
+                    let class_reply = match get_property(
                         &connection,
                         false,
                         focused_window,
@@ -145,19 +152,25 @@ pub async fn get_active_window(environment: &Environment, config: &Vec<Config>) 
                         string,
                         0,
                         u32::MAX,
-                    )
-                    .unwrap()
-                    .reply()
-                    .unwrap()
-                    .value;
+                    ) {
+                        Ok(cookie) => match cookie.reply() {
+                            Ok(reply) => reply,
+                            Err(_) => return Client::Default,
+                        },
+                        Err(_) => return Client::Default,
+                    };
+                    let class = class_reply.value;
+
                     if let Some(middle) = class.iter().position(|&byte| byte == 0) {
                         let class = class.split_at(middle).1;
                         let mut class = &class[1..];
                         if class.last() == Some(&0) {
                             class = &class[..class.len() - 1];
                         }
-                        let active_window =
-                            Client::Class(std::str::from_utf8(class).unwrap().to_string());
+                        let Ok(class_str) = std::str::from_utf8(class) else {
+                            return Client::Default;
+                        };
+                        let active_window = Client::Class(class_str.to_string());
                         if let Some(_) = config
                             .iter()
                             .find(|&x| x.associations.client == active_window)
