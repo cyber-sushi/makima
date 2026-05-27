@@ -37,10 +37,6 @@ impl FromStr for Axis {
     type Err = String;
     fn from_str(s: &str) -> Result<Axis, Self::Err> {
         match s {
-            "BTN_DPAD_UP" => Ok(Axis::BTN_DPAD_UP),
-            "BTN_DPAD_DOWN" => Ok(Axis::BTN_DPAD_DOWN),
-            "BTN_DPAD_LEFT" => Ok(Axis::BTN_DPAD_LEFT),
-            "BTN_DPAD_RIGHT" => Ok(Axis::BTN_DPAD_RIGHT),
             "LSTICK_UP" => Ok(Axis::LSTICK_UP),
             "LSTICK_DOWN" => Ok(Axis::LSTICK_DOWN),
             "LSTICK_LEFT" => Ok(Axis::LSTICK_LEFT),
