@@ -2,8 +2,8 @@ use crate::config::{Associations, Event};
 use crate::event_reader::EventReader;
 use crate::virtual_devices::VirtualDevices;
 use crate::Config;
-use evdev::{Device, EventStream};
-use std::{env, path::Path, process::Command, sync::Arc};
+use evdev::{Device, EventStream, Key};
+use std::{env, fs, path::Path, process::Command, sync::Arc};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tokio_stream::StreamExt;
@@ -21,6 +21,10 @@ pub enum Server {
     Unsupported,
     Failed,
 }
+
+/// Device name, in a config file name, that matches every physical keyboard without a config
+/// file of its own, as in `*.toml` or `*::firefox.toml`.
+const KEYBOARD_WILDCARD: &str = "*";
 
 #[derive(Clone)]
 pub struct Environment {
@@ -92,11 +96,22 @@ pub fn launch_tasks(
     let devices: evdev::EnumerateDevices = evdev::enumerate();
     let mut devices_found = 0;
     for device in devices {
+        let device_name = device.1.name().unwrap().replace("/", "");
+        // Keyboards without a config file of their own use the wildcard config files
+        let lookup_name = if is_physical_keyboard(&device.0, &device.1)
+            && !config_files
+                .iter()
+                .any(|config| config.name.split("::").next() == Some(device_name.as_str()))
+        {
+            KEYBOARD_WILDCARD
+        } else {
+            device_name.as_str()
+        };
         let mut config_list: Vec<Config> = Vec::new();
         for mut config in config_files.clone() {
             let split_config_name = config.name.split("::").collect::<Vec<&str>>();
             let associated_device_name = split_config_name[0];
-            if associated_device_name == device.1.name().unwrap().replace("/", "") {
+            if associated_device_name == lookup_name {
                 let (window_class, layout) = match split_config_name.len() {
                     1 => (Client::Default, 0),
                     2 => {
@@ -123,6 +138,10 @@ pub fn launch_tasks(
                 };
                 config.associations.client = window_class;
                 config.associations.layout = layout;
+                // Name wildcard configs after the device so logs show which keyboard matched
+                if lookup_name == KEYBOARD_WILDCARD {
+                    config.name = config.name.replacen(KEYBOARD_WILDCARD, &device_name, 1);
+                }
                 config_list.push(config.clone());
             };
         }
@@ -131,7 +150,7 @@ pub fn launch_tasks(
                 .iter()
                 .any(|x| x.associations == Associations::default())
         {
-            config_list.push(Config::new_empty(device.1.name().unwrap().replace("/", "")));
+            config_list.push(Config::new_empty(device_name.clone()));
         }
         let event_device = device.0.as_path().to_str().unwrap().to_string();
         if config_list.len() != 0 {
@@ -293,10 +312,13 @@ pub fn is_mapped(udev_device: &tokio_udev::Device, config_files: &Vec<Config>) -
             let evdev_devices: evdev::EnumerateDevices = evdev::enumerate();
             for evdev_device in evdev_devices {
                 for config in config_files {
-                    if config
-                        .name
-                        .contains(&evdev_device.1.name().unwrap().to_string().replace("/", ""))
-                        && devnode.to_path_buf() == evdev_device.0
+                    let is_wildcard = config.name.split("::").next() == Some(KEYBOARD_WILDCARD);
+                    if devnode.to_path_buf() == evdev_device.0
+                        && (config
+                            .name
+                            .contains(&evdev_device.1.name().unwrap().to_string().replace("/", ""))
+                            || (is_wildcard
+                                && is_physical_keyboard(&evdev_device.0, &evdev_device.1)))
                     {
                         return true;
                     }
@@ -306,4 +328,20 @@ pub fn is_mapped(udev_device: &tokio_udev::Device, config_files: &Vec<Config>) -
         _ => return false,
     }
     return false;
+}
+
+/// Returns whether the keyboard wildcard applies to an event device.  The device must pass the
+/// same test as udev's `ID_INPUT_KEYBOARD`, which requires every key from `KEY_ESC` through
+/// `KEY_S`, so mice that report a few keys are left alone.  Devices created through uinput are
+/// skipped, so the wildcard never grabs Makima's own output or that of another remapper.
+fn is_physical_keyboard(path: &Path, device: &Device) -> bool {
+    // Devices whose sysfs node cannot be resolved are treated as virtual
+    let is_uinput = path
+        .file_name()
+        .and_then(|name| fs::canonicalize(Path::new("/sys/class/input").join(name)).ok())
+        .is_none_or(|sysfs| sysfs.starts_with("/sys/devices/virtual/input"));
+    !is_uinput
+        && device.supported_keys().is_some_and(|keys| {
+            (Key::KEY_ESC.code()..=Key::KEY_S.code()).all(|code| keys.contains(Key::new(code)))
+        })
 }

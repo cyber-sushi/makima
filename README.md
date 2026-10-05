@@ -20,6 +20,7 @@ It works on both Wayland and X11 as it relies on the `evdev` kernel interface.
 - [Configuration](https://github.com/cyber-sushi/makima/tree/main#configuration)
     - [Example config files](https://github.com/cyber-sushi/makima/tree/main/examples)
     - [Config file naming](https://github.com/cyber-sushi/makima/tree/main#config-file-naming)
+    - [Matching every keyboard](https://github.com/cyber-sushi/makima/tree/main#matching-every-keyboard)
     - [Application-specific bindings](https://github.com/cyber-sushi/makima/tree/main#application-specific-bindings)
     - [Layout hotswapping](https://github.com/cyber-sushi/makima/tree/main#layout-hotswapping)
     - [Change bindings](https://github.com/cyber-sushi/makima/tree/main#bindings-and-settings)
@@ -88,6 +89,13 @@ Files that don't end with `.toml` and files that start with `.` (dotfiles) won't
 
 > [!TIP]
 > Example: you run `evtest` and see that your Dualshock 4 controller is named `Sony Interactive Entertainment Wireless Controller`. All you have to do is rename your config file to `Sony Interactive Entertainment Wireless Controller.toml`.
+
+### Matching every keyboard
+To use the same config file for all of your keyboards, name it `*.toml`. It applies to every physical keyboard that doesn't have a config file of its own, and it can be combined with application-specific bindings and layouts like any other config file, e.g. `*::firefox.toml`.
+
+> [!NOTE]
+> A device counts as a keyboard if it has every key from Esc to S, the same test udev uses, so mice with a few extra keys are left alone.\
+> Virtual devices, like the ones created by Makima or by other remappers, are never matched by `*`. If you want to remap one of them, give it a config file with its exact name.
 
 ### Application-specific bindings
 To apply a config file only to a specific application, just put `::<window_class>` at the end of their filename, before `.toml`.
